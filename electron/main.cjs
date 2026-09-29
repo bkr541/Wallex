@@ -1,7 +1,7 @@
 const { app, BrowserWindow, dialog, ipcMain, shell } = require('electron');
 const fs = require('fs');
 const path = require('path');
-const { scanVstFolder } = require('./vstScanner.cjs');
+const { scanVstFolders } = require('./vstScanner.cjs');
 
 const RENDERER_URL = process.env.ELECTRON_RENDERER_URL;
 
@@ -52,15 +52,17 @@ ipcMain.handle('dialog:selectDirectory', async (event, defaultPath) => {
 const vstCachePath = () => path.join(app.getPath('userData'), 'vst-library.json');
 const vstScansInFlight = new Map();
 
-ipcMain.handle('vst:scan', (_event, folder) => {
-  if (typeof folder !== 'string' || !folder.trim()) {
-    return { folder: '', scannedAt: new Date().toISOString(), plugins: [], warnings: [], error: 'No VST directory set' };
+ipcMain.handle('vst:scan', (_event, folders) => {
+  const list = Array.isArray(folders) ? [...new Set(folders.filter((f) => typeof f === 'string' && f.trim()))] : [];
+  if (list.length === 0) {
+    return { folders: [], scannedAt: new Date().toISOString(), plugins: [], warnings: [], error: 'No VST directory set' };
   }
-  // Setup's Rescan button and the VST page can fire together; share one scan per folder.
-  if (vstScansInFlight.has(folder)) return vstScansInFlight.get(folder);
+  // Setup's Rescan button and the VST page can fire together; share one scan per folder set.
+  const key = JSON.stringify(list);
+  if (vstScansInFlight.has(key)) return vstScansInFlight.get(key);
 
   const scan = (async () => {
-    const result = await scanVstFolder(folder);
+    const result = await scanVstFolders(list);
     if (!result.error) {
       try {
         const tmp = `${vstCachePath()}.tmp`;
@@ -71,9 +73,9 @@ ipcMain.handle('vst:scan', (_event, folder) => {
       }
     }
     return result;
-  })().finally(() => vstScansInFlight.delete(folder));
+  })().finally(() => vstScansInFlight.delete(key));
 
-  vstScansInFlight.set(folder, scan);
+  vstScansInFlight.set(key, scan);
   return scan;
 });
 

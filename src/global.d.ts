@@ -8,7 +8,7 @@ declare global {
     downbeat?: {
       platform: string;
       selectDirectory: (defaultPath?: string) => Promise<string | null>;
-      scanVstFolder: (folder: string) => Promise<VstScanResult>;
+      scanVstFolder: (folders: string[]) => Promise<VstScanResult>;
       getVstCache: () => Promise<VstScanResult | null>;
     };
     // File System Access API (Chromium); only used as a browser fallback.

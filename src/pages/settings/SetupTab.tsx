@@ -1,9 +1,9 @@
 import { AudioWaveform, FolderTree, Loader2 } from 'lucide-react';
-import DirectoryField from '../../components/DirectoryField';
+import DirectoryList from '../../components/DirectoryList';
 import SelectField from '../../components/SelectField';
 import { usePersistentState } from '../../lib/usePersistentState';
 import SettingsGroup from './SettingsGroup';
-import { useDirectories, useVstLibrary, type VstScanResult } from '../../lib/vst';
+import { MULTIPLE_DIRECTORIES, useDirectories, useVstLibrary, type VstScanResult } from '../../lib/vst';
 
 const DAWS = [
   'Ableton Live',
@@ -24,9 +24,9 @@ const SUBGROUPS = [
   { id: 'samples', label: 'Samples' },
 ] as const;
 
-function vstScanStatus(available: boolean, folder: string, result: VstScanResult | null) {
+function vstScanStatus(available: boolean, hasFolders: boolean, result: VstScanResult | null) {
   if (!available) return 'Scanning needs the Downbeat desktop app.';
-  if (!folder) return 'Choose a VST directory to scan.';
+  if (!hasFolders) return 'Add a VST directory to scan.';
   if (!result) return 'Not scanned yet.';
   if (result.error) return result.error;
   const n = result.plugins.length;
@@ -36,8 +36,8 @@ function vstScanStatus(available: boolean, folder: string, result: VstScanResult
 
 export default function SetupTab() {
   const [dirs, setDirs] = useDirectories();
-  const vst = useVstLibrary(dirs.vst ?? '', { autoScan: false });
-  const vstFolder = (dirs.vst ?? '').trim();
+  const vstFolders = dirs.vst ?? [];
+  const vst = useVstLibrary(vstFolders, { autoScan: false });
   const [daw, setDaw] = usePersistentState<string>('downbeat.daw', '');
 
   return (
@@ -54,24 +54,25 @@ export default function SetupTab() {
               {g.label}
             </div>
             <div className="border-l border-white/[0.06] pl-4">
-              <DirectoryField
+              <DirectoryList
                 label={g.label}
-                value={dirs[g.id] ?? ''}
-                onChange={(path) => setDirs((d) => ({ ...d, [g.id]: path }))}
+                folders={dirs[g.id] ?? []}
+                multiple={MULTIPLE_DIRECTORIES}
+                onChange={(folders) => setDirs((d) => ({ ...d, [g.id]: folders }))}
               />
               {g.id === 'vst' && (
                 <div className="mt-2.5 flex items-center gap-3">
                   <button
                     type="button"
                     onClick={vst.rescan}
-                    disabled={!vst.available || !vstFolder || vst.scanning}
+                    disabled={!vst.available || vstFolders.length === 0 || vst.scanning}
                     className="flex h-9 shrink-0 cursor-pointer items-center gap-2 rounded-[11px] border border-white/[0.06] bg-[#2c2e31] px-4 text-[13px] font-[560] text-[#e9e9e8] transition hover:bg-[#34363a] disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     {vst.scanning && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
                     {vst.scanning ? 'Scanning…' : 'Rescan'}
                   </button>
                   <span className={`text-[12px] ${vst.result?.error ? 'text-danger' : 'text-ink-3'}`} role="status">
-                    {vstScanStatus(vst.available, vstFolder, vst.result)}
+                    {vstScanStatus(vst.available, vstFolders.length > 0, vst.result)}
                   </span>
                 </div>
               )}

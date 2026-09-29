@@ -118,20 +118,36 @@ async function mapLimit(items, limit, fn) {
 
 const normalize = (name) => name.toLowerCase().replace(/[^a-z0-9]+/g, '');
 
-async function scanVstFolder(folder) {
+// Scans every folder in `folders` and merges the results into one plugin list.
+async function scanVstFolders(folders) {
   const started = Date.now();
   const warnings = [];
-  const base = { folder, scannedAt: new Date().toISOString(), plugins: [], warnings };
+  const base = { folders, scannedAt: new Date().toISOString(), plugins: [], warnings };
 
-  let stat;
-  try {
-    stat = await fs.promises.stat(folder);
-  } catch {
-    return { ...base, error: `Directory not found: ${folder}` };
+  const found = [];
+  const seenPaths = new Set();
+  let scannable = 0;
+  for (const folder of folders) {
+    let stat;
+    try {
+      stat = await fs.promises.stat(folder);
+    } catch {
+      warnings.push(`Directory not found: ${folder}`);
+      continue;
+    }
+    if (!stat.isDirectory()) {
+      warnings.push(`Not a directory: ${folder}`);
+      continue;
+    }
+    scannable++;
+    for (const item of await findPlugins(folder, warnings)) {
+      if (seenPaths.has(item.full)) continue; // overlapping folders
+      seenPaths.add(item.full);
+      found.push(item);
+    }
   }
-  if (!stat.isDirectory()) return { ...base, error: `Not a directory: ${folder}` };
+  if (scannable === 0) return { ...base, error: warnings[0] || 'No VST directories set' };
 
-  const found = await findPlugins(folder, warnings);
   const entries = await mapLimit(found, CONCURRENCY, async ({ full, format }) => {
     const ext = path.extname(full);
     const info = await readBundleInfo(full);
@@ -168,4 +184,4 @@ async function scanVstFolder(folder) {
   return { ...base, plugins, durationMs: Date.now() - started };
 }
 
-module.exports = { scanVstFolder };
+module.exports = { scanVstFolders };
