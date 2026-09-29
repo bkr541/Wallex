@@ -73,16 +73,16 @@ export default function App() {
 
       {/* Electron Desktop Window Header Bar */}
       <header
-        className="relative z-30 h-10 w-full shrink-0"
+        className="absolute top-0 inset-x-0 z-30 h-10"
         style={{ WebkitAppRegion: 'drag' } as React.CSSProperties}
       />
 
       {/* Main Workspace Frame */}
-      <div className="relative z-10 flex-1 w-full h-[calc(100vh-40px)] flex">
+      <div className="relative z-10 flex-1 w-full min-h-0 flex">
         {/* Floating Left Vertical Navigation Bar */}
         <nav
           aria-label="Sidebar navigation"
-          className="fixed left-6 top-16 z-40 w-[64px] bg-white/95 backdrop-blur-md rounded-[32px] p-2 shadow-[0_16px_40px_rgba(16,160,140,0.08),0_2px_12px_rgba(0,0,0,0.04)] border border-white/80 flex flex-col items-center gap-3.5"
+          className="fixed left-6 top-1/2 -translate-y-1/2 z-40 w-[64px] bg-white/95 backdrop-blur-md rounded-[32px] p-2 shadow-[0_16px_40px_rgba(16,160,140,0.08),0_2px_12px_rgba(0,0,0,0.04)] border border-white/80 flex flex-col items-center gap-3.5"
         >
           {PAGES.map((page) => {
             const isActive = activePageId === page.id;
@@ -160,7 +160,7 @@ export default function App() {
         </nav>
 
         {/* Page Content Viewport */}
-        <main className="flex-1 h-full overflow-y-auto pl-32 pr-12 pt-16">
+        <main className="flex-1 h-full overflow-y-auto pl-32 pr-12 pt-[26px]">
           <ActiveComponent />
         </main>
       </div>
