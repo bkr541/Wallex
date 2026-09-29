@@ -1,6 +1,22 @@
-import { FolderTree, Loader2 } from 'lucide-react';
+import { AudioWaveform, FolderTree, Loader2 } from 'lucide-react';
 import DirectoryField from '../../components/DirectoryField';
+import SelectField from '../../components/SelectField';
+import { usePersistentState } from '../../lib/usePersistentState';
+import SettingsGroup from './SettingsGroup';
 import { useDirectories, useVstLibrary, type VstScanResult } from '../../lib/vst';
+
+const DAWS = [
+  'Ableton Live',
+  'FL Studio',
+  'Logic Pro',
+  'Pro Tools',
+  'Cubase',
+  'Studio One',
+  'Reason',
+  'Bitwig Studio',
+  'Reaper',
+  'GarageBand',
+] as const;
 
 const SUBGROUPS = [
   { id: 'projects', label: 'Projects' },
@@ -22,23 +38,15 @@ export default function SetupTab() {
   const [dirs, setDirs] = useDirectories();
   const vst = useVstLibrary(dirs.vst ?? '', { autoScan: false });
   const vstFolder = (dirs.vst ?? '').trim();
+  const [daw, setDaw] = usePersistentState<string>('downbeat.daw', '');
 
   return (
-    <section
-      aria-labelledby="directories-heading"
-      className="mt-6 w-full overflow-hidden rounded-[15px] border border-line"
-    >
-      <h2
-        id="directories-heading"
-        className="flex h-14 items-center gap-3 border-b border-line px-4 text-[16px] font-[650] tracking-tight text-ink"
-      >
-        <span className="grid h-8 w-8 place-items-center rounded-[10px] bg-accent-soft text-accent">
-          <FolderTree className="h-[18px] w-[18px]" strokeWidth={1.8} />
-        </span>
-        Directories
-      </h2>
+    <div className="mt-6 grid gap-6">
+      <SettingsGroup id="daw-heading" title="DAW" icon={AudioWaveform}>
+        <SelectField label="DAW" value={daw} options={DAWS} placeholder="Select your DAW" onChange={setDaw} />
+      </SettingsGroup>
 
-      <div className="grid gap-5 py-4 pr-4 pl-[60px]">
+      <SettingsGroup id="directories-heading" title="Directories" icon={FolderTree}>
         {SUBGROUPS.map((g) => (
           <div key={g.id}>
             <div className="mb-2.5 flex items-center gap-2.5 text-[13px] font-[540] text-ink">
@@ -70,7 +78,7 @@ export default function SetupTab() {
             </div>
           </div>
         ))}
-      </div>
-    </section>
+      </SettingsGroup>
+    </div>
   );
 }
