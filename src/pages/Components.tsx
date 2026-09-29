@@ -1,5 +1,7 @@
 import { memo, useEffect, useRef, useState } from 'react';
 import PageHeader from '../components/PageHeader';
+import UnderlineTabs from '../components/UnderlineTabs';
+import './components-guide/base.css';
 import './components-guide/library.css';
 import { wireLibrary } from './components-guide/wireLibrary';
 import Foundations from './components-guide/sections/Foundations';
@@ -76,28 +78,13 @@ export default function Components() {
     <div ref={rootRef} className="lib w-full select-text pb-6" data-active={active}>
       <PageHeader>Components</PageHeader>
 
-      <div
-        role="tablist"
-        aria-label="Component categories"
-        className="mb-7 mt-6 flex w-full flex-wrap justify-start gap-0.5 rounded-xl border border-line bg-[#222326] p-1"
-      >
-        {CATEGORIES.map((c) => (
-          <button
-            key={c.id}
-            role="tab"
-            type="button"
-            aria-selected={active === c.id}
-            onClick={() => setActive(c.id)}
-            className={`h-8 cursor-pointer rounded-lg px-2.5 text-[11px] font-medium transition ${
-              active === c.id
-                ? 'bg-[#323438] text-ink shadow-[0_3px_7px_rgba(0,0,0,0.17)]'
-                : 'text-[#85878b] hover:text-ink'
-            }`}
-          >
-            {c.label}
-          </button>
-        ))}
-      </div>
+      <UnderlineTabs
+        className="mt-6 mb-7"
+        label="Component categories"
+        tabs={CATEGORIES}
+        active={active}
+        onChange={setActive}
+      />
 
       <Panels />
     </div>

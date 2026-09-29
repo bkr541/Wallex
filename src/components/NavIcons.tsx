@@ -190,3 +190,20 @@ export function ComponentsIcon({ className = "w-5 h-5", strokeWidth = 2 }: { cla
     </svg>
   );
 }
+
+// 9. Samples Icon (Audio waveform)
+export function SamplesIcon({ className = "w-5 h-5", strokeWidth = 2 }: { className?: string; strokeWidth?: number }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={strokeWidth}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+    >
+      <path d="M4 10v4M8 6v12M12 3v18M16 7v10M20 10v4" />
+    </svg>
+  );
+}

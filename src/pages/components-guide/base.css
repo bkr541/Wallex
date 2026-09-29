@@ -1,0 +1,41 @@
+/* The reference HTML has no CSS reset, so its components were designed against browser defaults.
+   Tailwind's preflight changes several of those (line-height, button/input padding, heading and
+   paragraph margins, svg alignment, placeholder colour). These :where() rules (zero specificity,
+   so any library rule still wins) hand the library back the defaults it was built on. */
+:where(.lib .view-panel),
+:where(.lib .view-panel) *,
+:where(.lib .view-panel) ::before,
+:where(.lib .view-panel) ::after {
+  line-height: normal;
+  border-style: revert;
+  border-width: revert;
+}
+:where(.lib .view-panel) :is(button, input, select, textarea, option) {
+  margin: revert;
+  padding: revert;
+}
+:where(.lib .view-panel) :is(input, textarea, select) {
+  color: revert;
+  background-color: revert;
+}
+:where(.lib .view-panel) :is(select, option, kbd, code, samp, pre) {
+  font-family: revert;
+}
+:where(.lib .view-panel) :is(h1, h2, h3, h4, h5, h6, p, figure, dl, dd, blockquote, hr, fieldset, legend, ul, ol, pre) {
+  margin: revert;
+  padding: revert;
+  font-size: revert;
+  font-weight: revert;
+}
+:where(.lib .view-panel) a {
+  color: revert;
+  text-decoration: revert;
+}
+:where(.lib .view-panel) :is(img, svg) {
+  display: revert;
+  vertical-align: revert;
+}
+:where(.lib .view-panel) ::placeholder {
+  color: revert;
+  opacity: revert;
+}

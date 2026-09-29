@@ -12,6 +12,3 @@
 .fnd-type>div{display:flex;align-items:baseline;justify-content:space-between;gap:12px;color:var(--text)}
 .fnd-type small{font-size:7.5px;color:var(--text-3);white-space:nowrap}
 
-/* The UI Card demos were laid out for ~360px-wide cards (aspect-ratio 1.72). With the app's sidebar the cards are
-   narrower, which shortens them and clips their content, so give them a fixed minimum height instead. */
-.lib .ui-card{aspect-ratio:auto;min-height:212px}

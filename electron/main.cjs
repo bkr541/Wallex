@@ -1,5 +1,7 @@
-const { app, BrowserWindow, shell } = require('electron');
+const { app, BrowserWindow, dialog, ipcMain, shell } = require('electron');
+const fs = require('fs');
 const path = require('path');
+const { scanVstFolder } = require('./vstScanner.cjs');
 
 const RENDERER_URL = process.env.ELECTRON_RENDERER_URL;
 
@@ -10,7 +12,7 @@ function createWindow() {
     minWidth: 900,
     minHeight: 600,
     title: 'Downbeat',
-    backgroundColor: '#eaf7f4',
+    backgroundColor: '#121315',
     show: false,
     webPreferences: {
       preload: path.join(__dirname, 'preload.cjs'),
@@ -34,6 +36,54 @@ function createWindow() {
     win.loadFile(path.join(__dirname, '..', 'dist', 'index.html'));
   }
 }
+
+// Native folder picker for the renderer. Resolves to the chosen path, or null if cancelled.
+ipcMain.handle('dialog:selectDirectory', async (event, defaultPath) => {
+  const win = BrowserWindow.fromWebContents(event.sender);
+  const result = await dialog.showOpenDialog(win, {
+    properties: ['openDirectory', 'createDirectory'],
+    defaultPath: typeof defaultPath === 'string' && defaultPath ? defaultPath : undefined,
+  });
+  return result.canceled ? null : result.filePaths[0];
+});
+
+// ── VST library (local only) ─────────────────────────────────────────────────
+// The last scan is cached as JSON in the app's user-data folder so the VST page can show it instantly.
+const vstCachePath = () => path.join(app.getPath('userData'), 'vst-library.json');
+const vstScansInFlight = new Map();
+
+ipcMain.handle('vst:scan', (_event, folder) => {
+  if (typeof folder !== 'string' || !folder.trim()) {
+    return { folder: '', scannedAt: new Date().toISOString(), plugins: [], warnings: [], error: 'No VST directory set' };
+  }
+  // Setup's Rescan button and the VST page can fire together; share one scan per folder.
+  if (vstScansInFlight.has(folder)) return vstScansInFlight.get(folder);
+
+  const scan = (async () => {
+    const result = await scanVstFolder(folder);
+    if (!result.error) {
+      try {
+        const tmp = `${vstCachePath()}.tmp`;
+        await fs.promises.writeFile(tmp, JSON.stringify(result));
+        await fs.promises.rename(tmp, vstCachePath());
+      } catch (err) {
+        console.error('Could not write VST cache:', err);
+      }
+    }
+    return result;
+  })().finally(() => vstScansInFlight.delete(folder));
+
+  vstScansInFlight.set(folder, scan);
+  return scan;
+});
+
+ipcMain.handle('vst:get-cache', async () => {
+  try {
+    return JSON.parse(await fs.promises.readFile(vstCachePath(), 'utf8'));
+  } catch {
+    return null;
+  }
+});
 
 app.whenReady().then(() => {
   createWindow();
