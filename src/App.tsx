@@ -64,27 +64,9 @@ export default function App() {
 
       {/* Electron Desktop Window Header Bar */}
       <header
-        className="relative z-30 h-10 w-full flex items-center justify-between px-4 shrink-0"
+        className="relative z-30 h-10 w-full shrink-0"
         style={{ WebkitAppRegion: 'drag' } as React.CSSProperties}
-      >
-        {/* Traffic Light Window Controls (Electron macOS / desktop style) */}
-        <div
-          className="flex items-center gap-2"
-          style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}
-        >
-          <div className="w-3 h-3 rounded-full bg-[#ff5f57] border border-[#e0443e]/60 transition-opacity hover:opacity-80 cursor-pointer" />
-          <div className="w-3 h-3 rounded-full bg-[#febc2e] border border-[#d89e24]/60 transition-opacity hover:opacity-80 cursor-pointer" />
-          <div className="w-3 h-3 rounded-full bg-[#28c840] border border-[#1aab29]/60 transition-opacity hover:opacity-80 cursor-pointer" />
-        </div>
-
-        {/* App Title in Electron Window Bar */}
-        <div className="text-xs font-semibold tracking-wider text-slate-400/90 uppercase select-none">
-          Downbeat
-        </div>
-
-        {/* Spacer for symmetry */}
-        <div className="w-14" />
-      </header>
+      />
 
       {/* Main Workspace Frame */}
       <div className="relative z-10 flex-1 w-full h-[calc(100vh-40px)] flex">
