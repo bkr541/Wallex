@@ -1,7 +1,9 @@
+import PageHeader from '../components/PageHeader';
+
 export default function Midi() {
   return (
     <div className="w-full">
-      <h1 className="text-3xl font-semibold text-slate-800 tracking-tight">MIDI</h1>
+      <PageHeader>MIDI</PageHeader>
     </div>
   );
 }

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import PageHeader from '../components/PageHeader';
 
 const TABS = ['Profile', 'Appearance', 'Setup'] as const;
 type Tab = (typeof TABS)[number];
@@ -8,12 +9,12 @@ export default function Settings() {
 
   return (
     <div className="w-full">
-      <h1 className="text-3xl font-semibold text-slate-800 tracking-tight">Settings</h1>
+      <PageHeader>Settings</PageHeader>
 
       <div
         role="tablist"
         aria-label="Settings sections"
-        className="mt-6 flex w-full justify-start p-1 rounded-full bg-white/95 border border-white/80 shadow-[0_2px_12px_rgba(0,0,0,0.04)]"
+        className="mt-6 flex w-full justify-start gap-1 rounded-xl border border-line bg-[#222326] p-1"
       >
         {TABS.map((t) => (
           <button
@@ -22,8 +23,10 @@ export default function Settings() {
             type="button"
             aria-selected={tab === t}
             onClick={() => setTab(t)}
-            className={`h-9 px-5 rounded-full text-sm font-semibold transition cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-[#00c9a7]/50 ${
-              tab === t ? 'bg-[#dcf6f0] text-[#00bda0]' : 'text-slate-600 hover:text-slate-900'
+            className={`h-9 cursor-pointer rounded-lg px-4 text-xs font-medium transition ${
+              tab === t
+                ? 'bg-[#323438] text-ink shadow-[0_3px_7px_rgba(0,0,0,0.17)]'
+                : 'text-[#85878b] hover:text-ink'
             }`}
           >
             {t}
