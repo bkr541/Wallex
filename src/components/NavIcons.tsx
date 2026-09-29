@@ -133,3 +133,60 @@ export function SettingsIcon({ className = "w-5 h-5", strokeWidth = 2 }: { class
     </svg>
   );
 }
+
+// 6. VST Plugin Icon (Rack module with knobs)
+export function VstIcon({ className = "w-5 h-5", strokeWidth = 2 }: { className?: string; strokeWidth?: number }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={strokeWidth}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+    >
+      <rect x="3" y="4" width="18" height="16" rx="2" />
+      <circle cx="8.5" cy="10" r="2" />
+      <circle cx="15.5" cy="10" r="2" />
+      <line x1="7" y1="16" x2="17" y2="16" />
+    </svg>
+  );
+}
+
+// 7. Projects Folder Icon
+export function ProjectsIcon({ className = "w-5 h-5", strokeWidth = 2 }: { className?: string; strokeWidth?: number }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={strokeWidth}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+    >
+      <path d="M3 7a2 2 0 0 1 2-2h4l2 2.5h8a2 2 0 0 1 2 2V18a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7z" />
+    </svg>
+  );
+}
+
+// 8. Components Icon (Layered UI blocks)
+export function ComponentsIcon({ className = "w-5 h-5", strokeWidth = 2 }: { className?: string; strokeWidth?: number }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={strokeWidth}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+    >
+      <rect x="3" y="3" width="7.5" height="7.5" rx="1.5" />
+      <rect x="13.5" y="3" width="7.5" height="7.5" rx="1.5" />
+      <rect x="3" y="13.5" width="7.5" height="7.5" rx="1.5" />
+      <circle cx="17.25" cy="17.25" r="3.75" />
+    </svg>
+  );
+}

@@ -6,12 +6,18 @@ import {
   CamelotWheelIcon,
   MidiIcon,
   SettingsIcon,
+  VstIcon,
+  ProjectsIcon,
+  ComponentsIcon,
 } from './components/NavIcons';
 import Overview from './pages/Overview';
+import Projects from './pages/Projects';
+import Vst from './pages/Vst';
 import Chords from './pages/Chords';
 import CamelotWheel from './pages/CamelotWheel';
 import Midi from './pages/Midi';
 import Settings from './pages/Settings';
+import Components from './pages/Components';
 
 interface PageItem {
   id: string;
@@ -22,10 +28,13 @@ interface PageItem {
 
 const PAGES: PageItem[] = [
   { id: 'overview', name: 'Overview', icon: OverviewIcon, component: Overview },
+  { id: 'projects', name: 'Projects', icon: ProjectsIcon, component: Projects },
+  { id: 'vst', name: 'VST', icon: VstIcon, component: Vst },
   { id: 'chords', name: 'Chords', icon: ChordsIcon, component: Chords },
   { id: 'camelot', name: 'Camelot Wheel', icon: CamelotWheelIcon, component: CamelotWheel },
   { id: 'midi', name: 'MIDI', icon: MidiIcon, component: Midi },
   { id: 'settings', name: 'Settings', icon: SettingsIcon, component: Settings },
+  { id: 'components', name: 'Components', icon: ComponentsIcon, component: Components },
 ];
 
 export default function App() {
