@@ -1,0 +1,6 @@
+{
+  "name": "Downbeat",
+  "description": "Minimalist music production and harmonic mixing desktop companion skeleton with floating navigation.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
