@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
+import SetupTab from './pages/SetupTab';
 import { ArrowLeftRight, LayoutDashboard, Repeat, Settings } from 'lucide-react';
 
 interface NavItem {
@@ -117,12 +118,16 @@ export default function App() {
           })}
         </div>
 
-        <div role="tabpanel" className="mt-6 min-h-0 flex-1">
-          <div className="p-6">
-            <p className="font-support text-sm text-muted">
-              {activePage.name} · {activeTab}
-            </p>
-          </div>
+        <div role="tabpanel" className="mt-6 min-h-0 flex-1 overflow-y-auto">
+          {activeId === 'settings' && activeTab === 'Setup' ? (
+            <SetupTab />
+          ) : (
+            <div className="p-6">
+              <p className="font-support text-sm text-muted">
+                {activePage.name} · {activeTab}
+              </p>
+            </div>
+          )}
         </div>
       </main>
     </div>
