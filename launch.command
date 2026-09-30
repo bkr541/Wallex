@@ -2,7 +2,7 @@
 set -euo pipefail
 
 # =========================================================
-# Downbeat Local Launcher
+# SpendTrail Local Launcher
 # Starts the Vite dev server (port 3000), then opens the
 # app inside an Electron window pointed at it.
 # =========================================================
@@ -34,7 +34,7 @@ ELECTRON_PID=""
 cleanup() {
   trap - EXIT INT TERM
   echo ""
-  echo "Shutting down Downbeat..."
+  echo "Shutting down SpendTrail..."
   [[ -n "${ELECTRON_PID:-}" ]] && kill "$ELECTRON_PID" 2>/dev/null || true
   if [[ -n "${FRONTEND_PID:-}" ]]; then
     # npm spawns vite as a child; kill the whole tree.
@@ -62,7 +62,7 @@ mkdir -p "$LOG_DIR"
 # ── Preflight checks ─────────────────────────────────────────────
 
 if [[ ! -f "$DIR/package.json" ]]; then
-  echo "ERROR: package.json not found. Run this from the Downbeat repo root."
+  echo "ERROR: package.json not found. Run this from the SpendTrail repo root."
   exit 1
 fi
 
@@ -93,7 +93,7 @@ fi
 
 if [[ ! -x "$ELECTRON_BIN" ]] || ! "$ELECTRON_BIN" --version >/dev/null 2>&1; then
   echo "ERROR: Electron could not be installed or started from $ELECTRON_BIN."
-  echo "Try the following from the Downbeat repo root:"
+  echo "Try the following from the SpendTrail repo root:"
   echo "  rm -rf node_modules/electron node_modules/.bin/electron"
   echo "  npm install --include=dev"
   echo ""
@@ -144,13 +144,13 @@ if ! kill -0 "$ELECTRON_PID" 2>/dev/null; then
 fi
 
 echo ""
-echo "Downbeat desktop is running:"
+echo "SpendTrail desktop is running:"
 echo "   Renderer  $APP_URL"
 echo ""
 echo "   Frontend log: $FRONTEND_LOG"
 echo "   Electron log: $ELECTRON_LOG"
 echo ""
-echo "Running. Close the Downbeat window or press Ctrl+C to stop."
+echo "Running. Close the SpendTrail window or press Ctrl+C to stop."
 
 # Exit (and clean up the dev server) when the Electron window is closed.
 wait "$ELECTRON_PID" 2>/dev/null || true
