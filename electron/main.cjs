@@ -9,8 +9,8 @@ function createWindow() {
     height: 820,
     minWidth: 900,
     minHeight: 600,
-    title: 'SpendTrail',
-    backgroundColor: '#eefaf6',
+    title: 'Wallex',
+    backgroundColor: '#0a0a0a',
     show: false,
     webPreferences: {
       preload: path.join(__dirname, 'preload.cjs'),

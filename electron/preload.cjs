@@ -1,5 +1,5 @@
 const { contextBridge } = require('electron');
 
-contextBridge.exposeInMainWorld('spendtrail', {
+contextBridge.exposeInMainWorld('wallex', {
   platform: process.platform,
 });
