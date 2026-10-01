@@ -32,7 +32,8 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import ChaseLogo from '../components/ChaseLogo';
-import { useMobile } from '../lib/viewMode';
+import { createPortal } from 'react-dom';
+import { useMobile, usePhoneFrame } from '../lib/viewMode';
 import MerchantLogo from '../components/MerchantLogo';
 import TransactionTable from '../components/TransactionTable';
 import { withBalances } from '../lib/balances';
@@ -91,7 +92,7 @@ const ICONS: Record<string, LucideIcon | 'chase'> = {
 // Desktop is a wide diagram; the phone view is a tall one with fewer, slightly larger circles.
 const LAYOUTS = {
   desktop: { aspect: 1.5, dMin: 19, dMax: 40, centerD: 54, maxCircles: 14 },
-  mobile: { aspect: 0.72, dMin: 21, dMax: 30, centerD: 36, maxCircles: 10 },
+  mobile: { aspect: 0.72, dMin: 18, dMax: 30, centerD: 34, maxCircles: 12 },
 };
 type LayoutConfig = (typeof LAYOUTS)['desktop'];
 
@@ -285,14 +286,16 @@ function Segmented<T extends string | number>({
   onChange,
   options,
   disabled,
+  fill,
 }: {
   value: T;
   onChange: (v: T) => void;
   options: { value: T; label: string; disabled?: boolean; hint?: string }[];
   disabled?: boolean;
+  fill?: boolean; // stretch the options across the full width
 }) {
   return (
-    <div className="flex flex-wrap gap-1.5">
+    <div className={`flex gap-1.5 ${fill ? '' : 'flex-wrap'}`}>
       {options.map((o) => (
         <button
           key={String(o.value)}
@@ -301,7 +304,7 @@ function Segmented<T extends string | number>({
           title={o.hint}
           aria-pressed={value === o.value}
           onClick={() => onChange(o.value)}
-          className={`cursor-pointer rounded-lg px-3 py-1.5 text-sm transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${
+          className={`cursor-pointer rounded-lg px-3 py-1.5 text-sm transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${fill ? 'min-w-0 flex-1 px-1 py-2.5' : ''} ${
             value === o.value ? 'bg-accent text-canvas' : 'bg-surface text-muted hover:text-ink'
           }`}
         >
@@ -321,6 +324,7 @@ export default function PatternsTab({ load }: { load: Load }) {
   const [filters, setFilters] = useState<PatternFilters>(DEFAULT_FILTERS);
   const [filterOpen, setFilterOpen] = useState(false);
   const filterRef = useRef<HTMLDivElement>(null);
+  const phoneFrame = usePhoneFrame();
   const [selected, setSelected] = useState<Bubble | null>(null);
 
   // Close the popover on an outside click or Escape.
@@ -330,13 +334,14 @@ export default function PatternsTab({ load }: { load: Load }) {
       if (filterRef.current && !filterRef.current.contains(e.target as Node)) setFilterOpen(false);
     };
     const onKey = (e: KeyboardEvent) => e.key === 'Escape' && setFilterOpen(false);
-    document.addEventListener('pointerdown', onDown);
+    // On a phone the sheet has its own backdrop to tap, so only the desktop popover needs this.
+    if (!mobile) document.addEventListener('pointerdown', onDown);
     document.addEventListener('keydown', onKey);
     return () => {
       document.removeEventListener('pointerdown', onDown);
       document.removeEventListener('keydown', onKey);
     };
-  }, [filterOpen]);
+  }, [filterOpen, mobile]);
 
   // Escape goes back from the detail view.
   useEffect(() => {
@@ -401,6 +406,148 @@ export default function PatternsTab({ load }: { load: Load }) {
 
   const empty = live && shown.length === 0;
 
+  const filterContent = (
+    <>
+    {!live && (
+      <p className="font-support text-xs text-muted">Connect your bank to filter your own spending.</p>
+    )}
+
+    <div className={`space-y-5 ${live ? '' : 'pointer-events-none opacity-50'}`}>
+      <section>
+        <h3 className="mb-2 text-xs font-semibold tracking-wider text-muted uppercase">Period</h3>
+        <Segmented
+            fill={mobile}
+          value={filters.days}
+          onChange={(days) => setFilters((f) => ({ ...f, days }))}
+          options={[
+            { value: 30, label: '30 days' },
+            { value: 60, label: '60 days' },
+            { value: 90, label: '90 days' },
+          ]}
+        />
+      </section>
+
+      <section>
+        <h3 className="mb-2 text-xs font-semibold tracking-wider text-muted uppercase">Account</h3>
+        <Segmented
+            fill={mobile}
+          value={filters.account}
+          onChange={(account) => setFilters((f) => ({ ...f, account }))}
+          options={[
+            { value: 'all', label: 'All' },
+            { value: 'checking', label: 'Checking' },
+            {
+              value: 'credit',
+              label: 'Credit cards',
+              disabled: !data.hasCredit,
+              hint: data.hasCredit ? undefined : 'No credit card is linked',
+            },
+          ]}
+        />
+      </section>
+
+      <section>
+        <h3 className="mb-2 text-xs font-semibold tracking-wider text-muted uppercase">Minimum per month</h3>
+        <Segmented
+            fill={mobile}
+          value={filters.minAmount}
+          onChange={(minAmount) => setFilters((f) => ({ ...f, minAmount }))}
+          options={[
+            { value: 0, label: 'Any' },
+            { value: 25, label: '$25' },
+            { value: 50, label: '$50' },
+            { value: 100, label: '$100' },
+          ]}
+        />
+      </section>
+
+      {data.categoryOptions.length > 0 && (
+        <section>
+          <h3 className="mb-2 text-xs font-semibold tracking-wider text-muted uppercase">Categories</h3>
+          <div className="flex max-h-32 flex-wrap gap-1.5 overflow-y-auto">
+            {data.categoryOptions.map((c) => {
+              const on = filters.categories.includes(c.key);
+              return (
+                <button
+                  key={c.key}
+                  type="button"
+                  aria-pressed={on}
+                  onClick={() =>
+                    setFilters((f) => ({
+                      ...f,
+                      categories: on ? f.categories.filter((k) => k !== c.key) : [...f.categories, c.key],
+                    }))
+                  }
+                  className={`cursor-pointer rounded-lg px-2.5 py-1 text-xs transition-colors ${
+                    on ? 'bg-accent text-canvas' : 'bg-surface text-muted hover:text-ink'
+                  }`}
+                >
+                  {c.label}
+                </button>
+              );
+            })}
+          </div>
+        </section>
+      )}
+    </div>
+
+    <div className="flex items-center justify-between border-t border-line pt-3">
+      <button
+        type="button"
+        onClick={() => setFilters(DEFAULT_FILTERS)}
+        disabled={activeFilters === 0}
+        className="cursor-pointer text-sm text-muted hover:text-ink disabled:cursor-default disabled:opacity-40"
+      >
+        Reset
+      </button>
+      <button
+        type="button"
+        onClick={() => setFilterOpen(false)}
+        className="cursor-pointer rounded-lg bg-accent px-4 py-1.5 text-sm font-semibold text-canvas"
+      >
+        Done
+      </button>
+    </div>
+    </>
+  );
+
+  // On a phone the filters are a sheet that slides up inside the phone frame.
+  const filterSheet =
+    mobile && phoneFrame
+      ? createPortal(
+          <AnimatePresence>
+            {filterOpen && (
+              <>
+                <motion.div
+                  key="backdrop"
+                  className="absolute inset-0 z-50 bg-black/55 backdrop-blur-[2px]"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.2 }}
+                  onClick={() => setFilterOpen(false)}
+                />
+                <motion.div
+                  key="sheet"
+                  role="dialog"
+                  aria-label="Filter patterns"
+                  className="absolute inset-x-0 bottom-0 z-50 space-y-5 rounded-t-[32px] border-t border-line bg-card px-5 pt-3 pb-8 shadow-[0_-24px_60px_rgba(0,0,0,0.6)]"
+                  initial={{ y: '100%' }}
+                  animate={{ y: 0 }}
+                  exit={{ y: '100%' }}
+                  transition={{ type: 'spring', stiffness: 320, damping: 34 }}
+                >
+                  <div className="mx-auto h-1.5 w-10 rounded-full bg-line" />
+                  <h2 className="text-lg font-semibold">Filter</h2>
+                  {filterContent}
+                </motion.div>
+              </>
+            )}
+          </AnimatePresence>,
+          phoneFrame,
+        )
+      : null;
+
   const overview = (
     <motion.div
       key="overview"
@@ -411,9 +558,48 @@ export default function PatternsTab({ load }: { load: Load }) {
       transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
     >
       <div className="flex w-full flex-wrap items-center justify-between gap-3 px-4">
-        <div role="tablist" aria-label="Show" className="flex flex-wrap gap-2">
+        <div role="tablist" aria-label="Show" className={`flex gap-2 ${mobile ? 'w-full flex-nowrap gap-1.5' : 'flex-wrap'}`}>
           {VIEWS.map((v) => {
             const selected = v.id === view;
+            const dot = v.dot ?? (mobile ? '#e4e4e7' : undefined);
+
+            // On a phone every option fits in one row: the chosen one shows its name, the others
+            // are just a colored dot and a count. The name slides in and out as you switch.
+            if (mobile) {
+              return (
+                <motion.button
+                  layout
+                  key={v.id}
+                  type="button"
+                  role="tab"
+                  aria-selected={selected}
+                  aria-label={`${v.label} ${countFor(v.id)}`}
+                  onClick={() => setView(v.id)}
+                  transition={{ layout: { duration: 0.3, ease: [0.22, 1, 0.36, 1] } }}
+                  className={`flex cursor-pointer items-center gap-2 rounded-full border px-3.5 py-2 text-sm whitespace-nowrap transition-colors ${
+                    selected ? 'border-accent bg-accent-soft text-ink' : 'border-line bg-card text-ink'
+                  }`}
+                >
+                  <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: dot }} />
+                  <AnimatePresence initial={false}>
+                    {selected && (
+                      <motion.span
+                        key="label"
+                        initial={{ width: 0, opacity: 0 }}
+                        animate={{ width: 'auto', opacity: 1 }}
+                        exit={{ width: 0, opacity: 0 }}
+                        transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
+                        className="overflow-hidden"
+                      >
+                        {v.label}
+                      </motion.span>
+                    )}
+                  </AnimatePresence>
+                  <span className="opacity-60">{countFor(v.id)}</span>
+                </motion.button>
+              );
+            }
+
             return (
               <button
                 key={v.id}
@@ -425,7 +611,7 @@ export default function PatternsTab({ load }: { load: Load }) {
                   selected ? 'border-transparent bg-accent text-canvas' : 'border-line bg-card text-ink hover:bg-surface'
                 }`}
               >
-                {v.dot && <span className="h-2.5 w-2.5 rounded-full" style={{ background: v.dot }} />}
+                {dot && <span className="h-2.5 w-2.5 rounded-full" style={{ background: dot }} />}
                 {v.label}
                 <span className="opacity-60">{countFor(v.id)}</span>
               </button>
@@ -463,109 +649,13 @@ export default function PatternsTab({ load }: { load: Load }) {
               )}
             </button>
 
-            {filterOpen && (
+            {filterOpen && !mobile && (
               <div
                 role="dialog"
                 aria-label="Filter patterns"
-                className="absolute top-full right-0 z-50 mt-2 w-[min(22rem,calc(var(--app-w)-2rem))] space-y-5 rounded-2xl border border-line bg-card p-5 shadow-[0_24px_60px_rgba(0,0,0,0.65)]"
+                className="absolute top-full right-0 z-50 mt-2 w-[22rem] space-y-5 rounded-2xl border border-line bg-card p-5 shadow-[0_24px_60px_rgba(0,0,0,0.65)]"
               >
-                {!live && (
-                  <p className="font-support text-xs text-muted">Connect your bank to filter your own spending.</p>
-                )}
-
-                <div className={`space-y-5 ${live ? '' : 'pointer-events-none opacity-50'}`}>
-                  <section>
-                    <h3 className="mb-2 text-xs font-semibold tracking-wider text-muted uppercase">Period</h3>
-                    <Segmented
-                      value={filters.days}
-                      onChange={(days) => setFilters((f) => ({ ...f, days }))}
-                      options={[
-                        { value: 30, label: '30 days' },
-                        { value: 60, label: '60 days' },
-                        { value: 90, label: '90 days' },
-                      ]}
-                    />
-                  </section>
-
-                  <section>
-                    <h3 className="mb-2 text-xs font-semibold tracking-wider text-muted uppercase">Account</h3>
-                    <Segmented
-                      value={filters.account}
-                      onChange={(account) => setFilters((f) => ({ ...f, account }))}
-                      options={[
-                        { value: 'all', label: 'All' },
-                        { value: 'checking', label: 'Checking' },
-                        {
-                          value: 'credit',
-                          label: 'Credit cards',
-                          disabled: !data.hasCredit,
-                          hint: data.hasCredit ? undefined : 'No credit card is linked',
-                        },
-                      ]}
-                    />
-                  </section>
-
-                  <section>
-                    <h3 className="mb-2 text-xs font-semibold tracking-wider text-muted uppercase">Minimum per month</h3>
-                    <Segmented
-                      value={filters.minAmount}
-                      onChange={(minAmount) => setFilters((f) => ({ ...f, minAmount }))}
-                      options={[
-                        { value: 0, label: 'Any' },
-                        { value: 25, label: '$25' },
-                        { value: 50, label: '$50' },
-                        { value: 100, label: '$100' },
-                      ]}
-                    />
-                  </section>
-
-                  {data.categoryOptions.length > 0 && (
-                    <section>
-                      <h3 className="mb-2 text-xs font-semibold tracking-wider text-muted uppercase">Categories</h3>
-                      <div className="flex max-h-32 flex-wrap gap-1.5 overflow-y-auto">
-                        {data.categoryOptions.map((c) => {
-                          const on = filters.categories.includes(c.key);
-                          return (
-                            <button
-                              key={c.key}
-                              type="button"
-                              aria-pressed={on}
-                              onClick={() =>
-                                setFilters((f) => ({
-                                  ...f,
-                                  categories: on ? f.categories.filter((k) => k !== c.key) : [...f.categories, c.key],
-                                }))
-                              }
-                              className={`cursor-pointer rounded-lg px-2.5 py-1 text-xs transition-colors ${
-                                on ? 'bg-accent text-canvas' : 'bg-surface text-muted hover:text-ink'
-                              }`}
-                            >
-                              {c.label}
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </section>
-                  )}
-                </div>
-
-                <div className="flex items-center justify-between border-t border-line pt-3">
-                  <button
-                    type="button"
-                    onClick={() => setFilters(DEFAULT_FILTERS)}
-                    disabled={activeFilters === 0}
-                    className="cursor-pointer text-sm text-muted hover:text-ink disabled:cursor-default disabled:opacity-40"
-                  >
-                    Reset
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setFilterOpen(false)}
-                    className="cursor-pointer rounded-lg bg-accent px-4 py-1.5 text-sm font-semibold text-canvas"
-                  >
-                    Done
-                  </button>
-                </div>
+                {filterContent}
               </div>
             )}
           </div>
@@ -648,19 +738,20 @@ export default function PatternsTab({ load }: { load: Load }) {
                 }
               >
                 <BubbleIcon bubble={b} size={Math.min(11, Math.max(5, d * 0.26))} />
-                <span className="max-w-[90%] truncate font-medium" style={{ fontSize: cq(d, 0.085, 2.1, 3.4, 11) }}>
-                  {b.name}
-                </span>
+                {!mobile && (
+                  <span className="max-w-[90%] truncate font-medium" style={{ fontSize: cq(d, 0.085, 2.1, 3.4, 11) }}>
+                    {b.name}
+                  </span>
+                )}
                 <span className="leading-none font-semibold" style={{ fontSize: cq(d, 0.14, 2.7, 5.6, 13) }}>
                   {money(b.amount)}
                 </span>
                 {base > 0 && (
                   <span className="font-support leading-none text-muted" style={{ fontSize: cq(d, 0.06, 1.8, 2.6, 10) }}>
                     {percent(b.amount, base)}
-                    {d >= 27 ? ` of ${hasIncome ? 'income' : 'spending'}` : ''}
                   </span>
                 )}
-                {d >= 27 && (
+                {!mobile && d >= 27 && (
                   <span
                     className="bubble-badge font-support"
                     style={{ fontSize: cq(d, 0.055, 1.8, 2.4, 10), padding: `${d * 0.012}cqh ${d * 0.04}cqh` }}
@@ -782,5 +873,10 @@ export default function PatternsTab({ load }: { load: Load }) {
     </motion.div>
   );
 
-  return <AnimatePresence mode="wait">{selected ? detail : overview}</AnimatePresence>;
+  return (
+    <>
+      <AnimatePresence mode="wait">{selected ? detail : overview}</AnimatePresence>
+      {filterSheet}
+    </>
+  );
 }

@@ -36,6 +36,7 @@ export default function App() {
   const { load, refreshing, refresh } = useTransactions();
 
   // Desktop layout, or a phone-sized frame. Remembered between launches.
+  const [frameEl, setFrameEl] = useState<HTMLDivElement | null>(null);
   const [mobile, setMobile] = useState(() => {
     try {
       return localStorage.getItem('wallex-view') === 'mobile';
@@ -63,7 +64,7 @@ export default function App() {
   ) as React.CSSProperties;
 
   return (
-    <ViewModeProvider value={{ mobile }}>
+    <ViewModeProvider value={{ mobile, frame: frameEl }}>
     <div
       className={`h-screen w-screen bg-canvas ${mobile ? 'flex items-center justify-center bg-[#050506]' : ''}`}
       style={sizeVars}
@@ -73,6 +74,7 @@ export default function App() {
         style={{ WebkitAppRegion: 'drag' } as React.CSSProperties}
       />
     <div
+      ref={setFrameEl}
       className={`relative overflow-hidden bg-canvas font-sans text-ink select-none ${
         mobile
           ? 'w-[390px] rounded-[44px] border border-line shadow-[0_30px_90px_rgba(0,0,0,0.7)]'

@@ -160,14 +160,14 @@ export function buildPatterns(txns: Txn[], accounts: LinkedAccount[], filters: P
     if (!g.logos.length && t.logos.length) g.logos = t.logos;
     if (domain) g.domain = domain;
     g.categories.set(t.categoryKey, (g.categories.get(t.categoryKey) ?? 0) + 1);
-    g.labels.set(t.categoryKey, t.category.split(' › ')[0]);
+    g.labels.set(t.categoryKey, t.category.split(' › ')[0] || 'Uncategorized');
     map.set(key, g);
   };
 
   for (const t of windowed.filter(isSpending)) {
     const m = merchantOf(t);
     bump(merchants, m.key, m.name, t, m.domain);
-    const label = t.category.split(' › ')[0];
+    const label = t.category.split(' › ')[0] || 'Uncategorized';
     bump(categories, t.categoryKey || 'UNCATEGORIZED', categoryName(label), t);
   }
 
