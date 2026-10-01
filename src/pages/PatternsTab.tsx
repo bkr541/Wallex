@@ -31,6 +31,7 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import ChaseLogo from '../components/ChaseLogo';
+import { useMobile } from '../lib/viewMode';
 import MerchantLogo from '../components/MerchantLogo';
 import type { Load } from '../lib/useTransactions';
 import {
@@ -42,7 +43,6 @@ import {
   type View,
 } from '../lib/patterns';
 
-const MAX_CIRCLES = 14; // the biggest ones get a circle; the rest are counted in the summary line
 
 // Icons per Plaid category, plus a few for the sample circles.
 const ICONS: Record<string, LucideIcon | 'chase'> = {
@@ -83,17 +83,18 @@ const ICONS: Record<string, LucideIcon | 'chase'> = {
 // The smallest circle is always big enough to hold a logo and readable text. From there, circles
 // grow with the amount, up to the biggest. Circle AREA tracks the square-root scale of the
 // dollars, stretched across that whole range so the differences are easy to see.
-const D_MIN = 19; // fits the logo, name, amount and percent
-const D_MAX = 40;
-const CENTER_D = 54; // the income circle
+// Desktop is a wide diagram; the phone view is a tall one with fewer, slightly larger circles.
+const LAYOUTS = {
+  desktop: { aspect: 1.5, dMin: 19, dMax: 40, centerD: 54, maxCircles: 14 },
+  mobile: { aspect: 0.72, dMin: 21, dMax: 30, centerD: 36, maxCircles: 10 },
+};
+type LayoutConfig = (typeof LAYOUTS)['desktop'];
 
 // How circles may overlap: neighbors sink into each other by this share of the smaller radius,
 // and circles tuck behind the income circle but keep their centers (and text) outside it.
 const NEIGHBOR_OVERLAP = 0.3;
 const CENTER_TUCK = 0.75; // share of a circle's radius that may sit under the income circle
 
-// The diagram is wider than it is tall.
-const ASPECT = 1.5; // width / height
 const FIT = 47; // how far from the middle the cluster may reach vertically
 
 interface Pt {
@@ -109,29 +110,32 @@ const jitter = (i: number) => {
 };
 
 // Diameter for each amount: the smallest gets D_MIN, the biggest D_MAX.
-function diameters(amounts: number[]): number[] {
+function diameters(amounts: number[], cfg: LayoutConfig): number[] {
   const roots = amounts.map(Math.sqrt);
   const lo = Math.min(...roots);
   const hi = Math.max(...roots);
-  return roots.map((r) => D_MIN + (D_MAX - D_MIN) * (hi === lo ? 0.55 : (r - lo) / (hi - lo)));
+  return roots.map((r) => cfg.dMin + (cfg.dMax - cfg.dMin) * (hi === lo ? 0.55 : (r - lo) / (hi - lo)));
 }
 
 // Packs circles into one loose cluster around the income circle. They are spread across the
 // whole area and overlap their neighbors, rather than lining up in a ring.
-function pack(ds: number[]): { nodes: Pt[]; fits: boolean } {
-  const centerR = CENTER_D / 2;
+function pack(ds: number[], cfg: LayoutConfig): { nodes: Pt[]; fits: boolean } {
+  const centerR = cfg.centerD / 2;
   const nodes: Pt[] = ds.map((d, i) => {
     // Start on a loose spiral that reaches out across the area, with some scatter.
-    const angle = i * 2.399963 + jitter(i) * 0.9;
-    const dist = centerR * 0.95 + (D_MAX / 2) * 1.1 * Math.sqrt(i + 1) + jitter(i + 50) * (D_MAX / 2) * 0.4;
+    // In the tall phone layout, start above and below the income circle where there is room.
+    const angle = (cfg.aspect < 1 ? Math.PI / 2 : 0) + i * 2.399963 + jitter(i) * 0.9;
+    const dist = centerR * 0.95 + (cfg.dMax / 2) * 1.1 * Math.sqrt(i + 1) + jitter(i + 50) * (cfg.dMax / 2) * 0.4;
     return { x: Math.cos(angle) * dist, y: Math.sin(angle) * dist, r: d / 2 };
   });
 
   for (let iter = 0; iter < 900; iter++) {
-    // Gentle pull toward the middle, stronger vertically so the cluster comes out wide.
+    // Gentle pull toward the middle, stronger across the short side so the cluster fills the long one.
+    const pullX = cfg.aspect < 1 ? 0.991 : 0.996;
+    const pullY = cfg.aspect < 1 ? 0.996 : 0.991;
     for (const n of nodes) {
-      n.x *= 0.996;
-      n.y *= 0.991;
+      n.x *= pullX;
+      n.y *= pullY;
     }
     for (let i = 0; i < nodes.length; i++) {
       for (let j = i + 1; j < nodes.length; j++) {
@@ -163,26 +167,34 @@ function pack(ds: number[]): { nodes: Pt[]; fits: boolean } {
 
   const extentX = Math.max(centerR, ...nodes.map((n) => Math.abs(n.x) + n.r));
   const extentY = Math.max(centerR, ...nodes.map((n) => Math.abs(n.y) + n.r));
-  return { nodes, fits: extentY <= FIT && extentX <= FIT * ASPECT };
+  return { nodes, fits: extentY <= FIT && extentX <= FIT * cfg.aspect };
 }
 
-// Lays out as many of the items (biggest first) as fit without shrinking any circle below D_MIN.
-function buildLayout<T extends { amount: number }>(items: T[], maxCount: number) {
-  let count = Math.min(items.length, maxCount);
+// Lays out as many of the items (biggest first) as fit without shrinking any circle below its minimum.
+function buildLayout<T extends { amount: number }>(items: T[], cfg: LayoutConfig) {
+  let count = Math.min(items.length, cfg.maxCircles);
   let result = { nodes: [] as Pt[], fits: true };
   let ds: number[] = [];
   for (; count >= 1; count--) {
-    ds = diameters(items.slice(0, count).map((i) => i.amount));
-    result = pack(ds);
+    ds = diameters(items.slice(0, count).map((i) => i.amount), cfg);
+    result = pack(ds, cfg);
     if (result.fits) break;
   }
   count = Math.max(count, Math.min(items.length, 1));
 
+  // If even one circle can't clear the income circle inside the diagram, at least keep it in view.
+  if (!result.fits) {
+    for (const n of result.nodes) {
+      n.x = Math.max(-FIT * cfg.aspect + n.r, Math.min(FIT * cfg.aspect - n.r, n.x));
+      n.y = Math.max(-FIT + n.r, Math.min(FIT - n.r, n.y));
+    }
+  }
+
   return {
-    centerDiameter: CENTER_D,
+    centerDiameter: cfg.centerD,
     bubbles: items.slice(0, count).map((h, i) => ({
       ...h,
-      left: 50 + result.nodes[i].x / ASPECT,
+      left: 50 + result.nodes[i].x / cfg.aspect,
       top: 50 + result.nodes[i].y,
       diameter: ds[i],
     })),
@@ -271,6 +283,8 @@ function Segmented<T extends string | number>({
 }
 
 export default function PatternsTab({ load }: { load: Load }) {
+  const mobile = useMobile();
+  const cfg = mobile ? LAYOUTS.mobile : LAYOUTS.desktop;
   const live = load.state === 'live';
   const [view, setView] = useState<View>('all');
   const [query, setQuery] = useState('');
@@ -307,7 +321,7 @@ export default function PatternsTab({ load }: { load: Load }) {
   const matching = useMemo(() => (q ? pool.filter((b) => b.name.toLowerCase().includes(q)) : pool), [pool, q]);
   // Only real items get a circle. A lumped "Other" circle would be a different kind of thing and
   // would distort the sizes, so the smaller ones are summarised in text instead.
-  const layout = useMemo(() => buildLayout(matching, MAX_CIRCLES), [matching]);
+  const layout = useMemo(() => buildLayout(matching, cfg), [matching, cfg]);
   const shown = layout.bubbles;
   const hidden = matching.slice(shown.length);
   const hiddenTotal = hidden.reduce((sum, b) => sum + b.amount, 0);
@@ -360,14 +374,14 @@ export default function PatternsTab({ load }: { load: Load }) {
           })}
         </div>
 
-        <div className="flex items-center gap-3">
-          <label className="flex items-center gap-2 rounded-xl border border-line bg-card px-3.5 py-2.5">
+        <div className={`flex items-center gap-3 ${mobile ? 'w-full' : ''}`}>
+          <label className={`flex items-center gap-2 rounded-xl border border-line bg-card px-3.5 py-2.5 ${mobile ? 'min-w-0 flex-1' : ''}`}>
             <Search className="h-4 w-4 text-muted" />
             <input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Search recurring transactions…"
-              className="w-60 bg-transparent text-sm outline-none placeholder:text-muted select-text"
+              className={`bg-transparent text-sm outline-none placeholder:text-muted select-text ${mobile ? 'w-full min-w-0' : 'w-60'}`}
             />
           </label>
 
@@ -394,7 +408,7 @@ export default function PatternsTab({ load }: { load: Load }) {
               <div
                 role="dialog"
                 aria-label="Filter patterns"
-                className="absolute top-full right-0 z-50 mt-2 w-[22rem] space-y-5 rounded-2xl border border-line bg-card p-5 shadow-[0_24px_60px_rgba(0,0,0,0.65)]"
+                className="absolute top-full right-0 z-50 mt-2 w-[min(22rem,calc(var(--app-w)-2rem))] space-y-5 rounded-2xl border border-line bg-card p-5 shadow-[0_24px_60px_rgba(0,0,0,0.65)]"
               >
                 {!live && (
                   <p className="font-support text-xs text-muted">Connect your bank to filter your own spending.</p>
@@ -526,10 +540,17 @@ export default function PatternsTab({ load }: { load: Load }) {
             .join(', ')}`}
           className="relative mt-2"
           style={{
-            // Height is capped by the window; width follows from the aspect ratio.
-            height: `max(520px, min(calc(100vh - 20rem), calc((100vw - 12rem) / ${ASPECT})))`,
-            width: `calc(max(520px, min(calc(100vh - 20rem), calc((100vw - 12rem) / ${ASPECT}))) * ${ASPECT})`,
-            containerType: 'size',
+            // The diagram fills the window (or the phone frame) but never gets shorter than a readable size.
+          ...(mobile
+            ? {
+                width: 'calc(var(--app-w) - 2rem)',
+                height: `calc((var(--app-w) - 2rem) / ${cfg.aspect})`,
+              }
+            : {
+                height: `max(520px, min(calc(var(--app-h) - 20rem), calc((var(--app-w) - 12rem) / ${cfg.aspect})))`,
+                width: `calc(max(520px, min(calc(var(--app-h) - 20rem), calc((var(--app-w) - 12rem) / ${cfg.aspect}))) * ${cfg.aspect})`,
+              }),
+          containerType: 'size',
           }}
         >
           <AnimatePresence>

@@ -91,7 +91,7 @@ export default function RecurringTab({ load }: { load: Load }) {
         </p>
       )}
 
-      <div className="grid grid-cols-2 gap-3 px-4 md:grid-cols-5">
+      <div className="grid grid-cols-2 gap-3 px-4 @3xl:grid-cols-5">
         <Tile label="Confirmed" value={String(analysis.counts.confirmed)} tone={CONFIDENCE.confirmed.value} />
         <Tile label="Likely" value={String(analysis.counts.likely)} tone={CONFIDENCE.likely.value} />
         <Tile label="New" value={String(analysis.counts.new)} tone={CONFIDENCE.new.value} />
@@ -131,7 +131,8 @@ export default function RecurringTab({ load }: { load: Load }) {
         </label>
       </div>
 
-      <div role="table" aria-label="Recurring relationships" className="mt-4 w-full">
+      <div className="mt-4 overflow-x-auto">
+      <div role="table" aria-label="Recurring relationships" className="w-full min-w-[680px]">
         <div role="row" className={`${GRID} border-b border-line py-3`}>
           {['Merchant', 'Cadence', 'Confidence'].map((h) => (
             <div key={h} role="columnheader" className="text-xs font-semibold tracking-wider text-muted uppercase">
@@ -203,7 +204,7 @@ export default function RecurringTab({ load }: { load: Load }) {
                     transition={{ duration: 0.2 }}
                     className="overflow-hidden"
                   >
-                    <div className="grid gap-6 border-t border-line bg-surface/30 px-4 py-4 md:grid-cols-[1.6fr_1fr]">
+                    <div className="grid gap-6 border-t border-line bg-surface/30 px-4 py-4 @3xl:grid-cols-[1.6fr_1fr]">
                       <ul className="space-y-2 font-support text-sm select-text">
                         {r.notes.map((n) => (
                           <li key={n} className="flex gap-2">
@@ -232,6 +233,7 @@ export default function RecurringTab({ load }: { load: Load }) {
             </div>
           );
         })}
+      </div>
       </div>
     </div>
   );

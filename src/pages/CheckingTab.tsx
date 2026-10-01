@@ -4,6 +4,7 @@ import { RefreshCw } from 'lucide-react';
 import type { Txn } from '../lib/wallex';
 import MerchantLogo from '../components/MerchantLogo';
 import { withBalances } from '../lib/balances';
+import { useMobile } from '../lib/viewMode';
 import type { Load } from '../lib/useTransactions';
 
 // Transaction fields from Plaid's /transactions/sync response.
@@ -19,6 +20,9 @@ const COLUMNS = [
 ] as const;
 
 const GRID = 'grid grid-cols-[0.9fr_1.6fr_2fr_1fr_1fr_1fr_1fr_1fr] gap-4 px-4';
+// On a phone only the essentials fit in the row; the rest are shown when a row is opened.
+const GRID_MOBILE = 'grid grid-cols-[5.5rem_1fr_6rem] gap-3 px-1';
+const MOBILE_COLUMNS = new Set(['status', 'merchant', 'amount']);
 
 // Sample data shown until a bank is connected in Settings → Setup.
 const SAMPLE_TRANSACTIONS: Omit<Txn, 'id' | 'accountId' | 'details' | 'logos' | 'categoryKey' | 'categoryDetailKey'>[] = [
@@ -89,6 +93,9 @@ export default function CheckingTab({
   refreshing: boolean;
   onRefresh: () => void;
 }) {
+  const mobile = useMobile();
+  const grid = mobile ? GRID_MOBILE : GRID;
+  const columns = mobile ? COLUMNS.filter((c) => MOBILE_COLUMNS.has(c.key)) : COLUMNS;
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
   const rows = useMemo(
@@ -122,9 +129,10 @@ export default function CheckingTab({
         </button>
       </div>
 
-      <div role="table" aria-label="Checking transactions" className="w-full">
-        <div role="row" className={`${GRID} border-b border-line py-3`}>
-          {COLUMNS.map((col) => (
+      <div className="overflow-x-auto">
+      <div role="table" aria-label="Checking transactions" className={`w-full ${mobile ? '' : 'min-w-[960px]'}`}>
+        <div role="row" className={`${grid} border-b border-line py-3`}>
+          {columns.map((col) => (
             <div
               key={col.key}
               role="columnheader"
@@ -159,7 +167,7 @@ export default function CheckingTab({
                   toggle();
                 }
               }}
-              className={`${GRID} ${expanded ? 'items-start bg-surface/50' : 'items-center'} cursor-pointer py-3 text-sm transition-colors hover:bg-surface/50`}
+              className={`${grid} ${expanded ? 'items-start bg-surface/50' : 'items-center'} cursor-pointer py-3 text-sm transition-colors hover:bg-surface/50`}
             >
               <div role="cell" className="min-w-0">
                 <span
@@ -174,27 +182,33 @@ export default function CheckingTab({
                 <MerchantLogo key={t.id} name={t.merchant} sources={t.logos} />
                 <span className={`min-w-0 ${text}`}>{t.merchant}</span>
               </div>
-              <div role="cell" className={`min-w-0 font-support text-muted ${text}`}>
-                {t.category}
-              </div>
-              <div role="cell" className={`min-w-0 font-support text-muted ${text}`}>
-                {t.channel || '—'}
-              </div>
-              <div role="cell" className={`min-w-0 font-support text-muted ${text}`}>
-                {formatDate(t.date)}
-              </div>
-              <div role="cell" className={`min-w-0 font-support text-muted ${text}`}>
-                {t.authorizedDate ? formatDate(t.authorizedDate) : '—'}
-              </div>
+              {!mobile && (
+                <>
+                  <div role="cell" className={`min-w-0 font-support text-muted ${text}`}>
+                    {t.category}
+                  </div>
+                  <div role="cell" className={`min-w-0 font-support text-muted ${text}`}>
+                    {t.channel || '—'}
+                  </div>
+                  <div role="cell" className={`min-w-0 font-support text-muted ${text}`}>
+                    {formatDate(t.date)}
+                  </div>
+                  <div role="cell" className={`min-w-0 font-support text-muted ${text}`}>
+                    {t.authorizedDate ? formatDate(t.authorizedDate) : '—'}
+                  </div>
+                </>
+              )}
               <div
                 role="cell"
                 className={`min-w-0 text-right font-medium tabular-nums ${text} ${t.amount > 0 ? 'text-accent' : ''}`}
               >
                 {formatAmount(t.amount)}
               </div>
-              <div role="cell" className={`min-w-0 text-right font-support tabular-nums text-muted ${text}`}>
-                {t.balance == null ? '—' : formatBalance(t.balance)}
-              </div>
+              {!mobile && (
+                <div role="cell" className={`min-w-0 text-right font-support tabular-nums text-muted ${text}`}>
+                  {t.balance == null ? '—' : formatBalance(t.balance)}
+                </div>
+              )}
             </div>
 
             <AnimatePresence initial={false}>
@@ -208,7 +222,18 @@ export default function CheckingTab({
                   className="overflow-hidden"
                 >
                   <dl className="grid grid-cols-[repeat(auto-fill,minmax(15rem,1fr))] gap-x-8 gap-y-4 border-t border-line bg-surface/30 px-4 py-4">
-                    {t.details.map((d) => (
+                    {[
+                      ...(mobile
+                        ? [
+                            { label: 'Category', value: t.category },
+                            { label: 'Type', value: t.channel || '—' },
+                            { label: 'Posted Date', value: formatDate(t.date) },
+                            { label: 'Auth Date', value: t.authorizedDate ? formatDate(t.authorizedDate) : '—' },
+                            { label: 'Balance', value: t.balance == null ? '—' : formatBalance(t.balance) },
+                          ]
+                        : []),
+                      ...t.details,
+                    ].map((d) => (
                       <div key={d.label} className="min-w-0">
                         <dt className="text-xs font-semibold tracking-wider text-muted uppercase">{d.label}</dt>
                         <dd className="mt-1 font-support text-sm break-words select-text">{d.value}</dd>
@@ -221,6 +246,7 @@ export default function CheckingTab({
             </div>
           );
         })}
+      </div>
       </div>
     </div>
   );
