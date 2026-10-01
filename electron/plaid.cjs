@@ -36,7 +36,7 @@ async function createLinkToken(s, routingNumber) {
     user: { client_user_id: config.getUserId() },
     products: s.products,
   };
-  if (s.products.includes('transactions')) body.transactions = { days_requested: 90 };
+  if (s.products.includes('transactions')) body.transactions = { days_requested: 730 };
   if (s.redirectUri) body.redirect_uri = s.redirectUri;
   if (s.webhookUrl) body.webhook = s.webhookUrl;
 
@@ -341,6 +341,7 @@ async function getTransactions() {
     .sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0))
     .map((t) => ({
       id: t.transaction_id,
+      accountId: t.account_id,
       date: t.date,
       merchant: t.merchant_name || t.name,
       logos: logosFor(t),

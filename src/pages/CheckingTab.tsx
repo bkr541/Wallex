@@ -1,8 +1,9 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import { RefreshCw } from 'lucide-react';
 import type { Txn } from '../lib/wallex';
 import MerchantLogo from '../components/MerchantLogo';
+import { withBalances } from '../lib/balances';
 import type { Load } from '../lib/useTransactions';
 
 // Transaction fields from Plaid's /transactions/sync response.
@@ -14,12 +15,13 @@ const COLUMNS = [
   { key: 'date', label: 'Posted Date', align: 'left' },
   { key: 'authorized', label: 'Auth Date', align: 'left' },
   { key: 'amount', label: 'Amount', align: 'right' },
+  { key: 'balance', label: 'Balance', align: 'right' },
 ] as const;
 
-const GRID = 'grid grid-cols-[0.9fr_1.6fr_2fr_1fr_1fr_1fr_1fr] gap-4 px-4';
+const GRID = 'grid grid-cols-[0.9fr_1.6fr_2fr_1fr_1fr_1fr_1fr_1fr] gap-4 px-4';
 
 // Sample data shown until a bank is connected in Settings → Setup.
-const SAMPLE_TRANSACTIONS: Omit<Txn, 'id' | 'details' | 'logos' | 'categoryKey' | 'categoryDetailKey'>[] = [
+const SAMPLE_TRANSACTIONS: Omit<Txn, 'id' | 'accountId' | 'details' | 'logos' | 'categoryKey' | 'categoryDetailKey'>[] = [
   { date: '2026-10-01', authorizedDate: '2026-10-01', merchant: 'Whole Foods Market', category: 'Food & Drink › Groceries', channel: 'In Store', pending: true, amount: -84.32 },
   { date: '2026-10-01', authorizedDate: '2026-10-01', merchant: 'Starbucks', category: 'Food & Drink › Coffee', channel: 'In Store', pending: true, amount: -6.45 },
   { date: '2026-09-30', authorizedDate: '2026-09-29', merchant: 'Shell', category: 'Transportation › Gas', channel: 'In Store', pending: false, amount: -52.18 },
@@ -42,9 +44,13 @@ const SAMPLE_TRANSACTIONS: Omit<Txn, 'id' | 'details' | 'logos' | 'categoryKey' 
   { date: '2026-09-17', authorizedDate: '2026-09-16', merchant: 'AMC Theatres', category: 'Entertainment › Movies', channel: 'In Store', pending: false, amount: -28.0 },
 ];
 
+// Pretend ending balance for the sample rows; each row's balance is worked out from it.
+const SAMPLE_ACCOUNT = { id: 'sample', current: 6200.55 };
+
 const SAMPLES: Txn[] = SAMPLE_TRANSACTIONS.map((t, i) => ({
   ...t,
   id: `sample-${i}`,
+  accountId: SAMPLE_ACCOUNT.id,
   logos: [],
   categoryKey: '',
   categoryDetailKey: '',
@@ -62,6 +68,9 @@ const formatAmount = (amount: number) =>
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   })}`;
+
+const formatBalance = (n: number) =>
+  `${n < 0 ? '-' : ''}$${Math.abs(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
@@ -82,7 +91,15 @@ export default function CheckingTab({
 }) {
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
-  const rows = load.state === 'live' ? load.transactions : load.state === 'sample' ? SAMPLES : [];
+  const rows = useMemo(
+    () =>
+      load.state === 'live'
+        ? withBalances(load.transactions, load.accounts)
+        : load.state === 'sample'
+          ? withBalances(SAMPLES, [SAMPLE_ACCOUNT])
+          : [],
+    [load],
+  );
 
   return (
     <div className="w-full">
@@ -174,6 +191,9 @@ export default function CheckingTab({
                 className={`min-w-0 text-right font-medium tabular-nums ${text} ${t.amount > 0 ? 'text-accent' : ''}`}
               >
                 {formatAmount(t.amount)}
+              </div>
+              <div role="cell" className={`min-w-0 text-right font-support tabular-nums text-muted ${text}`}>
+                {t.balance == null ? '—' : formatBalance(t.balance)}
               </div>
             </div>
 

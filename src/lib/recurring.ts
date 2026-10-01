@@ -1,0 +1,551 @@
+import type { Txn } from './wallex';
+
+// Finds recurring financial relationships in a list of transactions.
+//
+// It does not trust the bank's "Recurring Card Purchase" label on its own. It groups spending by
+// merchant, then looks for repeats in three signals: the same calendar position month after month,
+// a consistent amount, and an explicit bank tag. Each relationship is given a confidence level
+// instead of being presented as equally certain.
+
+export type Kind = 'bill' | 'debt' | 'installment' | 'subscription' | 'usage' | 'aggregator' | 'habit';
+
+// confirmed: bank-tagged, or 3+ cycles with steady date and amount
+// likely:    repeated over several cycles with some drift in date or amount
+// new:       only two cycles so far
+// review:    clearly repetitive, but the real merchant is hidden behind PayPal, Apple and the like
+// habit:     many visits with no fixed billing cadence (fuel, groceries, bars)
+export type Confidence = 'confirmed' | 'likely' | 'new' | 'review' | 'habit';
+
+export interface Recurring {
+  id: string;
+  name: string;
+  kind: Kind;
+  confidence: Confidence;
+  logos: string[];
+  amountLabel: string;
+  cadenceLabel: string;
+  summary: string;
+  monthly: number | null; // estimated monthly cost of the fixed charges, null for habits and unclear items
+  active: boolean;
+  notes: string[];
+  recent: { date: string; amount: number }[];
+}
+
+export interface Analysis {
+  items: Recurring[];
+  counts: Record<Confidence, number>;
+  monthlyTotal: number;
+  earliest: string | null;
+  latest: string | null;
+  monthsOfHistory: number;
+}
+
+// ---------------------------------------------------------------------------------------------
+// Merchants
+// ---------------------------------------------------------------------------------------------
+
+interface Alias {
+  test: RegExp;
+  name: string;
+  kind: Kind;
+  aggregator?: boolean; // billing wrapper that can hide several different services
+}
+
+// Known merchants and their variants, matched against the bank's description text.
+const ALIASES: Alias[] = [
+  { test: /OPENAI|CHATGPT/, name: 'OpenAI / ChatGPT', kind: 'subscription' },
+  { test: /ANTHROPIC|CLAUDE\.AI|CLAUDE SU/, name: 'Anthropic / Claude', kind: 'usage' },
+  { test: /MIDJOURNEY/, name: 'Midjourney', kind: 'usage' },
+  { test: /\bSUNO\b|SUNO\.COM/, name: 'Suno', kind: 'usage' },
+  { test: /\bOUTPUT\b/, name: 'Output', kind: 'subscription' },
+  { test: /GOWILDER/, name: 'GoWilder', kind: 'subscription' },
+  { test: /HYPEDDIT/, name: 'Hypeddit', kind: 'subscription' },
+  { test: /GLIBATREE/, name: 'Glibatree', kind: 'subscription' },
+  { test: /OPENART/, name: 'OpenArt', kind: 'subscription' },
+  { test: /WISPR/, name: 'Wispr Flow', kind: 'subscription' },
+  { test: /SPOTIFY/, name: 'Spotify', kind: 'subscription' },
+  { test: /NETFLIX/, name: 'Netflix', kind: 'subscription' },
+  { test: /SOUNDTRAP/, name: 'Soundtrap', kind: 'subscription' },
+  { test: /WAVES INC/, name: 'Waves', kind: 'subscription' },
+  { test: /AUDIMEE/, name: 'Audimee', kind: 'subscription' },
+  { test: /BEACONSAI/, name: 'BeaconsAI', kind: 'subscription' },
+  { test: /GODADDY/, name: 'GoDaddy', kind: 'subscription' },
+  { test: /WALMARTPLUS|WALMART\+/, name: 'Walmart+', kind: 'subscription' },
+  { test: /PLANET FITNESS/, name: 'Planet Fitness', kind: 'subscription' },
+  { test: /PATREON/, name: 'Patreon', kind: 'aggregator', aggregator: true },
+  { test: /APPLE\.COM BILL/, name: 'Apple.com Bill', kind: 'aggregator', aggregator: true },
+  { test: /GOOGLE GOOGLE/, name: 'Google services', kind: 'aggregator', aggregator: true },
+  { test: /FASTSPRING/, name: 'Fastspring', kind: 'aggregator', aggregator: true },
+  { test: /VERIZON WIRELESS/, name: 'Verizon Wireless', kind: 'bill' },
+  { test: /PROG PREMIER|PROGRESSIVE/, name: 'Progressive', kind: 'bill' },
+  { test: /USATAXPYMT|\bIRS\b/, name: 'IRS', kind: 'bill' },
+  { test: /J MAX DAVIS/, name: 'J Max Davis Attorneys', kind: 'bill' },
+  { test: /(EARNIN|EAMIN)\s+REPAYMENT/, name: 'EarnIn repayments', kind: 'debt' },
+  { test: /MASTERCARD\s+PAYMENT/, name: 'Mastercard payment', kind: 'debt' },
+  { test: /AFFIRM/, name: 'Affirm', kind: 'installment' },
+  { test: /LOST LANDS TIX/, name: 'Lost Lands installments', kind: 'installment' },
+];
+
+// Money moving to people, cash and the bank itself: repeated, but not a billing relationship.
+const NOT_A_RELATIONSHIP =
+  /ZELLE|ATM WITHDRAW|ATM FEE|ATM CASH|OVERDRAFT|^CHECK\b|APPLE CASH|PAYMENT SENT|PAYMENT RECEIVED|REFUND|RETURN/;
+
+const BILL_CATEGORIES = new Set(['RENT_AND_UTILITIES', 'LOAN_PAYMENTS', 'GOVERNMENT_AND_NON_PROFIT', 'GENERAL_SERVICES']);
+
+interface Resolved {
+  key: string;
+  name: string;
+  kind: Kind | null; // null until the pattern is known
+  aggregator: boolean;
+  known: boolean; // matched an alias
+}
+
+const bankText = (t: Txn) => (t.details.find((d) => d.label === 'Bank Description')?.value ?? t.merchant).toUpperCase();
+
+const titleCase = (s: string) => s.toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase());
+
+function genericKey(t: Txn): string {
+  const words = (t.merchant || '')
+    .toUpperCase()
+    .replace(/^(RECURRING CARD PURCHASE|CARD PURCHASE( WITH PIN| RETURN)?)\s+/, '')
+    .replace(/\b\d{1,2}\/\d{1,2}\b/g, ' ')
+    .replace(/[#*]\S*/g, ' ')
+    .replace(/\d[\d-]{3,}/g, ' ')
+    .replace(/[^A-Z0-9&.' ]/g, ' ')
+    .split(/\s+/)
+    .filter(Boolean);
+  return words.slice(0, 2).join(' ') || 'UNKNOWN';
+}
+
+function resolve(t: Txn): Resolved | null {
+  const raw = bankText(t);
+
+  const alias = ALIASES.find((a) => a.test.test(raw) || a.test.test(t.merchant.toUpperCase()));
+  if (alias) {
+    return { key: alias.name.toUpperCase(), name: alias.name, kind: alias.kind, aggregator: !!alias.aggregator, known: true };
+  }
+
+  if (NOT_A_RELATIONSHIP.test(raw) || t.categoryKey === 'TRANSFER_OUT' || t.categoryKey === 'BANK_FEES') return null;
+
+  // A PayPal transfer that never names who was paid.
+  if (/^PAYPAL\b/.test(raw)) {
+    const underlying = raw.match(/PAYPAL\s+(?:INST XFER|PURCHASE|RETRY PYMT)\s*(.*?)\s*(?:WEB ID|$)/)?.[1]?.trim();
+    if (!underlying) {
+      return { key: 'PAYPAL?', name: 'Unidentified PayPal payment', kind: 'aggregator', aggregator: true, known: true };
+    }
+  }
+
+  const key = genericKey(t);
+  return { key, name: titleCase(key), kind: null, aggregator: false, known: false };
+}
+
+// ---------------------------------------------------------------------------------------------
+// Dates and patterns
+// ---------------------------------------------------------------------------------------------
+
+interface Occ {
+  t: Txn;
+  day: number; // days since epoch
+  dom: number; // day of month
+  month: string; // YYYY-MM
+  amount: number; // always positive
+}
+
+const epochDay = (iso: string) => {
+  const [y, m, d] = iso.split('-').map(Number);
+  return Math.round(Date.UTC(y, m - 1, d) / 86_400_000);
+};
+
+const isoFromDay = (day: number) => new Date(day * 86_400_000).toISOString().slice(0, 10);
+
+const median = (nums: number[]) => {
+  const s = [...nums].sort((a, b) => a - b);
+  const mid = Math.floor(s.length / 2);
+  return s.length % 2 ? s[mid] : (s[mid - 1] + s[mid]) / 2;
+};
+
+const CADENCES = [
+  { name: 'weekly', lo: 5, hi: 9, days: 7, perMonth: 52 / 12 },
+  { name: 'biweekly', lo: 12, hi: 17, days: 14, perMonth: 26 / 12 },
+  { name: 'monthly', lo: 24, hi: 38, days: 30.4, perMonth: 1 },
+  { name: 'quarterly', lo: 80, hi: 100, days: 91, perMonth: 1 / 3 },
+  { name: 'annual', lo: 340, hi: 390, days: 365, perMonth: 1 / 12 },
+] as const;
+
+interface Pattern {
+  cadence: (typeof CADENCES)[number]['name'];
+  count: number;
+  day: number | null; // typical day of month, for monthly patterns
+  spread: number; // how many days the day of month wanders
+  amountMin: number;
+  amountMax: number;
+  typical: number;
+  fixed: boolean;
+  lastDay: number;
+  nextDay: number;
+  perMonth: number;
+}
+
+// How far the day of month wanders, treating the 31st and the 1st as neighbors.
+function daySpread(doms: number[]): { spread: number; typical: number } {
+  const d = [...doms].sort((a, b) => a - b);
+  let maxGap = d[0] + 31 - d[d.length - 1];
+  let start = 0;
+  for (let i = 1; i < d.length; i++) {
+    if (d[i] - d[i - 1] > maxGap) {
+      maxGap = d[i] - d[i - 1];
+      start = i;
+    }
+  }
+  const rotated = [...d.slice(start), ...d.slice(0, start).map((x) => x + 31)];
+  const typical = ((median(rotated) - 1) % 31) + 1;
+  return { spread: 31 - maxGap, typical: Math.round(typical) };
+}
+
+function evalPattern(occ: Occ[], opts: { minCount: number; allowVariable: boolean }): Pattern | null {
+  if (occ.length < opts.minCount) return null;
+  const sorted = [...occ].sort((a, b) => a.day - b.day);
+  const intervals = sorted.slice(1).map((o, i) => o.day - sorted[i].day);
+  if (intervals.length === 0) return null;
+
+  const mid = median(intervals.filter((i) => i <= 400));
+  const cadence = CADENCES.find((c) => mid >= c.lo && mid <= c.hi);
+  if (!cadence) return null;
+
+  // Intervals in the band are hits; a gap of two or more cycles is a skipped cycle, not a miss.
+  let hits = 0;
+  let misses = 0;
+  for (const i of intervals) {
+    if (i >= cadence.lo && i <= cadence.hi) hits++;
+    else if (i > cadence.hi * 1.6) continue;
+    else misses++;
+  }
+  if (hits === 0 || hits / (hits + misses) < 0.7) return null;
+
+  const amounts = sorted.map((o) => o.amount);
+  const typical = median(amounts);
+  const amountMin = Math.min(...amounts);
+  const amountMax = Math.max(...amounts);
+  const fixed = amountMax - amountMin <= Math.max(0.75, 0.05 * typical);
+
+  // Weekly and biweekly patterns are common by coincidence, so they must have a steady amount.
+  if (!fixed && (!opts.allowVariable || cadence.name === 'weekly' || cadence.name === 'biweekly')) return null;
+  // Two data points are only convincing when the amount is identical.
+  if (sorted.length === 2 && !fixed) return null;
+
+  let day: number | null = null;
+  let spread = 0;
+  if (cadence.name === 'monthly') {
+    const months = new Set(sorted.map((o) => o.month)).size;
+    if (sorted.length / months > 1.35) return null; // several a month is not a monthly bill
+    ({ spread, typical: day } = daySpread(sorted.map((o) => o.dom)));
+  }
+
+  const lastDay = sorted[sorted.length - 1].day;
+  return {
+    cadence: cadence.name,
+    count: sorted.length,
+    day,
+    spread,
+    amountMin,
+    amountMax,
+    typical,
+    fixed,
+    lastDay,
+    nextDay: Math.round(lastDay + cadence.days),
+    perMonth: cadence.perMonth,
+  };
+}
+
+// Collapses 3+ charges that land on the same day into one event with their combined amount.
+// Charges that merely share a day (two installments) are left alone.
+function mergeSameDay(occ: Occ[], eventOf: Map<Occ, Occ>): Occ[] {
+  const byDay = new Map<number, Occ[]>();
+  for (const o of occ) byDay.set(o.day, [...(byDay.get(o.day) ?? []), o]);
+
+  const events: Occ[] = [];
+  for (const group of byDay.values()) {
+    if (group.length < 3) {
+      group.forEach((o) => {
+        eventOf.set(o, o);
+        events.push(o);
+      });
+      continue;
+    }
+    const merged: Occ = { ...group[0], amount: group.reduce((sum, o) => sum + o.amount, 0) };
+    group.forEach((o) => eventOf.set(o, merged));
+    events.push(merged);
+  }
+  return events;
+}
+
+// Greedy grouping of similar amounts, anchored on the smallest in each group.
+function clusterAmounts(occ: Occ[]): Occ[][] {
+  const sorted = [...occ].sort((a, b) => a.amount - b.amount);
+  const clusters: Occ[][] = [];
+  for (const o of sorted) {
+    const last = clusters[clusters.length - 1];
+    if (last && o.amount <= last[0].amount * 1.05 + 0.75) last.push(o);
+    else clusters.push([o]);
+  }
+  return clusters;
+}
+
+// Splits on the day of month, so one merchant billing on the 6th and again on the 20th
+// comes out as two patterns.
+function clusterDays(occ: Occ[]): Occ[][] {
+  const sorted = [...occ].sort((a, b) => a.dom - b.dom);
+  const clusters: Occ[][] = [[sorted[0]]];
+  for (let i = 1; i < sorted.length; i++) {
+    if (sorted[i].dom - sorted[i - 1].dom > 5) clusters.push([sorted[i]]);
+    else clusters[clusters.length - 1].push(sorted[i]);
+  }
+  // The last days of the month and the first days of the next belong together.
+  if (clusters.length > 1) {
+    const first = clusters[0];
+    const last = clusters[clusters.length - 1];
+    if (first[0].dom + 31 - last[last.length - 1].dom <= 5) {
+      clusters.splice(clusters.length - 1, 1);
+      clusters[0] = [...last, ...first];
+    }
+  }
+  return clusters;
+}
+
+// ---------------------------------------------------------------------------------------------
+// Putting it together
+// ---------------------------------------------------------------------------------------------
+
+const money = (n: number) => `$${Number.isInteger(n) ? n : n.toFixed(2)}`;
+const range = (a: number, b: number) => (Math.abs(a - b) < 0.005 ? money(a) : `${money(Math.round(a))}–${money(Math.round(b)).slice(1)}`);
+
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+const shortDate = (day: number) => {
+  const [, m, d] = isoFromDay(day).split('-').map(Number);
+  return `${MONTHS[m - 1]} ${d}`;
+};
+
+const ordinal = (n: number) => {
+  const s = ['th', 'st', 'nd', 'rd'];
+  const v = n % 100;
+  return `${n}${s[(v - 20) % 10] || s[v] || s[0]}`;
+};
+
+const cadenceText = (p: Pattern) => (p.cadence === 'monthly' && p.day ? `~${ordinal(p.day)}` : p.cadence);
+
+const KIND_SUMMARY: Record<Kind, string> = {
+  bill: 'Bill',
+  debt: 'Debt / repayment',
+  installment: 'Installment',
+  subscription: 'Subscription',
+  usage: 'Subscription + usage',
+  aggregator: 'Billing aggregator',
+  habit: 'Recurring habit',
+};
+
+const CONFIDENCE_ORDER: Confidence[] = ['confirmed', 'likely', 'new', 'review', 'habit'];
+
+export function analyze(transactions: Txn[]): Analysis {
+  const spend = transactions.filter((t) => t.amount < 0 && !t.pending);
+  const dates = transactions.map((t) => t.date).sort();
+  const latestDay = dates.length ? epochDay(dates[dates.length - 1]) : 0;
+
+  const groups = new Map<string, { resolved: Resolved; occ: Occ[] }>();
+  for (const t of spend) {
+    const resolved = resolve(t);
+    if (!resolved) continue;
+    const day = epochDay(t.date);
+    const occ: Occ = { t, day, dom: Number(t.date.slice(8, 10)), month: t.date.slice(0, 7), amount: -t.amount };
+    const group = groups.get(resolved.key) ?? { resolved, occ: [] };
+    group.occ.push(occ);
+    groups.set(resolved.key, group);
+  }
+
+  const items: Recurring[] = [];
+
+  for (const [key, { resolved, occ }] of groups) {
+    const raws = occ.map((o) => bankText(o.t));
+    const explicit = raws.some((r) => r.includes('RECURRING CARD PURCHASE'));
+    const category = occ[0].t.categoryKey;
+    const achStyle = raws.some((r) => /(PPD|WEB) ID/.test(r)) && !resolved.aggregator;
+    const allowVariable = resolved.known || explicit || achStyle || BILL_CATEGORIES.has(category);
+    const trusted = resolved.known || explicit || achStyle;
+
+    // A batch of payments on one day (EarnIn repays several advances at once) is one event.
+    const eventOf = new Map<Occ, Occ>();
+    const events = mergeSameDay(occ, eventOf);
+
+    const patterns: Pattern[] = [];
+    const used = new Set<Occ>();
+    const take = (p: Pattern, from: Occ[]) => {
+      patterns.push(p);
+      from.forEach((o) => used.add(o));
+    };
+
+    // Several clean monthly patterns beat one weekly/biweekly guess: a charge on the 6th and
+    // again on the 20th is two relationships, not one every two weeks.
+    const monthlySplit = (from: Occ[], minCount: number): Pattern[] | null => {
+      const clusters = clusterDays(from).filter((c) => c.length >= 2);
+      if (clusters.length < 2) return null;
+      const found = clusters.map((c) => evalPattern(c, { minCount, allowVariable }));
+      return found.every((p) => p && p.cadence === 'monthly') ? (found as Pattern[]) : null;
+    };
+
+    const minWhole = trusted ? 2 : 3;
+    const whole = evalPattern(events, { minCount: minWhole, allowVariable });
+    const wholeSplit = whole && whole.cadence !== 'monthly' ? monthlySplit(events, minWhole) : null;
+
+    if (wholeSplit) {
+      wholeSplit.forEach((p) => patterns.push(p));
+      events.forEach((o) => used.add(o));
+    } else if (whole) {
+      take(whole, events);
+    } else {
+      // Otherwise split by amount, then by day of month, and look for steady patterns in each.
+      const minCount = trusted ? 2 : 3;
+      for (const byAmount of clusterAmounts(events)) {
+        if (byAmount.length < 2) continue;
+        const all = evalPattern(byAmount, { minCount, allowVariable: false });
+        const split = !all || all.cadence !== 'monthly' ? monthlySplit(byAmount, minCount) : null;
+        if (split) {
+          split.forEach((p) => patterns.push(p));
+          byAmount.forEach((o) => used.add(o));
+        } else if (all) {
+          take(all, byAmount);
+        } else {
+          for (const byDay of clusterDays(byAmount)) {
+            const p = evalPattern(byDay, { minCount, allowVariable: false });
+            if (p) take(p, byDay);
+          }
+        }
+      }
+    }
+
+    const months = new Set(occ.map((o) => o.month)).size;
+    const newest = [...occ].sort((a, b) => b.day - a.day);
+    const recent = newest.slice(0, 6).map((o) => ({ date: o.t.date, amount: o.amount }));
+    const logos = newest.find((o) => o.t.logos.length)?.t.logos ?? [];
+
+    // Charges that belong to no pattern, but keep coming back (usage, extras).
+    const leftover = occ.filter((o) => !used.has(o) && !used.has(eventOf.get(o)!));
+    const leftoverMonths = new Set(leftover.map((o) => o.month)).size;
+    const variable =
+      patterns.length > 0 && leftover.length >= 3 && leftoverMonths >= 2
+        ? {
+            count: leftover.length,
+            avg: leftover.reduce((s, o) => s + o.amount, 0) / leftover.length,
+            perMonth: leftover.reduce((s, o) => s + o.amount, 0) / Math.max(1, leftoverMonths),
+          }
+        : null;
+
+    // Nothing steady: either a habit, an unclear billing wrapper, or not worth showing.
+    if (patterns.length === 0) {
+      const base = { id: key, name: resolved.name, logos, recent, monthly: null as number | null };
+      const total = occ.reduce((s, o) => s + o.amount, 0);
+      if (resolved.aggregator && occ.length >= 3) {
+        items.push({
+          ...base,
+          kind: 'aggregator',
+          confidence: 'review',
+          amountLabel: 'Multiple',
+          cadenceLabel: 'irregular',
+          summary: KIND_SUMMARY.aggregator,
+          active: true,
+          notes: [
+            `${occ.length} charges through a billing wrapper with no steady cadence.`,
+            'The wrapper can hide several different services. Label them to separate the real subscriptions.',
+          ],
+        });
+      } else if (occ.length >= 8 && months >= 3) {
+        items.push({
+          ...base,
+          kind: 'habit',
+          confidence: 'habit',
+          amountLabel: `${money(Math.round(total / occ.length))} avg`,
+          cadenceLabel: `${occ.length} charges`,
+          summary: `${KIND_SUMMARY.habit} · ${money(Math.round(total))} total`,
+          active: true,
+          notes: [
+            `${occ.length} charges across ${months} months, ${money(Math.round(total))} in total.`,
+            'Frequent, but with no fixed billing cadence, so this is a spending habit and not a bill.',
+          ],
+        });
+      }
+      continue;
+    }
+
+    // Choose a confidence from the strongest pattern.
+    const best = [...patterns].sort((a, b) => b.count - a.count)[0];
+    let confidence: Confidence;
+    if (resolved.aggregator) confidence = 'review';
+    else if ((explicit && best.count >= 2) || (best.count >= 3 && best.fixed && best.spread <= 6)) confidence = 'confirmed';
+    else if (best.count >= 3) confidence = 'likely';
+    else confidence = 'new';
+
+    let kind: Kind = resolved.kind ?? (category === 'LOAN_PAYMENTS' ? 'debt' : BILL_CATEGORIES.has(category) || !best.fixed ? 'bill' : 'subscription');
+    if (variable && kind === 'subscription') kind = 'usage';
+
+    const sortedPatterns = [...patterns].sort((a, b) => b.count - a.count);
+    const amountLabel =
+      patterns.length === 1
+        ? range(best.amountMin, best.amountMax) + (variable ? ' + usage' : '')
+        : [...new Set(sortedPatterns.map((p) => range(p.amountMin, p.amountMax)))].join(' · ');
+    const cadenceLabel =
+      patterns.length === 1 ? cadenceText(best) : `${patterns.length} patterns · ${[...new Set(sortedPatterns.map(cadenceText))].join(', ')}`;
+
+    const lastSeen = Math.max(...occ.map((o) => o.day));
+    const expectedGap = Math.min(...patterns.map((p) => p.nextDay - p.lastDay));
+    const active = latestDay - lastSeen <= expectedGap * 1.6;
+
+    const notes: string[] = [];
+    if (explicit) notes.push('The bank tags these charges as recurring card purchases.');
+    for (const p of sortedPatterns) {
+      const when = p.cadence === 'monthly' && p.day ? `around the ${ordinal(p.day)} of the month` : p.cadence;
+      const how = p.fixed ? `a steady ${money(p.typical)}` : `${range(p.amountMin, p.amountMax)}`;
+      notes.push(`${p.count} charges ${when}, ${how}. Next expected near ${shortDate(p.nextDay)}.`);
+    }
+    if (patterns.length > 1) notes.unshift(`${patterns.length} separate recurring patterns detected. These could be two plans, an add-on, or two billing relationships.`);
+    if (variable) {
+      notes.push(
+        `Also ${variable.count} extra charges averaging ${money(Math.round(variable.avg * 100) / 100)} (about ${money(Math.round(variable.perMonth))}/month). Treated as variable usage, not part of the fixed charge.`,
+      );
+    }
+    if (resolved.aggregator) notes.push('Billed through a payment processor, so the underlying service is not clear. Needs identification.');
+    if (!active) notes.push(`No charge since ${shortDate(lastSeen)}. This may have ended.`);
+
+    const monthly = resolved.aggregator || !active ? null : sortedPatterns.reduce((s, p) => s + p.typical * p.perMonth, 0);
+
+    items.push({
+      id: key,
+      name: resolved.name,
+      kind: resolved.aggregator ? 'aggregator' : kind,
+      confidence,
+      logos,
+      amountLabel,
+      cadenceLabel,
+      summary: `${KIND_SUMMARY[resolved.aggregator ? 'aggregator' : kind]} · ${occ.length} charges`,
+      monthly,
+      active,
+      notes,
+      recent,
+    });
+  }
+
+  items.sort((a, b) => {
+    const c = CONFIDENCE_ORDER.indexOf(a.confidence) - CONFIDENCE_ORDER.indexOf(b.confidence);
+    return c !== 0 ? c : (b.monthly ?? 0) - (a.monthly ?? 0) || a.name.localeCompare(b.name);
+  });
+
+  const counts: Record<Confidence, number> = { confirmed: 0, likely: 0, new: 0, review: 0, habit: 0 };
+  for (const i of items) counts[i.confidence]++;
+
+  const counted = items.filter((i) => i.active && i.monthly && i.confidence !== 'review' && i.confidence !== 'habit');
+  return {
+    items,
+    counts,
+    monthlyTotal: counted.reduce((s, i) => s + (i.monthly ?? 0), 0),
+    earliest: dates[0] ?? null,
+    latest: dates[dates.length - 1] ?? null,
+    monthsOfHistory: dates.length ? (latestDay - epochDay(dates[0])) / 30.4 : 0,
+  };
+}

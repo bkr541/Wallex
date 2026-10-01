@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import SetupTab from './pages/SetupTab';
 import CheckingTab from './pages/CheckingTab';
 import PatternsTab from './pages/PatternsTab';
+import RecurringTab from './pages/RecurringTab';
 import ChaseLogo from './components/ChaseLogo';
 import { accountLabel, useTransactions } from './lib/useTransactions';
 import { GearIcon, HomeIcon, ListIcon, PieIcon, ReceiptIcon } from './components/NavIcons';
@@ -20,7 +21,7 @@ const TABS = ['Tab One', 'Tab Two'];
 const NAV: NavItem[] = [
   { id: 'overview', name: 'Overview', icon: HomeIcon, description: 'Your spending at a glance, all in one place.' },
   { id: 'patterns', name: 'Patterns', icon: PieIcon, description: 'Track the spending routines that shape your month.', tabs: [] },
-  { id: 'transactions', name: 'Transactions', icon: ReceiptIcon, description: 'Review every purchase, payment and deposit.', tabs: ['Checking', 'Tab Two'] },
+  { id: 'transactions', name: 'Transactions', icon: ReceiptIcon, description: 'Review every purchase, payment and deposit.', tabs: ['Checking', 'Recurring'] },
   { id: 'settings', name: 'Settings', icon: GearIcon, description: 'Manage your account and app preferences.', tabs: ['Profile', 'Appearance', 'Setup'] },
   { id: 'scratchpad', name: 'Scratchpad', icon: ListIcon, description: 'A sandbox for trying out interface components.', tabs: ['UI Components'] },
 ];
@@ -135,9 +136,11 @@ export default function App() {
           {activeId === 'patterns' ? (
             <PatternsTab load={load} />
           ) : activeId === 'settings' && activeTab === 'Setup' ? (
-            <SetupTab />
+            <SetupTab onConnectionChange={refresh} />
           ) : activeId === 'transactions' && activeTab === 'Checking' ? (
             <CheckingTab load={load} refreshing={refreshing} onRefresh={refresh} />
+          ) : activeId === 'transactions' && activeTab === 'Recurring' ? (
+            <RecurringTab load={load} />
           ) : (
             <div className="p-6">
               <p className="font-support text-sm text-muted">

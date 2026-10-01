@@ -32,6 +32,7 @@ export interface LinkedAccount {
 
 export interface Txn {
   id: string;
+  accountId: string;
   date: string; // YYYY-MM-DD, the day it posted
   authorizedDate: string | null; // YYYY-MM-DD, the day it was made
   merchant: string;
