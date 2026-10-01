@@ -4,6 +4,7 @@ import SetupTab from './pages/SetupTab';
 import CheckingTab from './pages/CheckingTab';
 import PatternsTab from './pages/PatternsTab';
 import RecurringTab from './pages/RecurringTab';
+import UiComponentsTab from './pages/UiComponentsTab';
 import ChaseLogo from './components/ChaseLogo';
 import { accountLabel, useTransactions } from './lib/useTransactions';
 import { GearIcon, HomeIcon, ListIcon, PieIcon, ReceiptIcon } from './components/NavIcons';
@@ -139,6 +140,8 @@ export default function App() {
             <SetupTab onConnectionChange={refresh} />
           ) : activeId === 'transactions' && activeTab === 'Checking' ? (
             <CheckingTab load={load} refreshing={refreshing} onRefresh={refresh} />
+          ) : activeId === 'scratchpad' && activeTab === 'UI Components' ? (
+            <UiComponentsTab />
           ) : activeId === 'transactions' && activeTab === 'Recurring' ? (
             <RecurringTab load={load} />
           ) : (
