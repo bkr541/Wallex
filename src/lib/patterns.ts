@@ -303,3 +303,38 @@ export const SAMPLE_PATTERNS: PatternData = {
   ],
   categoryOptions: [],
 };
+
+// The transactions behind a circle: a merchant's own charges, or everything in a category.
+export function transactionsFor(bubble: Bubble, txns: Txn[]): Txn[] {
+  return txns.filter((t) =>
+    bubble.kind === 'category' ? (t.categoryKey || 'UNCATEGORIZED') === bubble.key : merchantOf(t).key === bubble.key,
+  );
+}
+
+// Made-up charges for a sample circle, so the detail view has something to show before a bank is linked.
+export function sampleTransactionsFor(bubble: Bubble): Txn[] {
+  const n = Math.min(Math.max(bubble.count, 1), 8);
+  const spacing = Math.max(3, Math.round(28 / n));
+  return Array.from({ length: n }, (_, i) => {
+    const date = isoDaysAgo(i * spacing + 1);
+    return {
+      id: `sample-${bubble.key}-${i}`,
+      accountId: 'sample',
+      date,
+      authorizedDate: isoDaysAgo(i * spacing + 2),
+      merchant: bubble.name,
+      logos: bubble.logos,
+      category: bubble.kind === 'category' ? bubble.name : bubble.kind === 'bill' ? 'Rent & Utilities' : 'Food & Drink',
+      categoryKey: '',
+      categoryDetailKey: '',
+      channel: 'Online',
+      pending: false,
+      amount: -Math.round((bubble.amount / n) * 100) / 100,
+      details: [
+        { label: 'Bank Description', value: `${bubble.name.toUpperCase()} #${String(100 + i * 7).padStart(4, '0')}` },
+        { label: 'Account', value: 'TOTAL CHECKING ••6201' },
+        { label: 'Currency', value: 'USD' },
+      ],
+    };
+  });
+}
