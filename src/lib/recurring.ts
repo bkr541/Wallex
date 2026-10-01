@@ -139,6 +139,32 @@ function resolve(t: Txn): Resolved | null {
   return { key, name: titleCase(key), kind: null, aggregator: false, known: false };
 }
 
+// Names the merchant for ANY spending, including the things the recurring detector skips:
+// person-to-person payments, cash, fees and checks. Used for the spending view.
+export function merchantOf(t: Txn): { key: string; name: string } {
+  const resolved = resolve(t);
+  if (resolved) return { key: resolved.key, name: resolved.name };
+
+  const raw = bankText(t);
+  const zelle = raw.match(/ZELLE PAYMENT (?:TO|FROM)\s+(.+)/);
+  if (zelle) {
+    const who: string[] = [];
+    for (const word of zelle[1].split(/\s+/)) {
+      if (/\d/.test(word) || word.startsWith('JPM')) break;
+      who.push(word);
+    }
+    const name = titleCase(who.slice(0, 2).join(' ')) || 'Someone';
+    return { key: `ZELLE ${name.toUpperCase()}`, name: `Zelle · ${name}` };
+  }
+  if (/ATM/.test(raw)) return { key: 'ATM', name: 'ATM & cash' };
+  if (/OVERDRAFT/.test(raw)) return { key: 'OVERDRAFT', name: 'Overdraft fees' };
+  if (/^CHECK\b/.test(raw)) return { key: 'CHECKS', name: 'Checks' };
+  if (/APPLE CASH/.test(raw)) return { key: 'APPLE CASH', name: 'Apple Cash' };
+
+  const key = genericKey(t);
+  return { key, name: titleCase(key) };
+}
+
 // ---------------------------------------------------------------------------------------------
 // Dates and patterns
 // ---------------------------------------------------------------------------------------------

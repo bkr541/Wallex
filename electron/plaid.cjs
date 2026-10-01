@@ -330,14 +330,10 @@ async function getTransactions() {
     throw err;
   }
 
-  // The Transactions screen is the Checking tab, so prefer checking accounts when there are any.
-  const checking = data.accounts.filter((a) => a.subtype === 'checking');
-  const shown = checking.length ? checking : data.accounts;
-  const shownIds = new Set(shown.map((a) => a.account_id));
   const accountsById = new Map(data.accounts.map((a) => [a.account_id, a]));
 
+  // Every linked account is returned (checking, credit cards, ...). The UI decides which to show.
   const transactions = data.transactions
-    .filter((t) => shownIds.has(t.account_id))
     .sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0))
     .map((t) => ({
       id: t.transaction_id,
@@ -359,10 +355,11 @@ async function getTransactions() {
   return {
     connected: true,
     institutionName: c.institutionName,
-    accounts: shown.map((a) => ({
+    accounts: data.accounts.map((a) => ({
       id: a.account_id,
       name: a.name,
       mask: a.mask,
+      type: a.type,
       subtype: a.subtype,
       available: a.balances.available,
       current: a.balances.current,

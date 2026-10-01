@@ -13,15 +13,25 @@ const initialsFor = (name: string) => {
 };
 
 // Tries each logo source in order, moving on when one fails to load, and ends on initials.
-export default function MerchantLogo({ name, sources }: { name: string; sources: string[] }) {
+export default function MerchantLogo({
+  name,
+  sources,
+  className = 'h-7 w-7 text-[10px]',
+  style,
+}: {
+  name: string;
+  sources: string[];
+  className?: string;
+  style?: React.CSSProperties;
+}) {
   const [failed, setFailed] = useState(0);
   const src = sources[failed];
 
   return (
     <span
       aria-hidden="true"
-      className="flex h-7 w-7 shrink-0 items-center justify-center overflow-hidden rounded-full border border-line text-[10px] font-semibold text-ink"
-      style={src ? { background: 'var(--surface)' } : { background: `hsl(${hueFor(name)} 40% 28%)` }}
+      className={`flex shrink-0 items-center justify-center overflow-hidden rounded-full border border-line font-semibold text-ink ${className}`}
+      style={{ ...(src ? { background: 'var(--surface)' } : { background: `hsl(${hueFor(name)} 40% 28%)` }), ...style }}
     >
       {src ? (
         <img

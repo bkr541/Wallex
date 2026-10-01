@@ -25,6 +25,7 @@ export interface LinkedAccount {
   id: string;
   name: string;
   mask: string | null;
+  type: string | null; // depository, credit, ...
   subtype: string | null;
   available: number | null;
   current: number | null;

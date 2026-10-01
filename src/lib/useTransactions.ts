@@ -4,7 +4,16 @@ import { wallex, type LinkedAccount, type Txn } from './wallex';
 export type Load =
   | { state: 'loading' }
   | { state: 'sample'; note: string; isError?: boolean }
-  | { state: 'live'; bank: string; accounts: LinkedAccount[]; transactions: Txn[] };
+  | {
+      state: 'live';
+      bank: string;
+      // The Checking and Recurring tabs work on the checking account(s) only.
+      accounts: LinkedAccount[];
+      transactions: Txn[];
+      // Everything linked, including credit cards. Patterns uses all of it.
+      allAccounts: LinkedAccount[];
+      allTransactions: Txn[];
+    };
 
 export function useTransactions() {
   const [load, setLoad] = useState<Load>({ state: 'loading' });
@@ -33,11 +42,19 @@ export function useTransactions() {
         note: `${data.institutionName ?? 'Your bank'} is connected, but Plaid is still preparing your transactions. Try again in a minute.`,
       });
     }
+    const allAccounts = data.accounts ?? [];
+    const allTransactions = data.transactions ?? [];
+    // Prefer checking accounts when there are any; otherwise fall back to everything.
+    const checking = allAccounts.filter((a) => a.subtype === 'checking');
+    const shown = checking.length ? checking : allAccounts;
+    const shownIds = new Set(shown.map((a) => a.id));
     setLoad({
       state: 'live',
       bank: data.institutionName ?? 'Bank',
-      accounts: data.accounts ?? [],
-      transactions: data.transactions ?? [],
+      accounts: shown,
+      transactions: allTransactions.filter((t) => shownIds.has(t.accountId)),
+      allAccounts,
+      allTransactions,
     });
   }, []);
 
