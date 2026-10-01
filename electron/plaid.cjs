@@ -223,6 +223,14 @@ async function disconnect() {
   config.clearConnection();
 }
 
+// "FOOD_AND_DRINK" + "FOOD_AND_DRINK_RESTAURANT" -> "Food & Drink › Restaurant"
+const categoryLabel = (pfc) => {
+  if (!pfc?.primary) return 'Uncategorized';
+  const primary = titleCase(pfc.primary);
+  const detail = pfc.detailed?.startsWith(pfc.primary + '_') ? pfc.detailed.slice(pfc.primary.length + 1) : '';
+  return detail ? `${primary} › ${titleCase(detail)}` : primary;
+};
+
 const titleCase = (s) =>
   s
     .toLowerCase()
@@ -230,13 +238,56 @@ const titleCase = (s) =>
     .replace(/_/g, ' ')
     .replace(/\b\w/g, (c) => c.toUpperCase());
 
+// Fields without their own column; the UI shows these when a transaction is expanded.
+// Anything Plaid leaves empty is dropped.
+function detailsFor(t, account) {
+  const loc = t.location || {};
+  const meta = t.payment_meta || {};
+  const address = [loc.address, loc.city, [loc.region, loc.postal_code].filter(Boolean).join(' '), loc.country]
+    .filter(Boolean)
+    .join(', ');
+  const counterparties = (t.counterparties || [])
+    .map((c) => (c.type ? `${c.name} (${titleCase(c.type)})` : c.name))
+    .join(', ');
+  const confidence = t.personal_finance_category?.confidence_level;
+
+  return [
+    ['Bank Description', t.original_description || t.name],
+    ['Account', account ? `${account.name}${account.mask ? ` ••${account.mask}` : ''}` : ''],
+    ['Location', address],
+    ['Store Number', loc.store_number],
+    ['Website', t.website],
+    ['Counterparties', counterparties],
+    ['Payee', meta.payee],
+    ['Payer', meta.payer],
+    ['Reference Number', meta.reference_number],
+    ['Payment Method', meta.payment_method],
+    ['Payment Processor', meta.payment_processor],
+    ['Reason', meta.reason],
+    ['By Order Of', meta.by_order_of],
+    ['PPD ID', meta.ppd_id],
+    ['Check Number', t.check_number],
+    ['Transaction Code', t.transaction_code ? titleCase(t.transaction_code) : ''],
+    ['Currency', t.iso_currency_code || t.unofficial_currency_code],
+    ['Category Confidence', confidence ? titleCase(confidence) : ''],
+    ['Transaction ID', t.transaction_id],
+  ]
+    .filter(([, value]) => value !== null && value !== undefined && value !== '')
+    .map(([label, value]) => ({ label, value: String(value) }));
+}
+
 async function syncAll(accessToken) {
   const byId = new Map();
   let cursor;
   let accounts = [];
   let hasMore = true;
   while (hasMore) {
-    const r = await plaid('/transactions/sync', { access_token: accessToken, cursor, count: 500 });
+    const r = await plaid('/transactions/sync', {
+      access_token: accessToken,
+      cursor,
+      count: 500,
+      options: { include_original_description: true },
+    });
     accounts = r.accounts;
     for (const t of [...r.added, ...r.modified]) byId.set(t.transaction_id, t);
     for (const t of r.removed) byId.delete(t.transaction_id);
@@ -268,6 +319,7 @@ async function getTransactions() {
   const checking = data.accounts.filter((a) => a.subtype === 'checking');
   const shown = checking.length ? checking : data.accounts;
   const shownIds = new Set(shown.map((a) => a.account_id));
+  const accountsById = new Map(data.accounts.map((a) => [a.account_id, a]));
 
   const transactions = data.transactions
     .filter((t) => shownIds.has(t.account_id))
@@ -276,10 +328,13 @@ async function getTransactions() {
       id: t.transaction_id,
       date: t.date,
       merchant: t.merchant_name || t.name,
-      category: t.personal_finance_category?.primary ? titleCase(t.personal_finance_category.primary) : 'Uncategorized',
+      authorizedDate: t.authorized_date || null,
+      category: categoryLabel(t.personal_finance_category),
+      channel: t.payment_channel ? titleCase(t.payment_channel) : '',
       pending: t.pending,
       // Plaid reports money out as positive; the UI shows money out as negative.
       amount: -t.amount,
+      details: detailsFor(t, accountsById.get(t.account_id)),
     }));
 
   return {

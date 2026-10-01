@@ -32,11 +32,14 @@ export interface LinkedAccount {
 
 export interface Txn {
   id: string;
-  date: string; // YYYY-MM-DD
+  date: string; // YYYY-MM-DD, the day it posted
+  authorizedDate: string | null; // YYYY-MM-DD, the day it was made
   merchant: string;
   category: string;
+  channel: string;
   pending: boolean;
   amount: number; // negative = money out, positive = money in
+  details: { label: string; value: string }[]; // everything else Plaid knows, shown when a row is expanded
 }
 
 export interface TransactionsResult {

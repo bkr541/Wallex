@@ -4,6 +4,7 @@ import SetupTab from './pages/SetupTab';
 import CheckingTab from './pages/CheckingTab';
 import PatternsTab from './pages/PatternsTab';
 import ChaseLogo from './components/ChaseLogo';
+import { accountLabel, useTransactions } from './lib/useTransactions';
 import { ArrowLeftRight, LayoutDashboard, Repeat, Settings } from 'lucide-react';
 
 interface NavItem {
@@ -27,6 +28,7 @@ export default function App() {
   const [activeId, setActiveId] = useState('overview');
   const [activeTabs, setActiveTabs] = useState<Record<string, string>>({});
   const [hoveredId, setHoveredId] = useState<string | null>(null);
+  const { load, refreshing, refresh } = useTransactions();
 
   const activePage = NAV.find((item) => item.id === activeId)!;
   const tabs = activePage.tabs ?? TABS;
@@ -118,7 +120,7 @@ export default function App() {
               >
                 <span className="flex items-center gap-2">
                   {tab === 'Checking' && <ChaseLogo className="h-4 w-4" />}
-                  {tab}
+                  {tab === 'Checking' ? accountLabel(load) : tab}
                 </span>
               </button>
             );
@@ -132,7 +134,7 @@ export default function App() {
           ) : activeId === 'settings' && activeTab === 'Setup' ? (
             <SetupTab />
           ) : activeId === 'transactions' && activeTab === 'Checking' ? (
-            <CheckingTab />
+            <CheckingTab load={load} refreshing={refreshing} onRefresh={refresh} />
           ) : (
             <div className="p-6">
               <p className="font-support text-sm text-muted">
