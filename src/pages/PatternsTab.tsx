@@ -36,13 +36,12 @@ import {
   DEFAULT_FILTERS,
   SAMPLE_PATTERNS,
   buildPatterns,
-  capBubbles,
   type Bubble,
   type PatternFilters,
   type View,
 } from '../lib/patterns';
 
-const MAX_CIRCLES = 14;
+const MAX_CIRCLES = 14; // the biggest ones get a circle; the rest are counted in the summary line
 
 // Icons per Plaid category, plus a few for the sample circles.
 const ICONS: Record<string, LucideIcon | 'chase'> = {
@@ -79,17 +78,21 @@ const ICONS: Record<string, LucideIcon | 'chase'> = {
   NETFLIX: Clapperboard,
 };
 
-const CENTER_RAW_DIAMETER = 52;
-const MIN_RAW_DIAMETER = 16;
-const LARGEST_RAW_DIAMETER = 38;
+// Sizes: a circle's AREA is proportional to its dollars, so a circle with four times the money
+// has four times the area (twice the width). The same scale is used for every circle.
+const R_MAX = 20; // radius of the biggest circle, in layout units
+const MIN_SIZE = 0.17; // smallest circle, as a share of the biggest, so tiny ones stay visible
+const CENTER_SCALE = 1.4; // the income circle is this much wider than the biggest circle
 
-// How far circles may sink into each other, as a fraction of their combined radii.
-const NEIGHBOR_OVERLAP = 0.05;
-const CENTER_OVERLAP = 0.1;
+// How circles may overlap: neighbors sink into each other by this share of the smaller radius,
+// and circles tuck behind the income circle but keep their centers (and text) outside it.
+const NEIGHBOR_OVERLAP = 0.3;
+const CENTER_TUCK = 0.75; // share of a circle's radius that may sit under the income circle
 
-// The diagram is wider than it is tall, and positions are stretched sideways to use that room.
+const MAX_BIGGEST = 38; // the biggest circle is never wider than this, in percent of the diagram height
+
+// The diagram is wider than it is tall.
 const ASPECT = 1.5; // width / height
-const SPREAD = 1.3;
 
 interface Pt {
   x: number;
@@ -97,24 +100,32 @@ interface Pt {
   r: number;
 }
 
-// Packs the circles around the income circle. Deterministic for a given input, so the layout
-// never shifts between renders. All sizes are in percent of the diagram's HEIGHT.
-function buildLayout<T extends { amount: number }>(habits: T[]) {
-  const centerR = CENTER_RAW_DIAMETER / 2;
-  const largest = Math.max(1, ...habits.map((h) => h.amount));
+// A small deterministic pseudo-random number, so the layout is the same on every render.
+const jitter = (i: number) => {
+  const x = Math.sin(i * 12.9898 + 4.1414) * 43758.5453;
+  return x - Math.floor(x);
+};
 
-  // Area is proportional to spend, so diameter scales with the square root.
-  const nodes: Pt[] = habits.map((h, i) => {
-    const d = Math.max(MIN_RAW_DIAMETER, LARGEST_RAW_DIAMETER * Math.sqrt(h.amount / largest));
-    const r = d / 2;
-    const angle = i * 2.399963; // golden angle spreads the starting points evenly
-    return { x: Math.cos(angle) * (centerR + r), y: Math.sin(angle) * (centerR + r), r };
+// Packs the circles into one loose cluster around the income circle. They are spread across the
+// whole area and overlap their neighbors, rather than lining up in a ring.
+// Expects items sorted biggest first. All sizes come back in percent of the diagram's HEIGHT.
+function buildLayout<T extends { amount: number }>(items: T[]) {
+  const largest = Math.max(1, ...items.map((h) => h.amount));
+  const centerR = R_MAX * CENTER_SCALE;
+
+  const nodes: Pt[] = items.map((h, i) => {
+    const r = Math.max(MIN_SIZE * R_MAX, R_MAX * Math.sqrt(h.amount / largest));
+    // Start on a loose spiral that reaches out across the area, with some scatter.
+    const angle = i * 2.399963 + jitter(i) * 0.9;
+    const dist = centerR * 0.95 + R_MAX * 1.1 * Math.sqrt(i + 1) + jitter(i + 50) * R_MAX * 0.4;
+    return { x: Math.cos(angle) * dist, y: Math.sin(angle) * dist, r };
   });
 
-  for (let iter = 0; iter < 400; iter++) {
+  for (let iter = 0; iter < 900; iter++) {
+    // Gentle pull toward the middle, stronger vertically so the cluster comes out wide.
     for (const n of nodes) {
-      n.x *= 0.985;
-      n.y *= 0.985;
+      n.x *= 0.996;
+      n.y *= 0.991;
     }
     for (let i = 0; i < nodes.length; i++) {
       for (let j = i + 1; j < nodes.length; j++) {
@@ -123,7 +134,7 @@ function buildLayout<T extends { amount: number }>(habits: T[]) {
         const dx = b.x - a.x;
         const dy = b.y - a.y;
         const d = Math.hypot(dx, dy) || 0.001;
-        const min = (a.r + b.r) * (1 - NEIGHBOR_OVERLAP);
+        const min = a.r + b.r - NEIGHBOR_OVERLAP * Math.min(a.r, b.r);
         if (d < min) {
           const push = (min - d) / 2 / d;
           a.x -= dx * push;
@@ -135,7 +146,8 @@ function buildLayout<T extends { amount: number }>(habits: T[]) {
     }
     for (const n of nodes) {
       const d = Math.hypot(n.x, n.y) || 0.001;
-      const min = (centerR + n.r) * (1 - CENTER_OVERLAP);
+      // Tuck behind the income circle, but never so far that its figures get covered.
+      const min = centerR + n.r - Math.min(CENTER_TUCK * n.r, 0.28 * centerR);
       if (d < min) {
         n.x *= min / d;
         n.y *= min / d;
@@ -143,16 +155,15 @@ function buildLayout<T extends { amount: number }>(habits: T[]) {
     }
   }
 
-  for (const n of nodes) n.x *= SPREAD;
-
   // Fit the whole cluster inside the diagram.
   const extentX = Math.max(centerR, ...nodes.map((n) => Math.abs(n.x) + n.r));
   const extentY = Math.max(centerR, ...nodes.map((n) => Math.abs(n.y) + n.r));
-  const scale = Math.min(47 / extentY, (47 * ASPECT) / extentX);
+  // With only a few circles, keep them from ballooning to fill the whole diagram.
+  const scale = Math.min(47 / extentY, (47 * ASPECT) / extentX, MAX_BIGGEST / 2 / R_MAX);
 
   return {
-    centerDiameter: CENTER_RAW_DIAMETER * scale,
-    bubbles: habits.map((h, i) => ({
+    centerDiameter: centerR * 2 * scale,
+    bubbles: items.map((h, i) => ({
       ...h,
       left: 50 + (nodes[i].x * scale) / ASPECT,
       top: 50 + nodes[i].y * scale,
@@ -273,7 +284,11 @@ export default function PatternsTab({ load }: { load: Load }) {
 
   const q = query.trim().toLowerCase();
   const matching = useMemo(() => (q ? pool.filter((b) => b.name.toLowerCase().includes(q)) : pool), [pool, q]);
-  const shown = useMemo(() => capBubbles(matching, MAX_CIRCLES, 'Other'), [matching]);
+  // Only real items get a circle. A lumped "Other" circle would be a different kind of thing and
+  // would distort the sizes, so the smaller ones are summarised in text instead.
+  const shown = useMemo(() => matching.slice(0, MAX_CIRCLES), [matching]);
+  const hidden = matching.slice(MAX_CIRCLES);
+  const hiddenTotal = hidden.reduce((sum, b) => sum + b.amount, 0);
   const layout = useMemo(() => buildLayout(shown), [shown]);
 
   // Everything is measured against monthly income. With no income found, against total spending.
@@ -472,6 +487,7 @@ export default function PatternsTab({ load }: { load: Load }) {
             <span className="text-muted">
               {' '}
               /mo · {percent(total, base)} of {hasIncome ? 'income' : 'spending'}
+              {hidden.length > 0 && ` · showing the ${shown.length} biggest of ${matching.length} (${money(hiddenTotal)}/mo in the rest)`}
             </span>
           </p>
         )}
