@@ -2,23 +2,24 @@ import { useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import { RefreshCw } from 'lucide-react';
 import type { Txn } from '../lib/wallex';
+import MerchantLogo from '../components/MerchantLogo';
 import type { Load } from '../lib/useTransactions';
 
 // Transaction fields from Plaid's /transactions/sync response.
 const COLUMNS = [
-  { key: 'date', label: 'Posted Date', align: 'left' },
-  { key: 'authorized', label: 'Authorized Date', align: 'left' },
+  { key: 'status', label: 'Status', align: 'left' },
   { key: 'merchant', label: 'Merchant', align: 'left' },
   { key: 'category', label: 'Category', align: 'left' },
-  { key: 'channel', label: 'Payment Channel', align: 'left' },
-  { key: 'status', label: 'Status', align: 'left' },
+  { key: 'channel', label: 'Type', align: 'left' },
+  { key: 'date', label: 'Posted Date', align: 'left' },
+  { key: 'authorized', label: 'Auth Date', align: 'left' },
   { key: 'amount', label: 'Amount', align: 'right' },
 ] as const;
 
-const GRID = 'grid grid-cols-[1fr_1fr_1.6fr_2fr_1fr_0.9fr_1fr] gap-4 px-4';
+const GRID = 'grid grid-cols-[0.9fr_1.6fr_2fr_1fr_1fr_1fr_1fr] gap-4 px-4';
 
 // Sample data shown until a bank is connected in Settings → Setup.
-const SAMPLE_TRANSACTIONS: Omit<Txn, 'id' | 'details'>[] = [
+const SAMPLE_TRANSACTIONS: Omit<Txn, 'id' | 'details' | 'logos' | 'categoryKey' | 'categoryDetailKey'>[] = [
   { date: '2026-10-01', authorizedDate: '2026-10-01', merchant: 'Whole Foods Market', category: 'Food & Drink › Groceries', channel: 'In Store', pending: true, amount: -84.32 },
   { date: '2026-10-01', authorizedDate: '2026-10-01', merchant: 'Starbucks', category: 'Food & Drink › Coffee', channel: 'In Store', pending: true, amount: -6.45 },
   { date: '2026-09-30', authorizedDate: '2026-09-29', merchant: 'Shell', category: 'Transportation › Gas', channel: 'In Store', pending: false, amount: -52.18 },
@@ -44,6 +45,9 @@ const SAMPLE_TRANSACTIONS: Omit<Txn, 'id' | 'details'>[] = [
 const SAMPLES: Txn[] = SAMPLE_TRANSACTIONS.map((t, i) => ({
   ...t,
   id: `sample-${i}`,
+  logos: [],
+  categoryKey: '',
+  categoryDetailKey: '',
   details: [
     { label: 'Bank Description', value: `${t.merchant.toUpperCase()} #${String(100 + i * 7).padStart(4, '0')}` },
     { label: 'Account', value: 'TOTAL CHECKING ••6201' },
@@ -88,15 +92,13 @@ export default function CheckingTab({
         >
           {load.state === 'loading' && 'Loading transactions…'}
           {load.state === 'sample' && load.note}
-          {load.state === 'live' &&
-            `${load.bank} · ${load.accounts.map((a) => `${a.name}${a.mask ? ` ••${a.mask}` : ''}`).join(', ')}`}
         </p>
         <button
           type="button"
           onClick={onRefresh}
           disabled={refreshing}
           aria-label="Refresh transactions"
-          className="flex cursor-pointer items-center gap-1.5 text-sm text-muted transition-colors hover:text-ink disabled:opacity-50"
+          className="ml-auto flex cursor-pointer items-center gap-1.5 text-sm text-muted transition-colors hover:text-ink disabled:opacity-50"
         >
           <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
           Refresh
@@ -142,21 +144,6 @@ export default function CheckingTab({
               }}
               className={`${GRID} ${expanded ? 'items-start bg-surface/50' : 'items-center'} cursor-pointer py-3 text-sm transition-colors hover:bg-surface/50`}
             >
-              <div role="cell" className={`min-w-0 font-support text-muted ${text}`}>
-                {formatDate(t.date)}
-              </div>
-              <div role="cell" className={`min-w-0 font-support text-muted ${text}`}>
-                {t.authorizedDate ? formatDate(t.authorizedDate) : '—'}
-              </div>
-              <div role="cell" className={`min-w-0 font-medium ${text}`}>
-                {t.merchant}
-              </div>
-              <div role="cell" className={`min-w-0 font-support text-muted ${text}`}>
-                {t.category}
-              </div>
-              <div role="cell" className={`min-w-0 font-support text-muted ${text}`}>
-                {t.channel || '—'}
-              </div>
               <div role="cell" className="min-w-0">
                 <span
                   className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${
@@ -165,6 +152,22 @@ export default function CheckingTab({
                 >
                   {t.pending ? 'Pending' : 'Posted'}
                 </span>
+              </div>
+              <div role="cell" className="flex min-w-0 items-center gap-2.5 font-medium">
+                <MerchantLogo key={t.id} name={t.merchant} sources={t.logos} />
+                <span className={`min-w-0 ${text}`}>{t.merchant}</span>
+              </div>
+              <div role="cell" className={`min-w-0 font-support text-muted ${text}`}>
+                {t.category}
+              </div>
+              <div role="cell" className={`min-w-0 font-support text-muted ${text}`}>
+                {t.channel || '—'}
+              </div>
+              <div role="cell" className={`min-w-0 font-support text-muted ${text}`}>
+                {formatDate(t.date)}
+              </div>
+              <div role="cell" className={`min-w-0 font-support text-muted ${text}`}>
+                {t.authorizedDate ? formatDate(t.authorizedDate) : '—'}
               </div>
               <div
                 role="cell"

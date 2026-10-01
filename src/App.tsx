@@ -130,7 +130,7 @@ export default function App() {
 
         <div role="tabpanel" className={`${tabs.length > 0 ? 'mt-6' : 'mt-12'} min-h-0 flex-1 overflow-y-auto`}>
           {activeId === 'patterns' ? (
-            <PatternsTab />
+            <PatternsTab load={load} />
           ) : activeId === 'settings' && activeTab === 'Setup' ? (
             <SetupTab />
           ) : activeId === 'transactions' && activeTab === 'Checking' ? (

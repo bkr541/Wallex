@@ -276,6 +276,21 @@ function detailsFor(t, account) {
     .map(([label, value]) => ({ label, value: String(value) }));
 }
 
+// Logo candidates, best first: Plaid's merchant logo, a counterparty logo, the merchant site's icon,
+// then Plaid's generic category icon. The UI falls through the list and ends on initials.
+function logosFor(t) {
+  const counterparties = t.counterparties || [];
+  const site = t.website || counterparties.find((c) => c.website)?.website || '';
+  const domain = site.replace(/^https?:\/\//, '').split('/')[0];
+  const urls = [
+    t.logo_url,
+    ...counterparties.map((c) => c.logo_url),
+    domain && `https://t1.gstatic.com/faviconV2?client=SOCIAL&type=FAVICON&fallback_opts=TYPE,SIZE,URL&url=http://${domain}&size=64`,
+    t.personal_finance_category_icon_url,
+  ];
+  return [...new Set(urls.filter(Boolean))];
+}
+
 async function syncAll(accessToken) {
   const byId = new Map();
   let cursor;
@@ -328,8 +343,11 @@ async function getTransactions() {
       id: t.transaction_id,
       date: t.date,
       merchant: t.merchant_name || t.name,
+      logos: logosFor(t),
       authorizedDate: t.authorized_date || null,
       category: categoryLabel(t.personal_finance_category),
+      categoryKey: t.personal_finance_category?.primary || '',
+      categoryDetailKey: t.personal_finance_category?.detailed || '',
       channel: t.payment_channel ? titleCase(t.payment_channel) : '',
       pending: t.pending,
       // Plaid reports money out as positive; the UI shows money out as negative.

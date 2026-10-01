@@ -35,7 +35,10 @@ export interface Txn {
   date: string; // YYYY-MM-DD, the day it posted
   authorizedDate: string | null; // YYYY-MM-DD, the day it was made
   merchant: string;
-  category: string;
+  logos: string[]; // logo image URLs to try in order; empty means show initials
+  category: string; // display label, e.g. "Food & Drink › Restaurant"
+  categoryKey: string; // Plaid's primary category, e.g. FOOD_AND_DRINK
+  categoryDetailKey: string; // Plaid's detailed category, e.g. FOOD_AND_DRINK_RESTAURANT
   channel: string;
   pending: boolean;
   amount: number; // negative = money out, positive = money in
