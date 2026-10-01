@@ -1,6 +1,9 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import SetupTab from './pages/SetupTab';
+import CheckingTab from './pages/CheckingTab';
+import PatternsTab from './pages/PatternsTab';
+import ChaseLogo from './components/ChaseLogo';
 import { ArrowLeftRight, LayoutDashboard, Repeat, Settings } from 'lucide-react';
 
 interface NavItem {
@@ -15,8 +18,8 @@ const TABS = ['Tab One', 'Tab Two'];
 
 const NAV: NavItem[] = [
   { id: 'overview', name: 'Overview', icon: LayoutDashboard, description: 'Your spending at a glance, all in one place.' },
-  { id: 'habits', name: 'Habits', icon: Repeat, description: 'Track the spending routines that shape your month.' },
-  { id: 'transactions', name: 'Transactions', icon: ArrowLeftRight, description: 'Review every purchase, payment and deposit.' },
+  { id: 'patterns', name: 'Patterns', icon: Repeat, description: 'Track the spending routines that shape your month.', tabs: [] },
+  { id: 'transactions', name: 'Transactions', icon: ArrowLeftRight, description: 'Review every purchase, payment and deposit.', tabs: ['Checking', 'Tab Two'] },
   { id: 'settings', name: 'Settings', icon: Settings, description: 'Manage your account and app preferences.', tabs: ['Profile', 'Appearance', 'Setup'] },
 ];
 
@@ -96,6 +99,7 @@ export default function App() {
         <h1 className="self-end text-6xl font-semibold tracking-tight">{activePage.name}</h1>
         <p className="mt-2 self-end font-support text-base text-muted">{activePage.description}</p>
 
+        {tabs.length > 0 && (
         <div role="tablist" className="mt-12 flex w-full items-center justify-start gap-3 border-b border-line">
           {tabs.map((tab) => {
             const selected = tab === activeTab;
@@ -112,15 +116,23 @@ export default function App() {
                     : 'border-transparent text-muted hover:text-ink'
                 }`}
               >
-                {tab}
+                <span className="flex items-center gap-2">
+                  {tab === 'Checking' && <ChaseLogo className="h-4 w-4" />}
+                  {tab}
+                </span>
               </button>
             );
           })}
         </div>
+        )}
 
-        <div role="tabpanel" className="mt-6 min-h-0 flex-1 overflow-y-auto">
-          {activeId === 'settings' && activeTab === 'Setup' ? (
+        <div role="tabpanel" className={`${tabs.length > 0 ? 'mt-6' : 'mt-12'} min-h-0 flex-1 overflow-y-auto`}>
+          {activeId === 'patterns' ? (
+            <PatternsTab />
+          ) : activeId === 'settings' && activeTab === 'Setup' ? (
             <SetupTab />
+          ) : activeId === 'transactions' && activeTab === 'Checking' ? (
+            <CheckingTab />
           ) : (
             <div className="p-6">
               <p className="font-support text-sm text-muted">
