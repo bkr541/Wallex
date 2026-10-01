@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { localLogo } from '../lib/logos';
 
 // A stable hue per merchant so the initials fallback keeps its color between loads.
 const hueFor = (name: string) => {
@@ -25,7 +26,10 @@ export default function MerchantLogo({
   style?: React.CSSProperties;
 }) {
   const [failed, setFailed] = useState(0);
-  const src = sources[failed];
+  // A logo you dropped into src/assets/logos/merchants always comes first.
+  const own = localLogo(name);
+  const all = own ? [own, ...sources] : sources;
+  const src = all[failed];
 
   return (
     <span

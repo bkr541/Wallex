@@ -1,3 +1,4 @@
+import { faviconUrl } from './favicon';
 import type { Txn } from './wallex';
 
 // Finds recurring financial relationships in a list of transactions.
@@ -49,42 +50,71 @@ interface Alias {
   name: string;
   kind: Kind;
   aggregator?: boolean; // billing wrapper that can hide several different services
+  domain?: string; // the company's website, for its logo
 }
 
 // Known merchants and their variants, matched against the bank's description text.
 const ALIASES: Alias[] = [
-  { test: /OPENAI|CHATGPT/, name: 'OpenAI / ChatGPT', kind: 'subscription' },
-  { test: /ANTHROPIC|CLAUDE\.AI|CLAUDE SU/, name: 'Anthropic / Claude', kind: 'usage' },
-  { test: /MIDJOURNEY/, name: 'Midjourney', kind: 'usage' },
-  { test: /\bSUNO\b|SUNO\.COM/, name: 'Suno', kind: 'usage' },
-  { test: /\bOUTPUT\b/, name: 'Output', kind: 'subscription' },
+  { test: /OPENAI|CHATGPT/, name: 'OpenAI / ChatGPT', domain: 'openai.com', kind: 'subscription' },
+  { test: /ANTHROPIC|CLAUDE\.AI|CLAUDE SU/, name: 'Anthropic / Claude', domain: 'anthropic.com', kind: 'usage' },
+  { test: /MIDJOURNEY/, name: 'Midjourney', domain: 'midjourney.com', kind: 'usage' },
+  { test: /\bSUNO\b|SUNO\.COM/, name: 'Suno', domain: 'suno.com', kind: 'usage' },
+  { test: /\bOUTPUT\b/, name: 'Output', domain: 'output.com', kind: 'subscription' },
   { test: /GOWILDER/, name: 'GoWilder', kind: 'subscription' },
-  { test: /HYPEDDIT/, name: 'Hypeddit', kind: 'subscription' },
-  { test: /GLIBATREE/, name: 'Glibatree', kind: 'subscription' },
-  { test: /OPENART/, name: 'OpenArt', kind: 'subscription' },
-  { test: /WISPR/, name: 'Wispr Flow', kind: 'subscription' },
-  { test: /SPOTIFY/, name: 'Spotify', kind: 'subscription' },
-  { test: /NETFLIX/, name: 'Netflix', kind: 'subscription' },
-  { test: /SOUNDTRAP/, name: 'Soundtrap', kind: 'subscription' },
-  { test: /WAVES INC/, name: 'Waves', kind: 'subscription' },
-  { test: /AUDIMEE/, name: 'Audimee', kind: 'subscription' },
-  { test: /BEACONSAI/, name: 'BeaconsAI', kind: 'subscription' },
-  { test: /GODADDY/, name: 'GoDaddy', kind: 'subscription' },
-  { test: /WALMARTPLUS|WALMART\+/, name: 'Walmart+', kind: 'subscription' },
-  { test: /PLANET FITNESS/, name: 'Planet Fitness', kind: 'subscription' },
-  { test: /PATREON/, name: 'Patreon', kind: 'aggregator', aggregator: true },
-  { test: /APPLE\.COM BILL/, name: 'Apple.com Bill', kind: 'aggregator', aggregator: true },
-  { test: /GOOGLE GOOGLE/, name: 'Google services', kind: 'aggregator', aggregator: true },
-  { test: /FASTSPRING/, name: 'Fastspring', kind: 'aggregator', aggregator: true },
-  { test: /VERIZON WIRELESS/, name: 'Verizon Wireless', kind: 'bill' },
-  { test: /PROG PREMIER|PROGRESSIVE/, name: 'Progressive', kind: 'bill' },
-  { test: /USATAXPYMT|\bIRS\b/, name: 'IRS', kind: 'bill' },
+  { test: /HYPEDDIT/, name: 'Hypeddit', domain: 'hypeddit.com', kind: 'subscription' },
+  { test: /GLIBATREE/, name: 'Glibatree', domain: 'glibatree.com', kind: 'subscription' },
+  { test: /OPENART/, name: 'OpenArt', domain: 'openart.ai', kind: 'subscription' },
+  { test: /WISPR/, name: 'Wispr Flow', domain: 'wisprflow.ai', kind: 'subscription' },
+  { test: /SPOTIFY/, name: 'Spotify', domain: 'spotify.com', kind: 'subscription' },
+  { test: /NETFLIX/, name: 'Netflix', domain: 'netflix.com', kind: 'subscription' },
+  { test: /SOUNDTRAP/, name: 'Soundtrap', domain: 'soundtrap.com', kind: 'subscription' },
+  { test: /WAVES INC/, name: 'Waves', domain: 'waves.com', kind: 'subscription' },
+  { test: /AUDIMEE/, name: 'Audimee', domain: 'audimee.com', kind: 'subscription' },
+  { test: /BEACONSAI/, name: 'BeaconsAI', domain: 'beacons.ai', kind: 'subscription' },
+  { test: /GODADDY/, name: 'GoDaddy', domain: 'godaddy.com', kind: 'subscription' },
+  { test: /WALMARTPLUS|WALMART\+/, name: 'Walmart+', domain: 'walmart.com', kind: 'subscription' },
+  { test: /PLANET FITNESS/, name: 'Planet Fitness', domain: 'planetfitness.com', kind: 'subscription' },
+  { test: /PATREON/, name: 'Patreon', domain: 'patreon.com', kind: 'aggregator', aggregator: true },
+  { test: /APPLE\.COM BILL/, name: 'Apple.com Bill', domain: 'apple.com', kind: 'aggregator', aggregator: true },
+  { test: /GOOGLE GOOGLE/, name: 'Google services', domain: 'google.com', kind: 'aggregator', aggregator: true },
+  { test: /FASTSPRING/, name: 'Fastspring', domain: 'fastspring.com', kind: 'aggregator', aggregator: true },
+  { test: /VERIZON WIRELESS/, name: 'Verizon Wireless', domain: 'verizon.com', kind: 'bill' },
+  { test: /PROG PREMIER|PROGRESSIVE/, name: 'Progressive', domain: 'progressive.com', kind: 'bill' },
+  { test: /USATAXPYMT|\bIRS\b/, name: 'IRS', domain: 'irs.gov', kind: 'bill' },
   { test: /J MAX DAVIS/, name: 'J Max Davis Attorneys', kind: 'bill' },
-  { test: /(EARNIN|EAMIN)\s+REPAYMENT/, name: 'EarnIn repayments', kind: 'debt' },
-  { test: /MASTERCARD\s+PAYMENT/, name: 'Mastercard payment', kind: 'debt' },
-  { test: /AFFIRM/, name: 'Affirm', kind: 'installment' },
+  { test: /(EARNIN|EAMIN)\s+REPAYMENT/, name: 'EarnIn repayments', domain: 'earnin.com', kind: 'debt' },
+  { test: /MASTERCARD\s+PAYMENT/, name: 'Mastercard payment', domain: 'mastercard.com', kind: 'debt' },
+  { test: /AFFIRM/, name: 'Affirm', domain: 'affirm.com', kind: 'installment' },
   { test: /LOST LANDS TIX/, name: 'Lost Lands installments', kind: 'installment' },
 ];
+
+// Everyday brands, so their logo can be found even when the bank's text is just a store number.
+const BRANDS: { test: RegExp; domain: string }[] = [
+  { test: /\bSHELL\b/, domain: 'shell.com' },
+  { test: /WAL-?MART|\bWM SUPERCENTER/, domain: 'walmart.com' },
+  { test: /STARBUCKS/, domain: 'starbucks.com' },
+  { test: /AMAZON|AMZN/, domain: 'amazon.com' },
+  { test: /\bUBER\b|\bUBR\b/, domain: 'uber.com' },
+  { test: /\bLYFT\b/, domain: 'lyft.com' },
+  { test: /CHEVRON/, domain: 'chevron.com' },
+  { test: /KROGER/, domain: 'kroger.com' },
+  { test: /MCDONALD/, domain: 'mcdonalds.com' },
+  { test: /DUNKIN/, domain: 'dunkindonuts.com' },
+  { test: /WENDY/, domain: 'wendys.com' },
+  { test: /\bCVS\b/, domain: 'cvs.com' },
+  { test: /WALGREEN/, domain: 'walgreens.com' },
+  { test: /\bTARGET\b/, domain: 'target.com' },
+  { test: /PUBLIX/, domain: 'publix.com' },
+  { test: /CHICK-FIL-A/, domain: 'chick-fil-a.com' },
+  { test: /TACO BELL/, domain: 'tacobell.com' },
+  { test: /DOORDASH/, domain: 'doordash.com' },
+  { test: /\bDAVE\b/, domain: 'dave.com' },
+  { test: /FRONTIER/, domain: 'flyfrontier.com' },
+  { test: /7-ELEVEN/, domain: '7-eleven.com' },
+  { test: /PLANET FITNESS/, domain: 'planetfitness.com' },
+];
+
+const brandDomain = (text: string) => BRANDS.find((b) => b.test.test(text))?.domain;
 
 // Money moving to people, cash and the bank itself: repeated, but not a billing relationship.
 const NOT_A_RELATIONSHIP =
@@ -98,6 +128,7 @@ interface Resolved {
   kind: Kind | null; // null until the pattern is known
   aggregator: boolean;
   known: boolean; // matched an alias
+  domain?: string;
 }
 
 const bankText = (t: Txn) => (t.details.find((d) => d.label === 'Bank Description')?.value ?? t.merchant).toUpperCase();
@@ -122,7 +153,14 @@ function resolve(t: Txn): Resolved | null {
 
   const alias = ALIASES.find((a) => a.test.test(raw) || a.test.test(t.merchant.toUpperCase()));
   if (alias) {
-    return { key: alias.name.toUpperCase(), name: alias.name, kind: alias.kind, aggregator: !!alias.aggregator, known: true };
+    return {
+      key: alias.name.toUpperCase(),
+      name: alias.name,
+      kind: alias.kind,
+      aggregator: !!alias.aggregator,
+      known: true,
+      domain: alias.domain,
+    };
   }
 
   if (NOT_A_RELATIONSHIP.test(raw) || t.categoryKey === 'TRANSFER_OUT' || t.categoryKey === 'BANK_FEES') return null;
@@ -136,14 +174,14 @@ function resolve(t: Txn): Resolved | null {
   }
 
   const key = genericKey(t);
-  return { key, name: titleCase(key), kind: null, aggregator: false, known: false };
+  return { key, name: titleCase(key), kind: null, aggregator: false, known: false, domain: brandDomain(raw) };
 }
 
 // Names the merchant for ANY spending, including the things the recurring detector skips:
 // person-to-person payments, cash, fees and checks. Used for the spending view.
-export function merchantOf(t: Txn): { key: string; name: string } {
+export function merchantOf(t: Txn): { key: string; name: string; domain?: string } {
   const resolved = resolve(t);
-  if (resolved) return { key: resolved.key, name: resolved.name };
+  if (resolved) return { key: resolved.key, name: resolved.name, domain: resolved.domain };
 
   const raw = bankText(t);
   const zelle = raw.match(/ZELLE PAYMENT (?:TO|FROM)\s+(.+)/);
@@ -154,7 +192,7 @@ export function merchantOf(t: Txn): { key: string; name: string } {
       who.push(word);
     }
     const name = titleCase(who.slice(0, 2).join(' ')) || 'Someone';
-    return { key: `ZELLE ${name.toUpperCase()}`, name: `Zelle · ${name}` };
+    return { key: `ZELLE ${name.toUpperCase()}`, name: `Zelle · ${name}`, domain: 'zellepay.com' };
   }
   if (/ATM/.test(raw)) return { key: 'ATM', name: 'ATM & cash' };
   if (/OVERDRAFT/.test(raw)) return { key: 'OVERDRAFT', name: 'Overdraft fees' };
@@ -162,7 +200,7 @@ export function merchantOf(t: Txn): { key: string; name: string } {
   if (/APPLE CASH/.test(raw)) return { key: 'APPLE CASH', name: 'Apple Cash' };
 
   const key = genericKey(t);
-  return { key, name: titleCase(key) };
+  return { key, name: titleCase(key), domain: brandDomain(raw) };
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -450,7 +488,10 @@ export function analyze(transactions: Txn[]): Analysis {
     const months = new Set(occ.map((o) => o.month)).size;
     const newest = [...occ].sort((a, b) => b.day - a.day);
     const recent = newest.slice(0, 6).map((o) => ({ date: o.t.date, amount: o.amount }));
-    const logos = newest.find((o) => o.t.logos.length)?.t.logos ?? [];
+    const txnLogos = newest.find((o) => o.t.logos.length)?.t.logos ?? [];
+    // A company we recognise gets its own logo first, since a PayPal or Apple wrapper would
+    // otherwise show the wrapper's logo instead.
+    const logos = resolved.domain ? [faviconUrl(resolved.domain), ...txnLogos] : txnLogos;
 
     // Charges that belong to no pattern, but keep coming back (usage, extras).
     const leftover = occ.filter((o) => !used.has(o) && !used.has(eventOf.get(o)!));

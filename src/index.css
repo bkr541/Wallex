@@ -52,7 +52,34 @@ button:focus-visible {
     0 0 30px rgba(var(--rgb), 0.18),
     inset 0 1px 0 rgba(255, 255, 255, 0.1),
     inset 0 -14px 30px rgba(0, 0, 0, 0.25);
-  transition: scale 0.3s cubic-bezier(0.2, 0.8, 0.2, 1), box-shadow 0.3s ease;
+  transition:
+    scale 0.3s cubic-bezier(0.2, 0.8, 0.2, 1),
+    box-shadow 0.3s ease,
+    left 0.8s cubic-bezier(0.22, 1, 0.36, 1),
+    top 0.8s cubic-bezier(0.22, 1, 0.36, 1),
+    width 0.8s cubic-bezier(0.22, 1, 0.36, 1),
+    height 0.8s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* Circles glide to their new place and size when the view changes, text included. */
+.bubble-move span {
+  transition: font-size 0.8s cubic-bezier(0.22, 1, 0.36, 1), width 0.8s cubic-bezier(0.22, 1, 0.36, 1),
+    height 0.8s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.center-orb {
+  transition:
+    width 0.8s cubic-bezier(0.22, 1, 0.36, 1),
+    height 0.8s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bubble,
+  .bubble-move,
+  .bubble-move span,
+  .center-orb {
+    transition-duration: 0.01ms;
+  }
 }
 
 .bubble:hover {

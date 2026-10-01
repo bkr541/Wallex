@@ -276,16 +276,49 @@ function detailsFor(t, account) {
     .map(([label, value]) => ({ label, value: String(value) }));
 }
 
-// Logo candidates, best first: Plaid's merchant logo, a counterparty logo, the merchant site's icon,
-// then Plaid's generic category icon. The UI falls through the list and ends on initials.
+const favicon = (domain) =>
+  `https://t1.gstatic.com/faviconV2?client=SOCIAL&type=FAVICON&fallback_opts=TYPE,SIZE,URL&url=http://${domain}&size=128`;
+
+// Payment processors and banks print their own name on statements, so a domain found in the
+// text is only useful when it belongs to the merchant.
+const NOT_THE_MERCHANT = /^(paypal|venmo|squareup|stripe|jpmorgan|jpmorganchase|chase|zellepay|cash\.app)\./;
+
+// Online merchants often print their website in the bank text ("OPENAI.COM", "Www.Glibatree.Com").
+function domainsInText(text) {
+  const found = [];
+  const re = /\b((?:[a-z0-9-]+\.)+(?:com|net|org|io|ai|app|dev|tv|gg))\b/gi;
+  for (const m of (text || '').matchAll(re)) {
+    const domain = m[1].toLowerCase().replace(/^www\./, '');
+    if (!NOT_THE_MERCHANT.test(domain)) found.push(domain);
+  }
+  return found;
+}
+
+// A guess at the website from a recognised brand name, e.g. "Chick-fil-A" -> chickfila.com.
+// Only used when Plaid names the brand; if the guess is wrong the image just fails to load
+// and the UI moves on to the next source.
+function guessDomain(brand) {
+  const slug = (brand || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+  return slug.length >= 3 ? `${slug}.com` : '';
+}
+
+// Logo candidates for any merchant, best first. The UI falls through the list as images fail to
+// load and ends on the merchant's initials:
+//   1. Plaid's merchant logo          2. a counterparty logo
+//   3. the merchant's own website     4. a website printed in the bank text
+//   5. a guess from the brand name    6. Plaid's category icon
 function logosFor(t) {
   const counterparties = t.counterparties || [];
   const site = t.website || counterparties.find((c) => c.website)?.website || '';
-  const domain = site.replace(/^https?:\/\//, '').split('/')[0];
+  const siteDomain = site.replace(/^https?:\/\//, '').split('/')[0].replace(/^www\./, '');
+  const textDomain = domainsInText(`${t.original_description || ''} ${t.name || ''}`)[0];
+  const brand = t.merchant_name || counterparties.find((c) => c.type === 'merchant')?.name;
   const urls = [
     t.logo_url,
     ...counterparties.map((c) => c.logo_url),
-    domain && `https://t1.gstatic.com/faviconV2?client=SOCIAL&type=FAVICON&fallback_opts=TYPE,SIZE,URL&url=http://${domain}&size=64`,
+    siteDomain && favicon(siteDomain),
+    textDomain && favicon(textDomain),
+    brand && favicon(guessDomain(brand)),
     t.personal_finance_category_icon_url,
   ];
   return [...new Set(urls.filter(Boolean))];

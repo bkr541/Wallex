@@ -1,3 +1,4 @@
+import { faviconUrl } from './favicon';
 import { analyze, merchantOf, type Recurring } from './recurring';
 import type { LinkedAccount, Txn } from './wallex';
 
@@ -120,6 +121,7 @@ interface Group {
   amount: number;
   count: number;
   logos: string[];
+  domain?: string;
   categories: Map<string, number>;
   labels: Map<string, string>;
 }
@@ -151,11 +153,12 @@ export function buildPatterns(txns: Txn[], accounts: LinkedAccount[], filters: P
 
   const merchants = new Map<string, Group>();
   const categories = new Map<string, Group>();
-  const bump = (map: Map<string, Group>, key: string, name: string, t: Txn) => {
-    const g = map.get(key) ?? { key, name, amount: 0, count: 0, logos: [], categories: new Map(), labels: new Map() };
+  const bump = (map: Map<string, Group>, key: string, name: string, t: Txn, domain?: string) => {
+    const g: Group = map.get(key) ?? { key, name, amount: 0, count: 0, logos: [], categories: new Map(), labels: new Map() };
     g.amount += -t.amount;
     g.count += 1;
     if (!g.logos.length && t.logos.length) g.logos = t.logos;
+    if (domain) g.domain = domain;
     g.categories.set(t.categoryKey, (g.categories.get(t.categoryKey) ?? 0) + 1);
     g.labels.set(t.categoryKey, t.category.split(' › ')[0]);
     map.set(key, g);
@@ -163,7 +166,7 @@ export function buildPatterns(txns: Txn[], accounts: LinkedAccount[], filters: P
 
   for (const t of windowed.filter(isSpending)) {
     const m = merchantOf(t);
-    bump(merchants, m.key, m.name, t);
+    bump(merchants, m.key, m.name, t, m.domain);
     const label = t.category.split(' › ')[0];
     bump(categories, t.categoryKey || 'UNCATEGORIZED', categoryName(label), t);
   }
@@ -194,7 +197,8 @@ export function buildPatterns(txns: Txn[], accounts: LinkedAccount[], filters: P
       amount: g.amount * toMonthly,
       count: g.count,
       rgb: colorFor(g.key),
-      logos: g.logos,
+      // A recognised company shows its own logo first (a PayPal wrapper would show PayPal's).
+      logos: g.domain ? [faviconUrl(g.domain), ...g.logos] : g.logos,
       badge: badgeFor(rec, g.count),
       kind: isBill ? 'bill' : 'merchant',
       categoryKey: cat,
@@ -261,7 +265,19 @@ const sample = (
   rgb: string,
   iconKey: string,
   count = 1,
-): Bubble => ({ key, name, amount, count, rgb, logos: [], iconKey, badge, kind, categoryKey: '' });
+  domain?: string, // when set, the company's logo is shown instead of the generic icon
+): Bubble => ({
+  key,
+  name,
+  amount,
+  count,
+  rgb,
+  logos: domain ? [faviconUrl(domain)] : [],
+  iconKey: domain ? undefined : iconKey,
+  badge,
+  kind,
+  categoryKey: '',
+});
 
 export const SAMPLE_PATTERNS: PatternData = {
   income: 4800,
@@ -269,14 +285,14 @@ export const SAMPLE_PATTERNS: PatternData = {
   bills: [
     sample('bill', 'RENT', 'Rent', 1250, '1st', '74, 214, 130', 'RENT'),
     sample('bill', 'CHASE', 'Chase Loan', 500, '15th', '79, 140, 255', 'CHASE'),
-    sample('bill', 'POWER', 'Georgia Power', 182, 'Monthly', '129, 140, 248', 'ELECTRIC'),
-    sample('bill', 'VERIZON', 'Verizon', 30, 'Monthly', '244, 114, 94', 'VERIZON'),
+    sample('bill', 'POWER', 'Georgia Power', 182, 'Monthly', '129, 140, 248', 'ELECTRIC', 1, 'georgiapower.com'),
+    sample('bill', 'VERIZON', 'Verizon', 30, 'Monthly', '244, 114, 94', 'VERIZON', 1, 'verizon.com'),
   ],
   merchants: [
-    sample('merchant', 'PUBLIX', 'Publix', 260, 'Weekly', '250, 204, 21', 'PUBLIX', 4),
-    sample('merchant', 'WOOFS', 'Woofs Sports Bar', 140, 'Weekly', '168, 130, 255', 'WOOFS', 5),
-    sample('merchant', 'STARBUCKS', 'Starbucks', 84, 'Weekly', '45, 212, 191', 'STARBUCKS', 8),
-    sample('merchant', 'SPOTIFY', 'Spotify', 11.99, 'Monthly', '74, 214, 130', 'SPOTIFY'),
+    sample('merchant', 'PUBLIX', 'Publix', 260, 'Weekly', '250, 204, 21', 'PUBLIX', 4, 'publix.com'),
+    sample('merchant', 'WOOFS', 'Woofs Sports Bar', 140, 'Weekly', '168, 130, 255', 'WOOFS', 5, 'woofsatlanta.com'),
+    sample('merchant', 'STARBUCKS', 'Starbucks', 84, 'Weekly', '45, 212, 191', 'STARBUCKS', 8, 'starbucks.com'),
+    sample('merchant', 'SPOTIFY', 'Spotify', 11.99, 'Monthly', '74, 214, 130', 'SPOTIFY', 1, 'spotify.com'),
   ],
   categories: [
     sample('category', 'RENT_AND_UTILITIES', 'Rent & Bills', 1962, '4 charges', '74, 214, 130', 'RENT_AND_UTILITIES', 4),

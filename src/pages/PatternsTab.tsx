@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { AnimatePresence, motion } from 'motion/react';
 import {
   Briefcase,
   Building2,
@@ -78,21 +79,22 @@ const ICONS: Record<string, LucideIcon | 'chase'> = {
   NETFLIX: Clapperboard,
 };
 
-// Sizes: a circle's AREA is proportional to its dollars, so a circle with four times the money
-// has four times the area (twice the width). The same scale is used for every circle.
-const R_MAX = 20; // radius of the biggest circle, in layout units
-const MIN_SIZE = 0.17; // smallest circle, as a share of the biggest, so tiny ones stay visible
-const CENTER_SCALE = 1.4; // the income circle is this much wider than the biggest circle
+// Sizes are in percent of the diagram's HEIGHT (the same unit as the text inside the circles).
+// The smallest circle is always big enough to hold a logo and readable text. From there, circles
+// grow with the amount, up to the biggest. Circle AREA tracks the square-root scale of the
+// dollars, stretched across that whole range so the differences are easy to see.
+const D_MIN = 19; // fits the logo, name, amount and percent
+const D_MAX = 40;
+const CENTER_D = 54; // the income circle
 
 // How circles may overlap: neighbors sink into each other by this share of the smaller radius,
 // and circles tuck behind the income circle but keep their centers (and text) outside it.
 const NEIGHBOR_OVERLAP = 0.3;
 const CENTER_TUCK = 0.75; // share of a circle's radius that may sit under the income circle
 
-const MAX_BIGGEST = 38; // the biggest circle is never wider than this, in percent of the diagram height
-
 // The diagram is wider than it is tall.
 const ASPECT = 1.5; // width / height
+const FIT = 47; // how far from the middle the cluster may reach vertically
 
 interface Pt {
   x: number;
@@ -106,19 +108,23 @@ const jitter = (i: number) => {
   return x - Math.floor(x);
 };
 
-// Packs the circles into one loose cluster around the income circle. They are spread across the
-// whole area and overlap their neighbors, rather than lining up in a ring.
-// Expects items sorted biggest first. All sizes come back in percent of the diagram's HEIGHT.
-function buildLayout<T extends { amount: number }>(items: T[]) {
-  const largest = Math.max(1, ...items.map((h) => h.amount));
-  const centerR = R_MAX * CENTER_SCALE;
+// Diameter for each amount: the smallest gets D_MIN, the biggest D_MAX.
+function diameters(amounts: number[]): number[] {
+  const roots = amounts.map(Math.sqrt);
+  const lo = Math.min(...roots);
+  const hi = Math.max(...roots);
+  return roots.map((r) => D_MIN + (D_MAX - D_MIN) * (hi === lo ? 0.55 : (r - lo) / (hi - lo)));
+}
 
-  const nodes: Pt[] = items.map((h, i) => {
-    const r = Math.max(MIN_SIZE * R_MAX, R_MAX * Math.sqrt(h.amount / largest));
+// Packs circles into one loose cluster around the income circle. They are spread across the
+// whole area and overlap their neighbors, rather than lining up in a ring.
+function pack(ds: number[]): { nodes: Pt[]; fits: boolean } {
+  const centerR = CENTER_D / 2;
+  const nodes: Pt[] = ds.map((d, i) => {
     // Start on a loose spiral that reaches out across the area, with some scatter.
     const angle = i * 2.399963 + jitter(i) * 0.9;
-    const dist = centerR * 0.95 + R_MAX * 1.1 * Math.sqrt(i + 1) + jitter(i + 50) * R_MAX * 0.4;
-    return { x: Math.cos(angle) * dist, y: Math.sin(angle) * dist, r };
+    const dist = centerR * 0.95 + (D_MAX / 2) * 1.1 * Math.sqrt(i + 1) + jitter(i + 50) * (D_MAX / 2) * 0.4;
+    return { x: Math.cos(angle) * dist, y: Math.sin(angle) * dist, r: d / 2 };
   });
 
   for (let iter = 0; iter < 900; iter++) {
@@ -133,10 +139,10 @@ function buildLayout<T extends { amount: number }>(items: T[]) {
         const b = nodes[j];
         const dx = b.x - a.x;
         const dy = b.y - a.y;
-        const d = Math.hypot(dx, dy) || 0.001;
+        const dist = Math.hypot(dx, dy) || 0.001;
         const min = a.r + b.r - NEIGHBOR_OVERLAP * Math.min(a.r, b.r);
-        if (d < min) {
-          const push = (min - d) / 2 / d;
+        if (dist < min) {
+          const push = (min - dist) / 2 / dist;
           a.x -= dx * push;
           a.y -= dy * push;
           b.x += dx * push;
@@ -145,32 +151,47 @@ function buildLayout<T extends { amount: number }>(items: T[]) {
       }
     }
     for (const n of nodes) {
-      const d = Math.hypot(n.x, n.y) || 0.001;
+      const dist = Math.hypot(n.x, n.y) || 0.001;
       // Tuck behind the income circle, but never so far that its figures get covered.
       const min = centerR + n.r - Math.min(CENTER_TUCK * n.r, 0.28 * centerR);
-      if (d < min) {
-        n.x *= min / d;
-        n.y *= min / d;
+      if (dist < min) {
+        n.x *= min / dist;
+        n.y *= min / dist;
       }
     }
   }
 
-  // Fit the whole cluster inside the diagram.
   const extentX = Math.max(centerR, ...nodes.map((n) => Math.abs(n.x) + n.r));
   const extentY = Math.max(centerR, ...nodes.map((n) => Math.abs(n.y) + n.r));
-  // With only a few circles, keep them from ballooning to fill the whole diagram.
-  const scale = Math.min(47 / extentY, (47 * ASPECT) / extentX, MAX_BIGGEST / 2 / R_MAX);
+  return { nodes, fits: extentY <= FIT && extentX <= FIT * ASPECT };
+}
+
+// Lays out as many of the items (biggest first) as fit without shrinking any circle below D_MIN.
+function buildLayout<T extends { amount: number }>(items: T[], maxCount: number) {
+  let count = Math.min(items.length, maxCount);
+  let result = { nodes: [] as Pt[], fits: true };
+  let ds: number[] = [];
+  for (; count >= 1; count--) {
+    ds = diameters(items.slice(0, count).map((i) => i.amount));
+    result = pack(ds);
+    if (result.fits) break;
+  }
+  count = Math.max(count, Math.min(items.length, 1));
 
   return {
-    centerDiameter: centerR * 2 * scale,
-    bubbles: items.map((h, i) => ({
+    centerDiameter: CENTER_D,
+    bubbles: items.slice(0, count).map((h, i) => ({
       ...h,
-      left: 50 + (nodes[i].x * scale) / ASPECT,
-      top: 50 + nodes[i].y * scale,
-      diameter: nodes[i].r * 2 * scale,
+      left: 50 + result.nodes[i].x / ASPECT,
+      top: 50 + result.nodes[i].y,
+      diameter: ds[i],
     })),
   };
 }
+
+// A text size in cqh that scales with the circle but never drops below a readable pixel size.
+const cq = (d: number, factor: number, lo: number, hi: number, minPx: number) =>
+  `max(${minPx}px, ${Math.min(hi, Math.max(lo, d * factor))}cqh)`;
 
 const money = (n: number) =>
   n < 100 && !Number.isInteger(n)
@@ -191,7 +212,7 @@ const VIEWS: { id: View; label: string; dot?: string }[] = [
 
 function BubbleIcon({ bubble, size }: { bubble: Bubble; size: number }) {
   const icon = bubble.iconKey ? (ICONS[bubble.iconKey] ?? Shapes) : null;
-  const box = { width: `${size}cqh`, height: `${size}cqh` };
+  const box = { width: `max(26px, ${size}cqh)`, height: `max(26px, ${size}cqh)` };
   if (!icon) {
     return (
       <span className="bubble-icon" style={box}>
@@ -286,10 +307,10 @@ export default function PatternsTab({ load }: { load: Load }) {
   const matching = useMemo(() => (q ? pool.filter((b) => b.name.toLowerCase().includes(q)) : pool), [pool, q]);
   // Only real items get a circle. A lumped "Other" circle would be a different kind of thing and
   // would distort the sizes, so the smaller ones are summarised in text instead.
-  const shown = useMemo(() => matching.slice(0, MAX_CIRCLES), [matching]);
-  const hidden = matching.slice(MAX_CIRCLES);
+  const layout = useMemo(() => buildLayout(matching, MAX_CIRCLES), [matching]);
+  const shown = layout.bubbles;
+  const hidden = matching.slice(shown.length);
   const hiddenTotal = hidden.reduce((sum, b) => sum + b.amount, 0);
-  const layout = useMemo(() => buildLayout(shown), [shown]);
 
   // Everything is measured against monthly income. With no income found, against total spending.
   const total = matching.reduce((sum, b) => sum + b.amount, 0);
@@ -506,20 +527,25 @@ export default function PatternsTab({ load }: { load: Load }) {
           className="relative mt-2"
           style={{
             // Height is capped by the window; width follows from the aspect ratio.
-            height: `min(calc(100vh - 20rem), calc((100vw - 12rem) / ${ASPECT}))`,
-            width: `calc(min(calc(100vh - 20rem), calc((100vw - 12rem) / ${ASPECT})) * ${ASPECT})`,
+            height: `max(520px, min(calc(100vh - 20rem), calc((100vw - 12rem) / ${ASPECT})))`,
+            width: `calc(max(520px, min(calc(100vh - 20rem), calc((100vw - 12rem) / ${ASPECT}))) * ${ASPECT})`,
             containerType: 'size',
           }}
         >
+          <AnimatePresence>
           {layout.bubbles.map((b) => {
             const d = b.diameter;
             return (
-              <div
-                key={`${view}-${b.key}`}
+              <motion.div
+                key={b.key}
+                initial={{ opacity: 0, scale: 0.35 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.35, transition: { duration: 0.25 } }}
+                transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
                 title={`${b.name}: ${money(b.amount)}/mo · ${b.count} charge${b.count === 1 ? '' : 's'}${
                   base > 0 ? ` · ${percent(b.amount, base)} of ${hasIncome ? 'income' : 'spending'}` : ''
                 }`}
-                className="bubble absolute flex -translate-x-1/2 -translate-y-1/2 flex-col items-center justify-center rounded-full text-center"
+                className="bubble bubble-move absolute flex -translate-x-1/2 -translate-y-1/2 flex-col items-center justify-center rounded-full text-center"
                 style={
                   {
                     '--rgb': b.rgb,
@@ -527,37 +553,38 @@ export default function PatternsTab({ load }: { load: Load }) {
                     top: `${b.top}%`,
                     width: `${d}cqh`,
                     height: `${d}cqh`,
-                    gap: `${d * 0.015}cqh`,
+                    gap: `${d * 0.012}cqh`,
                   } as React.CSSProperties
                 }
               >
-                {d >= 13 && <BubbleIcon bubble={b} size={Math.min(8, d * 0.2)} />}
-                <span className="max-w-[88%] truncate font-medium" style={{ fontSize: `${Math.max(1.5, d * 0.075)}cqh` }}>
+                <BubbleIcon bubble={b} size={Math.min(11, Math.max(5, d * 0.26))} />
+                <span className="max-w-[90%] truncate font-medium" style={{ fontSize: cq(d, 0.085, 2.1, 3.4, 11) }}>
                   {b.name}
                 </span>
-                <span className="leading-none font-semibold" style={{ fontSize: `${Math.max(1.8, d * 0.12)}cqh` }}>
+                <span className="leading-none font-semibold" style={{ fontSize: cq(d, 0.14, 2.7, 5.6, 13) }}>
                   {money(b.amount)}
                 </span>
                 {base > 0 && (
-                  <span className="font-support leading-none text-muted" style={{ fontSize: `${Math.max(1.3, d * 0.058)}cqh` }}>
+                  <span className="font-support leading-none text-muted" style={{ fontSize: cq(d, 0.06, 1.8, 2.6, 10) }}>
                     {percent(b.amount, base)}
-                    {d >= 19 ? ` of ${hasIncome ? 'income' : 'spending'}` : ''}
+                    {d >= 27 ? ` of ${hasIncome ? 'income' : 'spending'}` : ''}
                   </span>
                 )}
-                {d >= 21 && (
+                {d >= 27 && (
                   <span
                     className="bubble-badge font-support"
-                    style={{ fontSize: `${Math.max(1.3, d * 0.055)}cqh`, padding: `${d * 0.012}cqh ${d * 0.04}cqh` }}
+                    style={{ fontSize: cq(d, 0.055, 1.8, 2.4, 10), padding: `${d * 0.012}cqh ${d * 0.04}cqh` }}
                   >
                     {b.badge}
                   </span>
                 )}
-              </div>
+              </motion.div>
             );
           })}
+          </AnimatePresence>
 
           <div
-            className="center-orb pointer-events-none absolute flex -translate-x-1/2 -translate-y-1/2 flex-col items-center justify-center rounded-full"
+            className="center-orb bubble-move pointer-events-none absolute flex -translate-x-1/2 -translate-y-1/2 flex-col items-center justify-center rounded-full"
             style={{
               left: '50%',
               top: '50%',
