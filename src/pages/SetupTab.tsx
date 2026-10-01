@@ -1,5 +1,7 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { ChevronDown, Eye, EyeOff } from 'lucide-react';
+import { BANKS } from '../lib/banks';
+import { wallex } from '../lib/wallex';
 
 const ENVIRONMENTS = [
   { value: 'sandbox', label: 'Sandbox (test data)' },
@@ -111,23 +113,84 @@ const toggle = (list: string[], value: string) =>
   list.includes(value) ? list.filter((v) => v !== value) : [...list, value];
 
 export default function SetupTab() {
-  const [environment, setEnvironment] = useState('sandbox');
+  const [environment, setEnvironment] = useState('production');
   const [clientId, setClientId] = useState('');
   const [secret, setSecret] = useState('');
+  const [hasSavedSecret, setHasSavedSecret] = useState(false);
   const [showSecret, setShowSecret] = useState(false);
+  const [bankId, setBankId] = useState(BANKS[0].id);
   const [products, setProducts] = useState<string[]>(['transactions']);
   const [countries, setCountries] = useState<string[]>(['US']);
   const [language, setLanguage] = useState('en');
   const [webhookUrl, setWebhookUrl] = useState('');
   const [redirectUri, setRedirectUri] = useState('');
 
-  const canConnect = clientId.trim() !== '' && secret.trim() !== '' && products.length > 0 && countries.length > 0;
+  const [connectedTo, setConnectedTo] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState<{ kind: 'error' | 'info'; text: string } | null>(null);
+
+  // Load whatever is already saved (including credentials from .env.local) into the form.
+  useEffect(() => {
+    wallex.getStatus().then((res) => {
+      if (!res.ok) {
+        if (wallex.available()) setMessage({ kind: 'error', text: res.error });
+        return;
+      }
+      const st = res.data;
+      setEnvironment(st.environment);
+      setClientId(st.clientId);
+      setHasSavedSecret(st.hasSecret);
+      setBankId(BANKS.some((b) => b.id === st.bankId) ? st.bankId : BANKS[0].id);
+      setProducts(st.products);
+      setCountries(st.countries);
+      setLanguage(st.language);
+      setWebhookUrl(st.webhookUrl);
+      setRedirectUri(st.redirectUri);
+      setConnectedTo(st.connection?.institutionName ?? null);
+    });
+  }, []);
+
+  const bank = BANKS.find((b) => b.id === bankId) ?? BANKS[0];
+  const hasSecret = secret.trim() !== '' || hasSavedSecret;
+  const canConnect = clientId.trim() !== '' && hasSecret && products.length > 0 && countries.length > 0 && !busy;
+
+  async function handleConnect() {
+    setBusy(true);
+    setMessage(
+      environment === 'sandbox'
+        ? null
+        : { kind: 'info', text: 'Plaid Link opened in a new window. Finish signing in to your bank there.' },
+    );
+    const res = await wallex.connect({
+      settings: { environment, clientId, secret, products, countries, language, webhookUrl, redirectUri },
+      bank,
+    });
+    setBusy(false);
+
+    if (!res.ok) return setMessage({ kind: 'error', text: res.error });
+    if (!res.data.connected) return setMessage({ kind: 'info', text: 'Connection cancelled.' });
+
+    if (secret.trim()) setHasSavedSecret(true);
+    setSecret('');
+    setConnectedTo(res.data.institutionName ?? bank.name);
+    setMessage({ kind: 'info', text: 'Connected. Open Transactions to see your activity.' });
+  }
+
+  async function handleDisconnect() {
+    setBusy(true);
+    const res = await wallex.disconnect();
+    setBusy(false);
+    if (!res.ok) return setMessage({ kind: 'error', text: res.error });
+    setConnectedTo(null);
+    setMessage({ kind: 'info', text: 'Disconnected.' });
+  }
 
   return (
     <form
       className="w-full space-y-8"
       onSubmit={(e) => {
         e.preventDefault();
+        if (canConnect) handleConnect();
       }}
     >
       <section className="space-y-5">
@@ -162,7 +225,7 @@ export default function SetupTab() {
                 type={showSecret ? 'text' : 'password'}
                 value={secret}
                 onChange={(e) => setSecret(e.target.value)}
-                placeholder="Your Plaid secret"
+                placeholder={hasSavedSecret ? 'Saved — leave blank to keep it' : 'Your Plaid secret'}
                 autoComplete="off"
                 spellCheck={false}
                 className={`${inputClass} pr-10`}
@@ -190,6 +253,18 @@ export default function SetupTab() {
 
         <div className="grid grid-cols-1 gap-x-8 gap-y-5 md:grid-cols-2">
 
+          <Field label="Bank" hint="Plaid Link opens with this bank pre-selected.">
+            <Select
+              value={bankId}
+              onChange={setBankId}
+              options={BANKS.map((b) => ({ value: b.id, label: b.name }))}
+            />
+          </Field>
+
+          <Field label="Language">
+            <Select value={language} onChange={setLanguage} options={LANGUAGES} />
+          </Field>
+
           <CheckGroup
             legend="Products"
             options={PRODUCTS}
@@ -202,10 +277,6 @@ export default function SetupTab() {
             selected={countries}
             onToggle={(v) => setCountries((c) => toggle(c, v))}
           />
-
-          <Field label="Language">
-            <Select value={language} onChange={setLanguage} options={LANGUAGES} />
-          </Field>
         </div>
       </section>
 
@@ -226,7 +297,7 @@ export default function SetupTab() {
             />
           </Field>
 
-          <Field label="Redirect URI" hint="Required for OAuth banks. Must be allowlisted in your Plaid dashboard.">
+          <Field label="Redirect URI" hint="Required for Chase and other OAuth banks. Use an HTTPS address allowlisted in your Plaid dashboard; Wallex catches the redirect itself, so nothing has to be hosted there.">
             <input
               type="url"
               value={redirectUri}
@@ -238,15 +309,33 @@ export default function SetupTab() {
         </div>
       </section>
 
-      <div className="flex items-center gap-4 border-t border-line pt-8">
+      <div className="flex flex-wrap items-center gap-4 border-t border-line pt-8">
         <button
           type="submit"
           disabled={!canConnect}
           className="cursor-pointer rounded-lg bg-accent px-5 py-2.5 text-sm font-semibold text-canvas transition-opacity disabled:cursor-not-allowed disabled:opacity-40"
         >
-          Connect account
+          {busy ? 'Connecting…' : connectedTo ? `Reconnect ${bank.name}` : `Connect ${bank.name}`}
         </button>
-        {!canConnect && (
+        {connectedTo && (
+          <>
+            <span className="font-support text-sm text-accent">Connected to {connectedTo}</span>
+            <button
+              type="button"
+              onClick={handleDisconnect}
+              disabled={busy}
+              className="cursor-pointer text-sm text-muted underline-offset-4 hover:text-ink hover:underline disabled:opacity-40"
+            >
+              Disconnect
+            </button>
+          </>
+        )}
+        {message && (
+          <span className={`font-support text-sm ${message.kind === 'error' ? 'text-red-400' : 'text-muted'}`}>
+            {message.text}
+          </span>
+        )}
+        {!message && !canConnect && !busy && (
           <span className="font-support text-xs text-muted">Enter your client ID and secret to continue.</span>
         )}
       </div>

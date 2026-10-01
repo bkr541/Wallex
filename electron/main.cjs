@@ -1,5 +1,7 @@
-const { app, BrowserWindow, shell } = require('electron');
+const { app, BrowserWindow, ipcMain, shell } = require('electron');
 const path = require('path');
+const config = require('./config.cjs');
+const plaid = require('./plaid.cjs');
 
 const RENDERER_URL = process.env.ELECTRON_RENDERER_URL;
 
@@ -34,6 +36,24 @@ function createWindow() {
     win.loadFile(path.join(__dirname, '..', 'dist', 'index.html'));
   }
 }
+
+// Errors are returned as data so the renderer gets a readable message instead of an IPC stack trace.
+const handle = (channel, fn) =>
+  ipcMain.handle(channel, async (_event, ...args) => {
+    try {
+      return { ok: true, data: await fn(...args) };
+    } catch (err) {
+      return { ok: false, error: err.message || 'Something went wrong.' };
+    }
+  });
+
+handle('wallex:status', () => plaid.getStatus());
+handle('wallex:connect', ({ settings, bank }) => {
+  config.saveSettings({ ...settings, bankId: bank.id });
+  return plaid.connect(bank);
+});
+handle('wallex:disconnect', () => plaid.disconnect());
+handle('wallex:transactions', () => plaid.getTransactions());
 
 app.whenReady().then(() => {
   createWindow();
