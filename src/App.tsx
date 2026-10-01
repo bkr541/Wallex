@@ -5,12 +5,12 @@ import CheckingTab from './pages/CheckingTab';
 import PatternsTab from './pages/PatternsTab';
 import ChaseLogo from './components/ChaseLogo';
 import { accountLabel, useTransactions } from './lib/useTransactions';
-import { ArrowLeftRight, LayoutDashboard, Repeat, Settings } from 'lucide-react';
+import { GearIcon, HomeIcon, ListIcon, PieIcon, ReceiptIcon } from './components/NavIcons';
 
 interface NavItem {
   id: string;
   name: string;
-  icon: React.ComponentType<{ className?: string; strokeWidth?: number }>;
+  icon: React.ComponentType<{ className?: string }>;
   description: string;
   tabs?: string[];
 }
@@ -18,10 +18,11 @@ interface NavItem {
 const TABS = ['Tab One', 'Tab Two'];
 
 const NAV: NavItem[] = [
-  { id: 'overview', name: 'Overview', icon: LayoutDashboard, description: 'Your spending at a glance, all in one place.' },
-  { id: 'patterns', name: 'Patterns', icon: Repeat, description: 'Track the spending routines that shape your month.', tabs: [] },
-  { id: 'transactions', name: 'Transactions', icon: ArrowLeftRight, description: 'Review every purchase, payment and deposit.', tabs: ['Checking', 'Tab Two'] },
-  { id: 'settings', name: 'Settings', icon: Settings, description: 'Manage your account and app preferences.', tabs: ['Profile', 'Appearance', 'Setup'] },
+  { id: 'overview', name: 'Overview', icon: HomeIcon, description: 'Your spending at a glance, all in one place.' },
+  { id: 'patterns', name: 'Patterns', icon: PieIcon, description: 'Track the spending routines that shape your month.', tabs: [] },
+  { id: 'transactions', name: 'Transactions', icon: ReceiptIcon, description: 'Review every purchase, payment and deposit.', tabs: ['Checking', 'Tab Two'] },
+  { id: 'settings', name: 'Settings', icon: GearIcon, description: 'Manage your account and app preferences.', tabs: ['Profile', 'Appearance', 'Setup'] },
+  { id: 'scratchpad', name: 'Scratchpad', icon: ListIcon, description: 'A sandbox for trying out interface components.', tabs: ['UI Components'] },
 ];
 
 export default function App() {
@@ -84,13 +85,15 @@ export default function App() {
                 onClick={() => setActiveId(item.id)}
                 aria-label={item.name}
                 aria-current={isActive ? 'page' : undefined}
-                className={`relative z-20 flex h-12 w-12 cursor-pointer items-center justify-center rounded-full transition-colors ${
+                className={`group relative z-20 flex h-12 w-12 cursor-pointer items-center justify-center rounded-full transition-colors ${
                   isActive
                     ? 'border border-line bg-surface text-ink'
                     : 'text-muted hover:bg-surface/60 hover:text-ink'
                 }`}
               >
-                <Icon className="h-5 w-5" strokeWidth={1.6} />
+                <Icon
+                  className={`h-8 w-8 transition-opacity ${isActive ? 'opacity-100' : 'opacity-70 group-hover:opacity-100'}`}
+                />
               </button>
             </div>
           );
