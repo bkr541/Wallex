@@ -20,6 +20,7 @@ export interface Bubble {
   key: string;
   name: string;
   amount: number; // per month
+  total: number; // dollars over the analysed period
   count: number;
   rgb: string; // "r, g, b"
   logos: string[];
@@ -27,10 +28,13 @@ export interface Bubble {
   badge: string; // cadence, or the number of charges
   kind: 'bill' | 'merchant' | 'category';
   categoryKey: string;
+  noun: 'visits' | 'purchases' | 'payments' | 'transactions'; // what one charge is called
+  classLabel?: string; // "Subscription", "Recurring obligation"... only when Wallex really knows
 }
 
 export interface PatternData {
   income: number; // per month
+  scope: PatternScope; // the period and filters every number above was worked out with
   hasCredit: boolean;
   bills: Bubble[];
   merchants: Bubble[];
@@ -99,12 +103,98 @@ const OWN_MONEY = new Set([
   'TRANSFER_OUT_INVESTMENT_AND_RETIREMENT_FUNDS',
 ]);
 
-const isoDaysAgo = (days: number) => {
+const pad2 = (n: number) => String(n).padStart(2, '0');
+const isoOf = (d: Date) => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+
+export const isoDaysAgo = (days: number) => {
   const d = new Date();
   d.setDate(d.getDate() - days);
-  const pad = (n: number) => String(n).padStart(2, '0');
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  return isoOf(d);
 };
+
+// Plain YYYY-MM-DD dates as whole days, so periods are counted without time zones getting involved.
+export const epochDay = (iso: string) => {
+  const [y, m, d] = iso.split('-').map(Number);
+  return Math.round(Date.UTC(y, m - 1, d) / 86_400_000);
+};
+export const isoFromEpochDay = (day: number) => new Date(day * 86_400_000).toISOString().slice(0, 10);
+
+const bankText = (t: Txn) => (t.details.find((d) => d.label === 'Bank Description')?.value ?? t.merchant).toUpperCase();
+
+// The period every Patterns number is worked out over. One place decides which transactions count,
+// so the circles, the monthly figures and the detail view can never disagree.
+export interface PatternScope {
+  days: number; // the period the user picked
+  today: string;
+  start: string; // first day of the picked period
+  effectiveDays: number; // days actually analysed: shorter than `days` when history is short
+  partial: boolean; // true when there is not enough history to fill the picked period
+  historyStart: string | null; // earliest transaction in the chosen accounts
+  prevStart: string; // the equal-length period just before this one
+  prevAvailable: boolean; // history reaches back far enough to compare against it
+  toMonthly: number; // multiplier from period dollars to dollars per month
+  creditIds: Set<string>;
+  hasCredit: boolean;
+  accountOk: (t: Txn) => boolean;
+  inView: (t: Txn) => boolean; // in the chosen accounts and the picked period
+  isSpending: (t: Txn) => boolean; // money out that is really spending
+}
+
+// Moving money between your own accounts is not spending, and neither is paying a card whose own
+// purchases are already counted.
+export function makeScope(txns: Txn[], accounts: LinkedAccount[], filters: PatternFilters): PatternScope {
+  const days = filters.days;
+  const credit = accounts.filter((a) => a.type === 'credit');
+  const creditIds = new Set(credit.map((a) => a.id));
+  const creditMasks = new Set(credit.map((a) => a.mask).filter((m): m is string => !!m));
+  const hasCredit = creditIds.size > 0;
+
+  const accountOk = (t: Txn) =>
+    filters.account === 'all' || (filters.account === 'credit') === creditIds.has(t.accountId);
+
+  let historyStart: string | null = null;
+  for (const t of txns) if (accountOk(t) && (historyStart === null || t.date < historyStart)) historyStart = t.date;
+
+  const today = isoOf(new Date());
+  const start = isoDaysAgo(days - 1); // the last `days` days, today included
+  const prevStart = isoDaysAgo(2 * days - 1);
+
+  // A little slack: the oldest transaction is rarely dated on exactly the first day of the period.
+  const slack = Math.ceil(days * 0.1);
+  const covered = historyStart !== null && epochDay(historyStart) <= epochDay(start) + slack;
+  const partial = historyStart === null ? false : !covered;
+  const effectiveDays = partial && historyStart ? Math.max(1, epochDay(today) - epochDay(historyStart) + 1) : days;
+  const prevAvailable = historyStart !== null && epochDay(historyStart) <= epochDay(prevStart) + slack;
+
+  // Card payments name the card ("...Xxxxx4944") when they can. A payment to a card that is not linked
+  // is real spending, because that card's purchases are not in the list.
+  const paysLinkedCard = (t: Txn) => {
+    const text = bankText(t);
+    const named = [...text.matchAll(/(?:X{2,}|\*{2,}|•{2,})\s*(\d{4})\b/g)].map((m) => m[1]);
+    return named.length ? named.some((m) => creditMasks.has(m)) : hasCredit;
+  };
+  const cardPurchasesInView = hasCredit && filters.account !== 'checking';
+
+  return {
+    days,
+    today,
+    start,
+    effectiveDays,
+    partial,
+    historyStart,
+    prevStart,
+    prevAvailable,
+    toMonthly: 30 / effectiveDays,
+    creditIds,
+    hasCredit,
+    accountOk,
+    inView: (t) => accountOk(t) && t.date >= start,
+    isSpending: (t) =>
+      t.amount < 0 &&
+      !OWN_MONEY.has(t.categoryDetailKey) &&
+      !(cardPurchasesInView && t.categoryDetailKey === 'LOAN_PAYMENTS_CREDIT_CARD_PAYMENT' && paysLinkedCard(t)),
+  };
+}
 
 // "~15th" -> "15th", "monthly" -> "Monthly", "2 patterns · ~6th, ~19th" -> "2 patterns"
 function badgeFor(rec: Recurring | undefined, count: number): string {
@@ -122,28 +212,38 @@ interface Group {
   count: number;
   logos: string[];
   domain?: string;
+  inStore: number; // charges made in person
   categories: Map<string, number>;
   labels: Map<string, string>;
 }
 
 const dominant = (g: Group) => [...g.categories.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? '';
 
+// What one charge at this merchant is called: you visit a shop, but you make a payment to a person.
+function nounFor(g: Group): Bubble['noun'] {
+  if (/^(ZELLE|ATM|OVERDRAFT|CHECKS|APPLE CASH)/.test(g.key)) return 'payments';
+  return g.inStore * 2 > g.count ? 'visits' : 'purchases';
+}
+
+// A label only when Wallex already knows what the thing is, from the recurring detector or from the
+// category the bank gave it. Nothing is guessed.
+function classLabelFor(rec: Recurring | undefined, isBill: boolean, category: string, key: string): string | undefined {
+  if (key.startsWith('ZELLE')) return 'Person-to-person';
+  if (rec && rec.confidence !== 'review') {
+    if (rec.kind === 'habit') return 'Recurring habit';
+    if (rec.kind === 'bill') return 'Recurring obligation';
+    if (rec.kind === 'debt') return 'Debt payment';
+    if (rec.kind === 'installment') return 'Installment';
+    if (rec.kind === 'subscription') return 'Subscription';
+    if (rec.kind === 'usage') return 'Subscription + usage';
+  }
+  if (category === 'LOAN_PAYMENTS') return 'Debt payment';
+  return isBill ? 'Bill' : undefined;
+}
+
 export function buildPatterns(txns: Txn[], accounts: LinkedAccount[], filters: PatternFilters): PatternData {
-  const creditIds = new Set(accounts.filter((a) => a.type === 'credit').map((a) => a.id));
-  const hasCredit = creditIds.size > 0;
-  const since = isoDaysAgo(filters.days);
-  const toMonthly = 30 / filters.days;
-
-  const inView = (t: Txn) =>
-    t.date >= since &&
-    (filters.account === 'all' || (filters.account === 'credit') === creditIds.has(t.accountId));
-
-  // A card payment from checking only counts when the card's own purchases are not already in view.
-  const cardPurchasesInView = hasCredit && filters.account !== 'checking';
-  const isSpending = (t: Txn) =>
-    t.amount < 0 &&
-    !OWN_MONEY.has(t.categoryDetailKey) &&
-    !(cardPurchasesInView && t.categoryDetailKey === 'LOAN_PAYMENTS_CREDIT_CARD_PAYMENT');
+  const scope = makeScope(txns, accounts, filters);
+  const { creditIds, hasCredit, toMonthly, inView, isSpending } = scope;
 
   const windowed = txns.filter(inView);
   const income =
@@ -154,8 +254,9 @@ export function buildPatterns(txns: Txn[], accounts: LinkedAccount[], filters: P
   const merchants = new Map<string, Group>();
   const categories = new Map<string, Group>();
   const bump = (map: Map<string, Group>, key: string, name: string, t: Txn, domain?: string) => {
-    const g: Group = map.get(key) ?? { key, name, amount: 0, count: 0, logos: [], categories: new Map(), labels: new Map() };
+    const g: Group = map.get(key) ?? { key, name, amount: 0, count: 0, logos: [], inStore: 0, categories: new Map(), labels: new Map() };
     g.amount += -t.amount;
+    if (t.channel === 'In Store') g.inStore += 1;
     g.count += 1;
     if (!g.logos.length && t.logos.length) g.logos = t.logos;
     if (domain) g.domain = domain;
@@ -195,6 +296,7 @@ export function buildPatterns(txns: Txn[], accounts: LinkedAccount[], filters: P
       key: g.key,
       name: g.name,
       amount: g.amount * toMonthly,
+      total: g.amount,
       count: g.count,
       rgb: colorFor(g.key),
       // A recognised company shows its own logo first (a PayPal wrapper would show PayPal's).
@@ -202,6 +304,8 @@ export function buildPatterns(txns: Txn[], accounts: LinkedAccount[], filters: P
       badge: badgeFor(rec, g.count),
       kind: isBill ? 'bill' : 'merchant',
       categoryKey: cat,
+      noun: isBill ? 'payments' : nounFor(g),
+      classLabel: classLabelFor(rec, isBill, cat, g.key),
     };
     (isBill ? bills : shops).push(bubble);
   }
@@ -212,6 +316,7 @@ export function buildPatterns(txns: Txn[], accounts: LinkedAccount[], filters: P
       key: g.key,
       name: g.name,
       amount: g.amount * toMonthly,
+      total: g.amount,
       count: g.count,
       rgb: CATEGORY_COLORS[g.key] ?? FALLBACK_COLOR,
       logos: [],
@@ -219,11 +324,14 @@ export function buildPatterns(txns: Txn[], accounts: LinkedAccount[], filters: P
       badge: `${g.count} charge${g.count === 1 ? '' : 's'}`,
       kind: 'category' as const,
       categoryKey: g.key,
+      noun: 'transactions' as const,
+      classLabel: g.key === 'TRANSFER_OUT' ? 'Transfer' : g.key === 'LOAN_PAYMENTS' ? 'Debt payment' : undefined,
     }));
 
   const byAmount = (a: Bubble, b: Bubble) => b.amount - a.amount;
   return {
     income,
+    scope,
     hasCredit,
     bills: bills.sort(byAmount),
     merchants: shops.sort(byAmount),
@@ -244,6 +352,7 @@ export function capBubbles(bubbles: Bubble[], max: number, otherName: string): B
       key: 'OTHER',
       name: otherName,
       amount: rest.reduce((s, b) => s + b.amount, 0),
+      total: rest.reduce((s, b) => s + b.total, 0),
       count,
       rgb: FALLBACK_COLOR,
       logos: [],
@@ -251,6 +360,7 @@ export function capBubbles(bubbles: Bubble[], max: number, otherName: string): B
       badge: `${rest.length} more`,
       kind: rest[0].kind,
       categoryKey: '',
+      noun: 'transactions',
     },
   ];
 }
@@ -270,6 +380,7 @@ const sample = (
   key,
   name,
   amount,
+  total: amount,
   count,
   rgb,
   logos: domain ? [faviconUrl(domain)] : [],
@@ -277,10 +388,21 @@ const sample = (
   badge,
   kind,
   categoryKey: '',
+  noun: kind === 'bill' ? 'payments' : kind === 'category' ? 'transactions' : 'visits',
+});
+
+// The sample circles stand in for a full 30 days of history, whatever dates the made-up charges have.
+export const sampleScope = (txns: Txn[]): PatternScope => ({
+  ...makeScope(txns, [], DEFAULT_FILTERS),
+  historyStart: isoDaysAgo(29),
+  partial: false,
+  effectiveDays: 30,
+  toMonthly: 1,
 });
 
 export const SAMPLE_PATTERNS: PatternData = {
   income: 4800,
+  scope: sampleScope([]),
   hasCredit: false,
   bills: [
     sample('bill', 'RENT', 'Rent', 1250, '1st', '74, 214, 130', 'RENT'),
@@ -304,17 +426,10 @@ export const SAMPLE_PATTERNS: PatternData = {
   categoryOptions: [],
 };
 
-// The transactions behind a circle: a merchant's own charges, or everything in a category.
-export function transactionsFor(bubble: Bubble, txns: Txn[]): Txn[] {
-  return txns.filter((t) =>
-    bubble.kind === 'category' ? (t.categoryKey || 'UNCATEGORIZED') === bubble.key : merchantOf(t).key === bubble.key,
-  );
-}
-
 // Made-up charges for a sample circle, so the detail view has something to show before a bank is linked.
 export function sampleTransactionsFor(bubble: Bubble): Txn[] {
   const n = Math.min(Math.max(bubble.count, 1), 8);
-  const spacing = Math.max(3, Math.round(28 / n));
+  const spacing = n > 1 ? Math.floor(28 / (n - 1)) : 1;
   return Array.from({ length: n }, (_, i) => {
     const date = isoDaysAgo(i * spacing + 1);
     return {

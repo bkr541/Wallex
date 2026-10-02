@@ -2,7 +2,6 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import {
   Briefcase,
-  ChevronUp,
   Building2,
   Banknote,
   Car,
@@ -35,15 +34,16 @@ import ChaseLogo from '../components/ChaseLogo';
 import { createPortal } from 'react-dom';
 import { useMobile, usePhoneFrame } from '../lib/viewMode';
 import MerchantLogo from '../components/MerchantLogo';
-import TransactionTable from '../components/TransactionTable';
+import PatternDetail from '../components/PatternDetail';
 import { withBalances } from '../lib/balances';
+import { computePatternMetrics } from '../lib/patternMetrics';
 import type { Load } from '../lib/useTransactions';
 import {
   DEFAULT_FILTERS,
   SAMPLE_PATTERNS,
   buildPatterns,
+  sampleScope,
   sampleTransactionsFor,
-  transactionsFor,
   type Bubble,
   type PatternFilters,
   type View,
@@ -279,8 +279,6 @@ function DiscIcon({ bubble, px }: { bubble: Bubble; px: number }) {
   );
 }
 
-const KIND_LABEL: Record<Bubble['kind'], string> = { bill: 'Bill', merchant: 'Merchant', category: 'Category' };
-
 function Segmented<T extends string | number>({
   value,
   onChange,
@@ -378,18 +376,22 @@ export default function PatternsTab({ load }: { load: Load }) {
   const centerAmount = base;
   const viewLabel = VIEWS.find((v) => v.id === view)!.label;
 
-  // Every transaction behind the selected circle, with a running balance worked out across all
-  // linked accounts first (credit cards show none, since their balance is what is owed).
-  const detailRows = useMemo(() => {
-    if (!selected) return [];
-    if (load.state === 'live') {
-      const accounts = load.allAccounts.map((a) => ({ id: a.id, current: a.type === 'credit' ? null : a.current }));
-      const ids = new Set(transactionsFor(selected, load.allTransactions).map((t) => t.id));
-      return withBalances(load.allTransactions, accounts).filter((t) => ids.has(t.id));
-    }
-    return withBalances(sampleTransactionsFor(selected), [{ id: 'sample', current: 4200 }]);
-  }, [selected, load]);
-  const detailSpent = detailRows.reduce((sum, t) => sum + (t.amount < 0 ? -t.amount : 0), 0);
+  // Everything the detail view shows for the selected circle. It reuses the scope the circles were
+  // built with, so the numbers follow the same period, account and category filters.
+  const detailData = useMemo(() => {
+    if (!selected) return null;
+    const isLive = load.state === 'live';
+    const txns = isLive ? load.allTransactions : sampleTransactionsFor(selected);
+    const scope = isLive ? data.scope : sampleScope(txns);
+    const accounts = isLive
+      ? load.allAccounts.map((a) => ({ id: a.id, current: a.type === 'credit' ? null : a.current }))
+      : [{ id: 'sample', current: 4200 }];
+    const metrics = computePatternMetrics(selected, txns, scope, data.income);
+    // Running balances are worked out across every account first (credit cards show none).
+    const balanced = new Map(withBalances(txns, accounts).map((t) => [t.id, t]));
+    const pick = (rows: typeof txns) => rows.map((t) => balanced.get(t.id)!);
+    return { metrics, periodRows: pick(metrics.periodRows), historyRows: pick(metrics.historyRows) };
+  }, [selected, load, data]);
 
   const activeFilters =
     (filters.days !== 30 ? 1 : 0) + (filters.account !== 'all' ? 1 : 0) + (filters.minAmount > 0 ? 1 : 0) + (filters.categories.length ? 1 : 0);
@@ -799,78 +801,18 @@ export default function PatternsTab({ load }: { load: Load }) {
     </motion.div>
   );
 
-  const detail = selected && (
-    <motion.div
+  const detail = selected && detailData && (
+    <PatternDetail
       key="detail"
-      className="w-full px-1 pt-8 pb-6"
-      initial="hidden"
-      animate="show"
-      exit="hidden"
-      variants={{ hidden: {}, show: {} }}
-    >
-      <motion.div
-        variants={{
-          hidden: { opacity: 0, y: -28, scale: 0.96, transition: { duration: 0.2 } },
-          show: { opacity: 1, y: 0, scale: 1, transition: { type: 'spring', stiffness: 240, damping: 24 } },
-        }}
-        className="relative rounded-3xl p-5 @container"
-        style={
-          {
-            '--rgb': selected.rgb,
-            background: `radial-gradient(circle at 12% 0%, rgba(${selected.rgb}, 0.3), rgba(${selected.rgb}, 0.06) 55%), #101214`,
-            border: `1.5px solid rgba(${selected.rgb}, 0.7)`,
-            boxShadow: `0 22px 54px rgba(0, 0, 0, 0.55), 0 0 44px rgba(${selected.rgb}, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.1)`,
-          } as React.CSSProperties
-        }
-      >
-        <motion.button
-          type="button"
-          onClick={() => setSelected(null)}
-          aria-label="Back to patterns"
-          title="Back to patterns"
-          animate={{ y: [0, -4, 0] }}
-          transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
-          whileHover={{ scale: 1.1 }}
-          className="absolute -top-5 left-1/2 flex h-10 w-10 -translate-x-1/2 cursor-pointer items-center justify-center rounded-full border bg-card text-ink shadow-[0_10px_26px_rgba(0,0,0,0.6)]"
-          style={{ borderColor: `rgba(${selected.rgb}, 0.8)`, boxShadow: `0 10px 26px rgba(0,0,0,0.6), 0 0 22px rgba(${selected.rgb}, 0.35)` }}
-        >
-          <ChevronUp className="h-5 w-5" strokeWidth={2.2} />
-        </motion.button>
-
-        <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-4">
-          <div className="flex min-w-0 items-center gap-4">
-            <DiscIcon bubble={selected} px={72} />
-            <div className="min-w-0">
-              <h2 className="truncate text-3xl font-semibold tracking-tight">{selected.name}</h2>
-              <p className="mt-1 flex flex-wrap items-center gap-2 font-support text-sm text-muted">
-                <span>{KIND_LABEL[selected.kind]}</span>
-                <span className="bubble-badge px-2.5 py-0.5 text-xs">{selected.badge}</span>
-              </p>
-            </div>
-          </div>
-          <div className="text-right">
-            <p className="text-4xl leading-none font-semibold tracking-tight">
-              {money(selected.amount)}
-              <span className="ml-1 font-support text-base font-normal text-muted">/mo</span>
-            </p>
-            {base > 0 && (
-              <p className="mt-2 font-support text-sm text-muted">
-                {percent(selected.amount, base)} of {hasIncome ? 'income' : 'spending'}
-              </p>
-            )}
-          </div>
-        </div>
-
-        <p className="mt-4 border-t border-line pt-3 font-support text-sm text-muted">
-          {detailRows.length} transaction{detailRows.length === 1 ? '' : 's'}
-          {detailSpent > 0 && ` · ${money(detailSpent)} spent in total`}
-        </p>
-      </motion.div>
-
-      <div className="mt-6">
-        <TransactionTable rows={detailRows} emptyText="No transactions found for this item." />
-      </div>
-    </motion.div>
+      bubble={selected}
+      metrics={detailData.metrics}
+      days={filters.days}
+      hasIncome={hasIncome}
+      icon={<DiscIcon bubble={selected} px={mobile ? 56 : 72} />}
+      periodRows={detailData.periodRows}
+      historyRows={detailData.historyRows}
+      onBack={() => setSelected(null)}
+    />
   );
 
   return (
