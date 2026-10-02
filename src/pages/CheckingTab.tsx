@@ -73,7 +73,6 @@ export default function CheckingTab({
         <p
           className={`font-support text-sm ${load.state === 'sample' && load.isError ? 'text-red-400' : 'text-muted'}`}
         >
-          {load.state === 'loading' && 'Loading transactions…'}
           {load.state === 'sample' && load.note}
         </p>
         <button

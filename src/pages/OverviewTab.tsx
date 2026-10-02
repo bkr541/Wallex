@@ -1,6 +1,8 @@
 import { useMemo, useState } from 'react';
 import { ChevronRight } from 'lucide-react';
 import CashFlowChart from '../components/overview/CashFlowChart';
+import Collapsible from '../components/overview/Collapsible';
+import SlotNumber from '../components/overview/SlotNumber';
 import MerchantLogo from '../components/MerchantLogo';
 import { useRecurring } from '../lib/recurringOverrides';
 import {
@@ -127,6 +129,27 @@ export default function OverviewTab({
   const [days, setDays] = useState<OverviewDays>(30);
   const [range, setRange] = useState<number | null>(null);
   const [percent, setPercent] = useState(20);
+  // Which sections are folded away, remembered between visits.
+  const [closed, setClosed] = useState<Record<string, boolean>>(() => {
+    try {
+      return JSON.parse(localStorage.getItem('wallex-overview-closed') ?? '{}');
+    } catch {
+      return {};
+    }
+  });
+  const sectionProps = (id: string) => ({
+    open: !closed[id],
+    onToggle: () =>
+      setClosed((prev) => {
+        const next = { ...prev, [id]: !prev[id] };
+        try {
+          localStorage.setItem('wallex-overview-closed', JSON.stringify(next));
+        } catch {
+          // Not remembering is fine.
+        }
+        return next;
+      }),
+  });
   // The Recurring tab's analysis, including any corrections the user made there.
   const recurring = useRecurring(live ? load.allTransactions : null, live ? load.allAccounts : undefined);
 
@@ -138,9 +161,8 @@ export default function OverviewTab({
     return { scopes, periods, analysis: recurring! };
   }, [live, load, recurring]);
 
-  if (load.state === 'loading') {
-    return <p className="px-4 py-6 font-support text-sm text-muted">Loading your overview…</p>;
-  }
+  // While loading, the app shows its floating loader instead of text.
+  if (load.state === 'loading') return null;
   if (!live || !view) {
     return (
       <div className="mx-auto max-w-xl px-4 py-16 text-center">
@@ -208,69 +230,62 @@ export default function OverviewTab({
         )}
       </div>
 
-      {/* 1 · Financial position */}
+      {/* 1 · Financial position: money in and out first, then the cash on hand */}
       <section className="order-1 px-3">
-        <div className="grid gap-8 @3xl:grid-cols-[minmax(0,1fr)_minmax(0,1.6fr)] @3xl:items-end">
-          <div>
-            <Eyebrow>Cash available</Eyebrow>
-            <p className="mt-3 text-5xl leading-none font-semibold tracking-tight @3xl:text-6xl">
-              {position.cash === null ? '—' : money(position.cash)}
-            </p>
-            <p className="mt-3 font-support text-sm text-muted">
-              {position.cash === null
-                ? 'No checking or savings balance reported.'
-                : `In ${plural(position.cashAccounts.length, 'checking or savings account')}`}
-              {position.cardsOwed !== null && position.cardsOwed > 0 && ` · ${money(position.cardsOwed)} owed on cards`}
+        <div className="grid grid-cols-3 gap-4 @3xl:gap-10">
+          <div className="min-w-0">
+            <p className="font-support text-xs text-muted">Money in</p>
+            <p className="mt-2 text-2xl font-semibold tracking-tight @3xl:text-4xl">
+              <SlotNumber text={money(flow.moneyIn)} />
             </p>
           </div>
+          <div className="min-w-0">
+            <p className="font-support text-xs text-muted">Money out</p>
+            <p className="mt-2 text-2xl font-semibold tracking-tight @3xl:text-4xl">
+              <SlotNumber text={money(flow.moneyOut)} />
+            </p>
+          </div>
+          <div className="min-w-0 border-l border-line pl-4 @3xl:pl-10">
+            <p className="font-support text-xs text-muted">Net cash flow</p>
+            <p
+              className={`mt-2 text-2xl font-semibold tracking-tight @3xl:text-4xl ${
+                flow.count === 0 ? '' : flow.net >= 0 ? 'text-accent' : 'text-red-300'
+              }`}
+            >
+              <SlotNumber text={flow.count === 0 ? '—' : signed(flow.net)} />
+            </p>
+          </div>
+        </div>
+        <p className="mt-4 font-support text-sm text-muted">
+          {flow.count === 0
+            ? `No money in or out in the last ${periodLabel}.`
+            : flow.savingsRate === null
+              ? `No income detected in the last ${periodLabel}, so there is no savings rate.`
+              : `${flow.savingsRate >= 0 ? '+' : '-'}${percentText(Math.abs(flow.savingsRate))} savings rate over the last ${periodLabel}`}
+          {flow.pending > 0 && ` · includes ${plural(flow.pending, 'pending transaction')}`}
+          {scope.partial && ` · only ${scope.effectiveDays} days of history so far`}
+        </p>
 
-          <div>
-            <div className="grid grid-cols-3 gap-4">
-              <div className="min-w-0">
-                <p className="font-support text-xs text-muted">Money in</p>
-                <p className="mt-2 text-xl font-semibold tracking-tight tabular-nums @3xl:text-2xl">{money(flow.moneyIn)}</p>
-                {flow.moneyIn > 0 && (
-                  <p className="mt-1 font-support text-xs text-muted">
-                    {flow.income <= 0
-                      ? 'None of it tagged as pay'
-                      : flow.income < flow.moneyIn - 0.5
-                        ? `${money(flow.income)} of it is pay`
-                        : 'All of it is pay'}
-                  </p>
-                )}
-              </div>
-              <div className="min-w-0">
-                <p className="font-support text-xs text-muted">Money out</p>
-                <p className="mt-2 text-xl font-semibold tracking-tight tabular-nums @3xl:text-2xl">{money(flow.moneyOut)}</p>
-              </div>
-              <div className="min-w-0 border-l border-line pl-4">
-                <p className="font-support text-xs text-muted">Net cash flow</p>
-                <p
-                  className={`mt-2 text-xl font-semibold tracking-tight tabular-nums @3xl:text-3xl ${
-                    flow.count === 0 ? '' : flow.net >= 0 ? 'text-accent' : 'text-red-300'
-                  }`}
-                >
-                  {flow.count === 0 ? '—' : signed(flow.net)}
-                </p>
-              </div>
-            </div>
-            <p className="mt-4 font-support text-sm text-muted">
-              {flow.count === 0
-                ? `No money in or out in the last ${periodLabel}.`
-                : flow.savingsRate === null
-                  ? `No income detected in the last ${periodLabel}, so there is no savings rate.`
-                  : `${flow.savingsRate >= 0 ? '+' : '-'}${percentText(Math.abs(flow.savingsRate))} savings rate over the last ${periodLabel}`}
-              {flow.pending > 0 && ` · includes ${plural(flow.pending, 'pending transaction')}`}
-              {scope.partial && ` · only ${scope.effectiveDays} days of history so far`}
-            </p>
-          </div>
+        <div className="mt-8 border-t border-line pt-6">
+          <Eyebrow>Cash available</Eyebrow>
+          <p className="mt-3 text-5xl leading-none font-semibold tracking-tight @3xl:text-6xl">
+            {position.cash === null ? '—' : money(position.cash)}
+          </p>
+          <p className="mt-3 font-support text-sm text-muted">
+            {position.cash === null
+              ? 'No checking or savings balance reported.'
+              : `In ${plural(position.cashAccounts.length, 'checking or savings account')}`}
+            {position.cardsOwed !== null && position.cardsOwed > 0 && ` · ${money(position.cardsOwed)} owed on cards`}
+          </p>
         </div>
       </section>
 
       {/* 2 · Recurring commitments */}
-      <section className="order-3 border-t border-line px-3 pt-8 @3xl:order-2">
-        <div className="flex flex-wrap items-baseline justify-between gap-2">
-          <Eyebrow>Commitments</Eyebrow>
+      <Collapsible
+        {...sectionProps('commitments')}
+        className="order-3 @3xl:order-2"
+        title="Commitments"
+        aside={
           <button
             type="button"
             onClick={() => onNavigate('transactions', 'Recurring', 'all')}
@@ -278,8 +293,9 @@ export default function OverviewTab({
           >
             Amounts and details are in Recurring →
           </button>
-        </div>
-        <div className="mt-5 grid grid-cols-2 gap-x-8 gap-y-7 @3xl:grid-cols-4">
+        }
+      >
+        <div className="grid grid-cols-2 gap-x-8 gap-y-7 @3xl:grid-cols-4">
           <Commitment
             label="Bills"
             lead={owed.bills.count ? `${owed.bills.count} active` : 'None found'}
@@ -310,18 +326,16 @@ export default function OverviewTab({
             detail={fees.count ? `${plural(fees.count, 'charge')} · ${fees.types.join(', ')}` : `No fees in the last ${periodLabel}`}
           />
         </div>
-      </section>
+      </Collapsible>
 
       {/* 3 · Cash-flow history */}
-      <section className="order-4 border-t border-line px-3 pt-8 @3xl:order-3">
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <div>
-            <Eyebrow>Cash flow</Eyebrow>
-            <p className="mt-2 font-support text-sm text-muted">
-              {chosen ? `Month by month, last ${chosen} months.` : 'Week by week. Monthly bars appear once there are three months of history.'}
-            </p>
-          </div>
-          <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
+      <Collapsible
+        {...sectionProps('cashflow')}
+        className="order-4 @3xl:order-3"
+        title="Cash flow"
+        subtitle={chosen ? `Month by month, last ${chosen} months.` : 'Week by week. Monthly bars appear once there are three months of history.'}
+        aside={
+          <>
             {savings.rate !== null && (
               <p className="font-support text-sm text-muted">
                 <span className={`font-semibold ${savings.rate >= 0 ? 'text-ink' : 'text-red-300'}`}>
@@ -334,9 +348,10 @@ export default function OverviewTab({
             {options.length > 1 && (
               <Segmented label="Range" value={chosen ?? 0} onChange={setRange} options={options.map((n) => ({ value: n, label: `${n}M` }))} />
             )}
-          </div>
-        </div>
-        <div className="mt-6">
+          </>
+        }
+      >
+        <div>
           {anyFlow ? (
             <CashFlowChart key={`${chosen}-${buckets.length}`} buckets={buckets} />
           ) : (
@@ -348,13 +363,16 @@ export default function OverviewTab({
             Savings rate covers {plural(savings.buckets, chosen ? 'full month' : 'full week')}; a period still running or cut short is left out.
           </p>
         )}
-      </section>
+      </Collapsible>
 
       <div className="contents @3xl:order-4 @3xl:grid @3xl:grid-cols-2 @3xl:gap-x-14">
         {/* 4 · Upcoming pressure */}
-        <section className="order-2 border-t border-line px-3 pt-8 @3xl:order-none">
-          <Eyebrow>Upcoming pressure</Eyebrow>
-          <p className="mt-2 font-support text-sm text-muted">Recurring payments expected in the next {WINDOW_DAYS} days.</p>
+        <Collapsible
+          {...sectionProps('upcoming')}
+          className="order-2 @3xl:order-none"
+          title="Upcoming pressure"
+          subtitle={`Recurring payments expected in the next ${WINDOW_DAYS} days.`}
+        >
 
           {upcoming.length === 0 ? (
             <p className="mt-5 font-support text-sm text-muted">
@@ -407,12 +425,15 @@ export default function OverviewTab({
               </p>
             </div>
           )}
-        </section>
+        </Collapsible>
 
         {/* 5 · Cash buffer */}
-        <section className="order-5 border-t border-line px-3 pt-8 @3xl:order-none">
-          <Eyebrow>Cash buffer</Eyebrow>
-          <p className="mt-2 font-support text-sm text-muted">What is left of your cash after the payments above.</p>
+        <Collapsible
+          {...sectionProps('buffer')}
+          className="order-5 @3xl:order-none"
+          title="Cash buffer"
+          subtitle="What is left of your cash after the payments above."
+        >
 
           {buffer === null ? (
             <p className="mt-5 font-support text-sm text-muted">No checking or savings balance is available to measure against.</p>
@@ -455,28 +476,26 @@ export default function OverviewTab({
               )}
             </div>
           )}
-        </section>
+        </Collapsible>
       </div>
 
       {/* 6 · Opportunities */}
-      <section className="order-6 border-t border-line px-3 pt-8 @3xl:order-5">
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <div>
-            <Eyebrow>Opportunities</Eyebrow>
-            <p className="mt-2 font-support text-sm text-muted">
-              What-ifs based on your last {periodLabel} of spending. They are estimates, not advice.
-            </p>
-          </div>
-          {ideas.some((i) => i.fixedPercent === null) && (
+      <Collapsible
+        {...sectionProps('opportunities')}
+        className="order-6 @3xl:order-5"
+        title="Opportunities"
+        subtitle={`What-ifs based on your last ${periodLabel} of spending. They are estimates, not advice.`}
+        aside={
+          ideas.some((i) => i.fixedPercent === null) ? (
             <Segmented
               label="Reduction"
               value={percent}
               onChange={setPercent}
               options={PERCENTS.map((n) => ({ value: n, label: `${n}%` }))}
             />
-          )}
-        </div>
-
+          ) : undefined
+        }
+      >
         {ideas.length === 0 ? (
           <p className="mt-5 font-support text-sm text-muted">No spending in these areas yet, so there is nothing to model.</p>
         ) : (
@@ -508,7 +527,7 @@ export default function OverviewTab({
             </p>
           </div>
         )}
-      </section>
+      </Collapsible>
     </div>
   );
 }

@@ -435,7 +435,7 @@ export default function RecurringTab({ load, initialFilter = 'all' }: { load: Lo
 
   const caption =
     load.state === 'loading'
-      ? 'Looking for recurring charges…'
+      ? ''
       : load.state === 'sample'
         ? load.note
         : analysis.earliest

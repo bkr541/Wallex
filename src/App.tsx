@@ -10,6 +10,7 @@ import { accountLabel, useTransactions } from './lib/useTransactions';
 import { NAV, TABS } from './lib/pages';
 import HeadersTab from './pages/HeadersTab';
 import OverviewTab from './pages/OverviewTab';
+import LoadingLogo from './components/LoadingLogo';
 import { Monitor, Smartphone } from 'lucide-react';
 import { ViewModeProvider } from './lib/viewMode';
 
@@ -79,6 +80,11 @@ export default function App() {
         className="absolute inset-x-0 top-0 z-30 h-10"
         style={{ WebkitAppRegion: 'drag' } as React.CSSProperties}
       />
+
+      {/* Shown while the bank data is on its way, on the pages that need it. */}
+      <AnimatePresence>
+        {load.state === 'loading' && ['overview', 'patterns', 'transactions'].includes(activeId) && <LoadingLogo key="loading" />}
+      </AnimatePresence>
 
       <nav
         aria-label="Sidebar navigation"

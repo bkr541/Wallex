@@ -404,7 +404,7 @@ export default function PatternsTab({ load }: { load: Load }) {
 
   const caption =
     load.state === 'loading'
-      ? 'Loading your spending…'
+      ? ''
       : load.state === 'sample'
         ? load.note
         : `Last ${filters.days} days, averaged per month · ${load.bank}${data.hasCredit ? ' · credit cards included' : ''}.`;
