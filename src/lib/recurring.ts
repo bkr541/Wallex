@@ -17,6 +17,30 @@ export type Kind = 'bill' | 'debt' | 'installment' | 'subscription' | 'usage' | 
 // habit:     many visits with no fixed billing cadence (fuel, groceries, bars)
 export type Confidence = 'confirmed' | 'likely' | 'new' | 'review' | 'habit';
 
+export type CadenceName = 'weekly' | 'biweekly' | 'monthly' | 'quarterly' | 'annual';
+export type RecurringCadence = CadenceName | 'mixed' | 'irregular';
+
+// How the amount behaves: one steady figure, a narrow range, several fixed price points, a fixed base
+// plus variable usage, or no usable pattern.
+export type AmountKind = 'fixed' | 'range' | 'multiple' | 'usage' | 'variable';
+
+export type RecurringStatus = 'active' | 'new' | 'possibly-ended' | 'review' | 'habit';
+
+export interface PriceChange {
+  previous: number;
+  current: number;
+  delta: number;
+  pct: number;
+  since: string; // first charge at the new price
+}
+
+export interface NextExpected {
+  date: string;
+  earliest: string;
+  latest: string;
+  approx: boolean; // the date wanders, so show a range
+}
+
 export interface Recurring {
   id: string;
   name: string;
@@ -31,6 +55,22 @@ export interface Recurring {
   notes: string[];
   recent: { date: string; amount: number }[];
   schedule: ScheduledPayment[]; // when the next charge of each pattern is expected
+
+  cadence: RecurringCadence;
+  amountKind: AmountKind;
+  typical: number | null; // the usual charge, null when there is no single one
+  annual: number | null; // dollars per year when that can be said honestly
+  annualApprox: boolean; // the annual figure is an estimate (variable amounts)
+  usage: { count: number; avg: number; perMonth: number; combinedMonthly: number | null } | null;
+  status: RecurringStatus;
+  charges: Txn[]; // every matching transaction, newest first
+  lastCharge: { date: string; amount: number } | null;
+  firstDate: string | null;
+  nextExpected: NextExpected | null; // only when the timing is dependable
+  priceChange: PriceChange | null;
+  reason: string; // why Wallex recognised it
+  uncertainty: string | null; // why it needs review, when it does
+  settlement: 'card' | null; // pays a credit card, a cash-flow event rather than extra spending
 }
 
 // One recurring pattern's next expected charge. Overview turns these into an upcoming-payments list.
@@ -47,6 +87,7 @@ export interface ScheduledPayment {
 }
 
 export interface Analysis {
+  hidden?: Recurring[]; // dismissed by the user, kept so they can be restored
   items: Recurring[];
   counts: Record<Confidence, number>;
   monthlyTotal: number;
@@ -263,6 +304,7 @@ interface Pattern {
   nextDay: number;
   perMonth: number;
   periodDays: number;
+  occ: Occ[]; // the charges the pattern is made of, oldest first
 }
 
 // How far the day of month wanders, treating the 31st and the 1st as neighbors.
@@ -334,6 +376,7 @@ function evalPattern(occ: Occ[], opts: { minCount: number; allowVariable: boolea
     nextDay: Math.round(lastDay + cadence.days),
     perMonth: cadence.perMonth,
     periodDays: cadence.days,
+    occ: sorted,
   };
 }
 
@@ -439,7 +482,93 @@ const KIND_SUMMARY: Record<Kind, string> = {
 
 const CONFIDENCE_ORDER: Confidence[] = ['confirmed', 'likely', 'new', 'review', 'habit'];
 
-export function analyze(transactions: Txn[]): Analysis {
+// ---------------------------------------------------------------------------------------------
+// Dates, schedule and price changes
+// ---------------------------------------------------------------------------------------------
+
+const CADENCE_WORD: Record<RecurringCadence, string> = {
+  weekly: 'Weekly',
+  biweekly: 'Every 2 weeks',
+  monthly: 'Monthly',
+  quarterly: 'Quarterly',
+  annual: 'Annual',
+  mixed: 'Several schedules',
+  irregular: 'Irregular',
+};
+export const cadenceWord = (c: RecurringCadence) => CADENCE_WORD[c];
+
+// The date after `date` in a pattern: the same day next month for monthly charges, otherwise the usual gap.
+export function stepSchedule(date: string, s: { periodDays: number; day: number | null }): string {
+  const monthly = s.periodDays > 25 && s.periodDays < 40;
+  if (monthly) {
+    const [y, m, d] = date.split('-').map(Number);
+    const ny = m === 12 ? y + 1 : y;
+    const nm = m === 12 ? 1 : m + 1;
+    const length = new Date(Date.UTC(ny, nm, 0)).getUTCDate();
+    return `${ny}-${String(nm).padStart(2, '0')}-${String(Math.min(s.day ?? d, length)).padStart(2, '0')}`;
+  }
+  return isoFromDay(epochDay(date) + Math.round(s.periodDays));
+}
+
+// The next charge on or after today. A charge that is only a few days late counts as due today.
+export function projectNext(s: ScheduledPayment, today: string): string {
+  let date = s.next;
+  let guard = 0;
+  while (date < today && epochDay(today) - epochDay(date) > 3 && guard++ < 400) date = stepSchedule(date, s);
+  return date < today ? today : date;
+}
+
+// A date is only worth showing when the pattern is well established and the day does not wander far.
+const dependable = (s: ScheduledPayment, confidence: Confidence) =>
+  confidence !== 'review' && confidence !== 'habit' && s.spread <= 10 && (s.count >= 3 || (s.count >= 2 && s.fixed));
+
+function nextExpectedFor(schedule: ScheduledPayment[], confidence: Confidence, active: boolean, today: string): NextExpected | null {
+  if (!active) return null;
+  const dates = schedule.filter((s) => dependable(s, confidence)).map((s) => ({ s, date: projectNext(s, today) }));
+  if (!dates.length) return null;
+  const { s, date } = dates.sort((a, b) => (a.date < b.date ? -1 : 1))[0];
+  const half = Math.floor(s.spread / 2);
+  return {
+    date,
+    earliest: isoFromDay(Math.max(epochDay(today), epochDay(date) - half)),
+    latest: isoFromDay(epochDay(date) + half),
+    approx: s.spread >= 2,
+  };
+}
+
+// A real price change is a steady price that stays at a new steady price. A one-off higher charge, a tip,
+// tax or a utility bill that always moves around is not one.
+function detectPriceChange(occ: Occ[]): PriceChange | null {
+  const sorted = [...occ].sort((a, b) => a.day - b.day);
+  const amounts = sorted.map((o) => o.amount);
+  const n = amounts.length;
+  if (n < 4) return null;
+  const same = (a: number, b: number) => Math.abs(a - b) <= Math.max(0.5, 0.02 * Math.max(a, b));
+
+  const current = amounts[n - 1];
+  let newRun = 1;
+  while (newRun < n && same(amounts[n - 1 - newRun], current)) newRun++;
+  if (newRun >= n) return null;
+
+  const previous = amounts[n - 1 - newRun];
+  let oldRun = 1;
+  while (n - 1 - newRun - oldRun >= 0 && same(amounts[n - 1 - newRun - oldRun], previous)) oldRun++;
+
+  // The old price held for at least two charges, and the new one has held for two (or, if it is
+  // brand new, the old price held for three).
+  if (oldRun < 2 || (newRun < 2 && oldRun < 3)) return null;
+  const delta = current - previous;
+  const pct = delta / previous;
+  if (Math.abs(delta) < Math.max(0.5, 0.03 * previous) || Math.abs(pct) > 1) return null;
+  return { previous, current, delta, pct, since: sorted[n - newRun].t.date };
+}
+
+const localToday = () => {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+};
+
+export function analyze(transactions: Txn[], today = localToday()): Analysis {
   const spend = transactions.filter((t) => t.amount < 0 && !t.pending);
   const dates = transactions.map((t) => t.date).sort();
   const latestDay = dates.length ? epochDay(dates[dates.length - 1]) : 0;
@@ -535,19 +664,48 @@ export function analyze(transactions: Txn[]): Analysis {
           }
         : null;
 
+    const charges = [...occ].sort((a, b) => b.day - a.day).map((o) => o.t);
+    const firstDate = charges.length ? charges[charges.length - 1].date : null;
+    const settlement: 'card' | null =
+      occ.filter((o) => o.t.categoryDetailKey === 'LOAN_PAYMENTS_CREDIT_CARD_PAYMENT').length * 2 > occ.length ? 'card' : null;
+    const lastCharge = { date: newest[0].t.date, amount: newest[0].amount };
+
+    // What every relationship carries, whatever its kind.
+    const common = { logos, recent, charges, firstDate, lastCharge, settlement };
+
     // Nothing steady: either a habit, an unclear billing wrapper, or not worth showing.
     if (patterns.length === 0) {
-      const base = { id: key, name: resolved.name, logos, recent, monthly: null as number | null, schedule: [] as ScheduledPayment[] };
+      const base = {
+        ...common,
+        id: key,
+        name: resolved.name,
+        monthly: null as number | null,
+        schedule: [] as ScheduledPayment[],
+        cadence: 'irregular' as RecurringCadence,
+        typical: null,
+        annual: null,
+        annualApprox: false,
+        usage: null,
+        nextExpected: null,
+        priceChange: null,
+        active: true,
+      };
       const total = occ.reduce((s, o) => s + o.amount, 0);
       if (resolved.aggregator && occ.length >= 3) {
+        const amounts = [...new Set(occ.map((o) => o.amount.toFixed(2)))];
         items.push({
           ...base,
           kind: 'aggregator',
           confidence: 'review',
+          status: 'review',
+          amountKind: 'variable',
           amountLabel: 'Multiple',
           cadenceLabel: 'irregular',
           summary: KIND_SUMMARY.aggregator,
-          active: true,
+          reason: `${occ.length} charges through ${resolved.name} repeat, but without a steady schedule.`,
+          uncertainty: `${resolved.name} is a billing wrapper that can sit in front of several different services. ${
+            amounts.length > 1 ? `The charges come in ${amounts.length} different amounts` : 'The charges'
+          } with no steady schedule, so Wallex cannot tell what they are for.`,
           notes: [
             `${occ.length} charges through a billing wrapper with no steady cadence.`,
             'The wrapper can hide several different services. Label them to separate the real subscriptions.',
@@ -558,10 +716,13 @@ export function analyze(transactions: Txn[]): Analysis {
           ...base,
           kind: 'habit',
           confidence: 'habit',
+          status: 'habit',
+          amountKind: 'variable',
           amountLabel: `${money(Math.round(total / occ.length))} avg`,
           cadenceLabel: `${occ.length} charges`,
           summary: `${KIND_SUMMARY.habit} · ${money(Math.round(total))} total`,
-          active: true,
+          reason: `${occ.length} charges across ${months} months, but with no fixed billing schedule.`,
+          uncertainty: null,
           notes: [
             `${occ.length} charges across ${months} months, ${money(Math.round(total))} in total.`,
             'Frequent, but with no fixed billing cadence, so this is a spending habit and not a bill.',
@@ -571,74 +732,141 @@ export function analyze(transactions: Txn[]): Analysis {
       continue;
     }
 
-    // Choose a confidence from the strongest pattern.
-    const best = [...patterns].sort((a, b) => b.count - a.count)[0];
-    let confidence: Confidence;
-    if (resolved.aggregator) confidence = 'review';
-    else if ((explicit && best.count >= 2) || (best.count >= 3 && best.fixed && best.spread <= 6)) confidence = 'confirmed';
-    else if (best.count >= 3) confidence = 'likely';
-    else confidence = 'new';
+    // Builds one relationship from a set of patterns. A billing wrapper with several price points is built
+    // once per price point, so different services behind one descriptor are not lumped together.
+    const build = (id: string, name: string, pats: Pattern[], from: Occ[], extra: typeof variable): Recurring => {
+      const best = [...pats].sort((a, b) => b.count - a.count)[0];
+      const sortedPatterns = [...pats].sort((a, b) => b.count - a.count);
+      let confidence: Confidence;
+      if (resolved.aggregator) confidence = 'review';
+      else if ((explicit && best.count >= 2) || (best.count >= 3 && best.fixed && best.spread <= 6)) confidence = 'confirmed';
+      else if (best.count >= 3) confidence = 'likely';
+      else confidence = 'new';
 
-    let kind: Kind = resolved.kind ?? (category === 'LOAN_PAYMENTS' ? 'debt' : BILL_CATEGORIES.has(category) || !best.fixed ? 'bill' : 'subscription');
-    if (variable && kind === 'subscription') kind = 'usage';
+      let kind: Kind = resolved.kind ?? (category === 'LOAN_PAYMENTS' ? 'debt' : BILL_CATEGORIES.has(category) || !best.fixed ? 'bill' : 'subscription');
+      if (extra && kind === 'subscription') kind = 'usage';
+      const finalKind: Kind = resolved.aggregator ? 'aggregator' : kind;
 
-    const sortedPatterns = [...patterns].sort((a, b) => b.count - a.count);
-    const amountLabel =
-      patterns.length === 1
-        ? range(best.amountMin, best.amountMax) + (variable ? ' + usage' : '')
-        : [...new Set(sortedPatterns.map((p) => range(p.amountMin, p.amountMax)))].join(' · ');
-    const cadenceLabel =
-      patterns.length === 1 ? cadenceText(best) : `${patterns.length} patterns · ${[...new Set(sortedPatterns.map(cadenceText))].join(', ')}`;
+      const amountLabel =
+        pats.length === 1
+          ? range(best.amountMin, best.amountMax) + (extra ? ' + usage' : '')
+          : [...new Set(sortedPatterns.map((p) => range(p.amountMin, p.amountMax)))].join(' · ');
+      const cadences = new Set(sortedPatterns.map((p) => p.cadence));
+      const cadence: RecurringCadence = cadences.size === 1 ? best.cadence : 'mixed';
+      const cadenceLabel =
+        pats.length === 1 ? cadenceText(best) : `${pats.length} patterns · ${[...new Set(sortedPatterns.map(cadenceText))].join(', ')}`;
 
-    const lastSeen = Math.max(...occ.map((o) => o.day));
-    const expectedGap = Math.min(...patterns.map((p) => p.nextDay - p.lastDay));
-    const active = latestDay - lastSeen <= expectedGap * 1.6;
+      const lastSeen = Math.max(...from.map((o) => o.day));
+      const expectedGap = Math.min(...pats.map((p) => p.nextDay - p.lastDay));
+      const active = latestDay - lastSeen <= expectedGap * 1.6;
 
-    const notes: string[] = [];
-    if (explicit) notes.push('The bank tags these charges as recurring card purchases.');
-    for (const p of sortedPatterns) {
-      const when = p.cadence === 'monthly' && p.day ? `around the ${ordinal(p.day)} of the month` : p.cadence;
-      const how = p.fixed ? `a steady ${money(p.typical)}` : `${range(p.amountMin, p.amountMax)}`;
-      notes.push(`${p.count} charges ${when}, ${how}. Next expected near ${shortDate(p.nextDay)}.`);
+      const notes: string[] = [];
+      if (explicit) notes.push('The bank tags these charges as recurring card purchases.');
+      for (const p of sortedPatterns) {
+        const when = p.cadence === 'monthly' && p.day ? `around the ${ordinal(p.day)} of the month` : p.cadence;
+        const how = p.fixed ? `a steady ${money(p.typical)}` : `${range(p.amountMin, p.amountMax)}`;
+        notes.push(`${p.count} charges ${when}, ${how}.`);
+      }
+      if (pats.length > 1) notes.unshift(`${pats.length} separate recurring patterns detected. These could be two plans, an add-on, or two billing relationships.`);
+      if (extra) {
+        notes.push(
+          `Also ${extra.count} extra charges averaging ${money(Math.round(extra.avg * 100) / 100)} (about ${money(Math.round(extra.perMonth))}/month). Treated as variable usage, not part of the fixed charge.`,
+        );
+      }
+      if (!active) notes.push(`No charge since ${shortDate(lastSeen)}. It may have ended, but that is only a guess from the missing charge.`);
+
+      // A price that changed and stayed changed is what you pay now, so it drives the estimates and forecast.
+      const priceChange =
+        pats.length === 1 && !resolved.aggregator && ['bill', 'subscription', 'usage'].includes(finalKind) ? detectPriceChange(best.occ) : null;
+      const current = (p: Pattern) => (priceChange && p === best ? priceChange.current : p.typical);
+
+      const monthly = resolved.aggregator || !active ? null : sortedPatterns.reduce((s, p) => s + current(p) * p.perMonth, 0);
+      const allFixed = sortedPatterns.every((p) => p.fixed) || !!priceChange;
+      const annual =
+        monthly === null ? null : cadence === 'annual' && pats.length === 1 ? current(best) : monthly * 12;
+      const amountKind: AmountKind = extra
+        ? 'usage'
+        : pats.length > 1
+          ? new Set(sortedPatterns.map((p) => range(p.amountMin, p.amountMax))).size > 1
+            ? 'multiple'
+            : 'fixed'
+          : best.fixed
+            ? 'fixed'
+            : 'range';
+
+      const schedule: ScheduledPayment[] = sortedPatterns.map((p) => ({
+        next: nextChargeDate(p),
+        periodDays: p.periodDays,
+        day: p.cadence === 'monthly' ? p.day : null,
+        typical: current(p),
+        min: p.amountMin,
+        max: p.amountMax,
+        fixed: p.fixed,
+        spread: p.spread,
+        count: p.count,
+      }));
+
+      // Why Wallex recognised it, written from the evidence it actually has.
+      const cycles = best.cadence === 'monthly' ? 'months' : best.cadence === 'annual' ? 'years' : `${best.cadence} cycles`;
+      const reasonParts = [
+        `Seen ${best.count} times at a ${best.cadence === 'biweekly' ? 'two-week' : best.cadence} rhythm${
+          best.cadence === 'monthly' && best.day ? `, around the ${ordinal(best.day)}` : ''
+        }`,
+        best.fixed ? `a steady ${money(best.typical)} each time` : `amounts between ${range(best.amountMin, best.amountMax)}`,
+      ];
+      let reason = `${reasonParts.join(', ')}.`;
+      if (explicit) reason += ' The bank also tags these as recurring card purchases.';
+      if (best.count >= 3 && best.fixed && best.spread <= 6) reason += ` The date and amount held steady across ${best.count} ${cycles}.`;
+      if (confidence === 'new') reason += ' Only two charges so far, so this could still be a coincidence.';
+
+      const uncertainty = resolved.aggregator
+        ? `${resolved.name} is a billing wrapper that can sit in front of several different services, so Wallex cannot tell what this one is. A charge of ${amountLabel} repeats ${CADENCE_WORD[cadence].toLowerCase()}.`
+        : null;
+
+      return {
+        ...common,
+        charges: from === occ ? charges : [...from].sort((a, b) => b.day - a.day).map((o) => o.t),
+        firstDate: [...from].sort((a, b) => a.day - b.day)[0].t.date,
+        lastCharge: (() => {
+          const latest = [...from].sort((a, b) => b.day - a.day)[0];
+          return { date: latest.t.date, amount: latest.amount };
+        })(),
+        id,
+        name,
+        schedule,
+        kind: finalKind,
+        confidence,
+        amountLabel: priceChange ? money(priceChange.current) : amountLabel,
+        cadenceLabel,
+        summary: `${KIND_SUMMARY[finalKind]} · ${from.length} charges`,
+        monthly,
+        active,
+        notes,
+        cadence,
+        amountKind: priceChange && amountKind === 'range' ? 'fixed' : amountKind,
+        typical: pats.length === 1 ? current(best) : null,
+        annual,
+        annualApprox: annual !== null && (!allFixed || !!extra || pats.length > 1),
+        usage: extra
+          ? { count: extra.count, avg: extra.avg, perMonth: extra.perMonth, combinedMonthly: monthly === null ? null : monthly + extra.perMonth }
+          : null,
+        status: !active ? 'possibly-ended' : confidence === 'review' ? 'review' : confidence === 'new' ? 'new' : 'active',
+        nextExpected: nextExpectedFor(schedule, confidence, active, today),
+        priceChange,
+        reason,
+        uncertainty,
+      };
+    };
+
+    if (resolved.aggregator && patterns.length > 1) {
+      const sortedPatterns = [...patterns].sort((a, b) => b.typical - a.typical);
+      for (const p of sortedPatterns) {
+        const label = range(p.amountMin, p.amountMax);
+        items.push(build(`${key}#${Math.round(p.typical * 100)}`, `${resolved.name} · ${label}`, [p], p.occ, null));
+      }
+    } else {
+      items.push(build(key, resolved.name, patterns, occ, variable));
     }
-    if (patterns.length > 1) notes.unshift(`${patterns.length} separate recurring patterns detected. These could be two plans, an add-on, or two billing relationships.`);
-    if (variable) {
-      notes.push(
-        `Also ${variable.count} extra charges averaging ${money(Math.round(variable.avg * 100) / 100)} (about ${money(Math.round(variable.perMonth))}/month). Treated as variable usage, not part of the fixed charge.`,
-      );
-    }
-    if (resolved.aggregator) notes.push('Billed through a payment processor, so the underlying service is not clear. Needs identification.');
-    if (!active) notes.push(`No charge since ${shortDate(lastSeen)}. This may have ended.`);
-
-    const monthly = resolved.aggregator || !active ? null : sortedPatterns.reduce((s, p) => s + p.typical * p.perMonth, 0);
-
-    const schedule: ScheduledPayment[] = sortedPatterns.map((p) => ({
-      next: nextChargeDate(p),
-      periodDays: p.periodDays,
-      day: p.cadence === 'monthly' ? p.day : null,
-      typical: p.typical,
-      min: p.amountMin,
-      max: p.amountMax,
-      fixed: p.fixed,
-      spread: p.spread,
-      count: p.count,
-    }));
-
-    items.push({
-      id: key,
-      schedule,
-      name: resolved.name,
-      kind: resolved.aggregator ? 'aggregator' : kind,
-      confidence,
-      logos,
-      amountLabel,
-      cadenceLabel,
-      summary: `${KIND_SUMMARY[resolved.aggregator ? 'aggregator' : kind]} · ${occ.length} charges`,
-      monthly,
-      active,
-      notes,
-      recent,
-    });
   }
 
   items.sort((a, b) => {

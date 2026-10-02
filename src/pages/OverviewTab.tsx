@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { ChevronRight } from 'lucide-react';
 import CashFlowChart from '../components/overview/CashFlowChart';
 import MerchantLogo from '../components/MerchantLogo';
-import { analyze } from '../lib/recurring';
+import { useRecurring } from '../lib/recurringOverrides';
 import {
   bankFees,
   cashBuffer,
@@ -126,14 +126,16 @@ export default function OverviewTab({
   const [days, setDays] = useState<OverviewDays>(30);
   const [range, setRange] = useState<number | null>(null);
   const [percent, setPercent] = useState(20);
+  // The Recurring tab's analysis, including any corrections the user made there.
+  const recurring = useRecurring(live ? load.transactions : null);
 
   // Everything below is derived once per data change from the same transactions and the same scope.
   const view = useMemo(() => {
-    if (!live) return null;
+    if (!live || !recurring) return null;
     const scopes = ([30, 60, 90] as OverviewDays[]).map((d) => ({ days: d, scope: overviewScope(txns, accounts, d) }));
     const periods = scopes.filter((s) => s.days === 30 || !s.scope.partial).map((s) => s.days);
-    return { scopes, periods, analysis: analyze(load.transactions) };
-  }, [live, load]);
+    return { scopes, periods, analysis: recurring! };
+  }, [live, load, recurring]);
 
   if (load.state === 'loading') {
     return <p className="px-4 py-6 font-support text-sm text-muted">Loading your overview…</p>;

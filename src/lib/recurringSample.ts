@@ -11,21 +11,57 @@ const item = (
   summary: string,
   monthly: number | null,
   notes: string[],
-): Recurring => ({
-  id: name,
-  name,
-  kind,
-  confidence,
-  logos: [],
-  amountLabel,
-  cadenceLabel,
-  summary,
-  monthly,
-  active: true,
-  notes,
-  recent: [],
-  schedule: [],
-});
+): Recurring => {
+  const lower = cadenceLabel.toLowerCase();
+  const cadence: Recurring['cadence'] = lower.includes('annual')
+    ? 'annual'
+    : lower.includes('every 2 weeks')
+      ? 'biweekly'
+      : lower.includes('weekly')
+        ? 'weekly'
+        : lower.includes('patterns') || lower.includes('many')
+          ? 'mixed'
+          : 'monthly';
+  const amountKind: Recurring['amountKind'] = amountLabel.includes('+')
+    ? 'usage'
+    : amountLabel === 'Variable'
+      ? 'variable'
+      : amountLabel.includes('·') || amountLabel === 'Multiple' || amountLabel.includes('/')
+        ? 'multiple'
+        : amountLabel.includes('–')
+          ? 'range'
+          : 'fixed';
+  return {
+    id: name,
+    name,
+    kind,
+    confidence,
+    logos: [],
+    amountLabel,
+    cadenceLabel,
+    summary,
+    monthly,
+    active: true,
+    notes,
+    recent: [],
+    schedule: [],
+    cadence,
+    amountKind,
+    typical: null,
+    annual: monthly === null ? null : monthly * 12,
+    annualApprox: true,
+    usage: null,
+    status: confidence === 'review' ? 'review' : confidence === 'new' ? 'new' : confidence === 'habit' ? 'habit' : 'active',
+    charges: [],
+    lastCharge: null,
+    firstDate: null,
+    nextExpected: null,
+    priceChange: null,
+    reason: notes[0] ?? '',
+    uncertainty: confidence === 'review' ? notes[0] ?? null : null,
+    settlement: null,
+  };
+};
 
 const ITEMS: Recurring[] = [
   item('Progressive', 'bill', 'confirmed', '$223–243', '~19th', 'Insurance · recurring', 230, [

@@ -1,5 +1,5 @@
 import { epochDay, isoDaysAgo, isoFromEpochDay, makeScope, DEFAULT_FILTERS, type PatternScope } from './patterns';
-import type { Analysis, Recurring } from './recurring';
+import { projectNext, stepSchedule, type Analysis, type Recurring } from './recurring';
 import type { LinkedAccount, Txn } from './wallex';
 
 // The numbers behind the Overview screen. Everything here is plain calculation (no wording or
@@ -307,14 +307,6 @@ export interface UpcomingPayment {
   dateApprox: boolean; // the day varies from month to month
 }
 
-const addMonths = (iso: string, day: number | null): string => {
-  const [y, m, d] = iso.split('-').map(Number);
-  const ny = m === 12 ? y + 1 : y;
-  const nm = m === 12 ? 1 : m + 1;
-  const length = new Date(Date.UTC(ny, nm, 0)).getUTCDate();
-  return `${ny}-${String(nm).padStart(2, '0')}-${String(Math.min(day ?? d, length)).padStart(2, '0')}`;
-};
-
 // The recurring payments expected in the next `windowDays`, soonest first. A weekly payment can
 // appear several times. Charges that are due but have not appeared yet are shown as due today.
 export function upcomingPayments(analysis: Analysis, today: string, windowDays = 30): UpcomingPayment[] {
@@ -325,15 +317,8 @@ export function upcomingPayments(analysis: Analysis, today: string, windowDays =
     for (const s of r.schedule) {
       // A charge whose date wanders by more than ~10 days has no dependable due date to show.
       if (s.spread > 10) continue;
-      const monthly = s.periodDays > 25 && s.periodDays < 40;
-      let date = s.next;
+      let date = projectNext(s, today);
       let guard = 0;
-      // Skip occurrences that already passed, except one that is only a few days late.
-      while (date < today && epochDay(today) - epochDay(date) > 3 && guard++ < 400) {
-        date = monthly ? addMonths(date, s.day) : isoFromEpochDay(epochDay(date) + Math.round(s.periodDays));
-      }
-      if (date < today) date = today;
-      guard = 0;
       while (date <= end && guard++ < 10) {
         const half = Math.floor(s.spread / 2);
         out.push({
@@ -348,7 +333,7 @@ export function upcomingPayments(analysis: Analysis, today: string, windowDays =
           amountApprox: !s.fixed,
           dateApprox: s.spread >= 2,
         });
-        date = monthly ? addMonths(date, s.day) : isoFromEpochDay(epochDay(date) + Math.round(s.periodDays));
+        date = stepSchedule(date, s);
       }
     }
   }
