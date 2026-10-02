@@ -51,8 +51,8 @@ function Tile({ label, value, tone }: { label: string; value: string; tone: stri
   );
 }
 
-export default function RecurringTab({ load }: { load: Load }) {
-  const [filter, setFilter] = useState('all');
+export default function RecurringTab({ load, initialFilter = 'all' }: { load: Load; initialFilter?: string }) {
+  const [filter, setFilter] = useState(initialFilter);
   const [query, setQuery] = useState('');
   const [expandedId, setExpandedId] = useState<string | null>(null);
 

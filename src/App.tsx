@@ -9,6 +9,7 @@ import ChaseLogo from './components/ChaseLogo';
 import { accountLabel, useTransactions } from './lib/useTransactions';
 import { NAV, TABS } from './lib/pages';
 import HeadersTab from './pages/HeadersTab';
+import OverviewTab from './pages/OverviewTab';
 import { Monitor, Smartphone } from 'lucide-react';
 import { ViewModeProvider } from './lib/viewMode';
 
@@ -16,6 +17,15 @@ export default function App() {
   const [activeId, setActiveId] = useState('overview');
   const [activeTabs, setActiveTabs] = useState<Record<string, string>>({});
   const [hoveredId, setHoveredId] = useState<string | null>(null);
+  // Which Recurring filter to open with when Overview sends you there, and a counter so that
+  // choosing the same one twice still starts the tab fresh.
+  const [recurringStart, setRecurringStart] = useState<{ filter: string; nonce: number }>({ filter: 'all', nonce: 0 });
+
+  const goTo = (page: string, tab?: string, recurringFilter?: string) => {
+    setActiveId(page);
+    if (tab) setActiveTabs((prev) => ({ ...prev, [page]: tab }));
+    if (recurringFilter) setRecurringStart((r) => ({ filter: recurringFilter, nonce: r.nonce + 1 }));
+  };
   const { load, refreshing, refresh } = useTransactions();
 
   // Desktop layout, or a phone-sized frame. Remembered between launches.
@@ -180,7 +190,9 @@ export default function App() {
           role="tabpanel"
           className={`@container ${tabs.length > 0 ? (mobile ? 'mt-4' : 'mt-6') : mobile ? 'mt-5' : 'mt-12'} min-h-0 flex-1 overflow-y-auto`}
         >
-          {activeId === 'patterns' ? (
+          {activeId === 'overview' ? (
+            <OverviewTab load={load} onNavigate={goTo} />
+          ) : activeId === 'patterns' ? (
             <PatternsTab load={load} />
           ) : activeId === 'settings' && activeTab === 'Setup' ? (
             <SetupTab onConnectionChange={refresh} />
@@ -191,7 +203,7 @@ export default function App() {
           ) : activeId === 'scratchpad' && activeTab === 'Headers' ? (
             <HeadersTab />
           ) : activeId === 'transactions' && activeTab === 'Recurring' ? (
-            <RecurringTab load={load} />
+            <RecurringTab key={recurringStart.nonce} load={load} initialFilter={recurringStart.filter} />
           ) : (
             <div className="p-6">
               <p className="font-support text-sm text-muted">

@@ -3,8 +3,11 @@ import type { PeriodChange } from './patternMetrics';
 
 // Wording and number formatting for the Patterns detail view. No calculations live here.
 
-export const money = (n: number) =>
-  Math.abs(n) < 100 && !Number.isInteger(n) ? `$${n.toFixed(2)}` : `$${Math.round(n).toLocaleString('en-US')}`;
+export const money = (n: number) => {
+  const abs = Math.abs(n);
+  const text = abs < 100 && !Number.isInteger(abs) ? abs.toFixed(2) : Math.round(abs).toLocaleString('en-US');
+  return `${n < 0 && Math.round(abs * 100) > 0 ? '-' : ''}$${text}`;
+};
 
 export const percentText = (share: number) => {
   const p = share * 100;

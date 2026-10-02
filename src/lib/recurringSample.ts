@@ -24,6 +24,7 @@ const item = (
   active: true,
   notes,
   recent: [],
+  schedule: [],
 });
 
 const ITEMS: Recurring[] = [

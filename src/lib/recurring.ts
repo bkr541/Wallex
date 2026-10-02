@@ -30,6 +30,20 @@ export interface Recurring {
   active: boolean;
   notes: string[];
   recent: { date: string; amount: number }[];
+  schedule: ScheduledPayment[]; // when the next charge of each pattern is expected
+}
+
+// One recurring pattern's next expected charge. Overview turns these into an upcoming-payments list.
+export interface ScheduledPayment {
+  next: string; // YYYY-MM-DD, the next expected charge after the latest one seen
+  periodDays: number; // days between charges, so later ones can be projected
+  day: number | null; // typical day of the month, for monthly patterns
+  typical: number; // dollars
+  min: number;
+  max: number;
+  fixed: boolean; // the amount is steady
+  spread: number; // how many days the charge date wanders
+  count: number; // charges the pattern is based on
 }
 
 export interface Analysis {
@@ -248,6 +262,7 @@ interface Pattern {
   lastDay: number;
   nextDay: number;
   perMonth: number;
+  periodDays: number;
 }
 
 // How far the day of month wanders, treating the 31st and the 1st as neighbors.
@@ -318,6 +333,7 @@ function evalPattern(occ: Occ[], opts: { minCount: number; allowVariable: boolea
     lastDay,
     nextDay: Math.round(lastDay + cadence.days),
     perMonth: cadence.perMonth,
+    periodDays: cadence.days,
   };
 }
 
@@ -379,6 +395,20 @@ function clusterDays(occ: Occ[]): Occ[][] {
 // ---------------------------------------------------------------------------------------------
 // Putting it together
 // ---------------------------------------------------------------------------------------------
+
+// A monthly charge lands on the same day of the next month (clamped to that month's length); anything
+// else is the last charge plus its usual gap.
+function nextChargeDate(p: Pattern): string {
+  const last = isoFromDay(p.lastDay);
+  if (p.cadence === 'monthly' && p.day) {
+    const [y, m] = last.split('-').map(Number);
+    const ny = m === 12 ? y + 1 : y;
+    const nm = m === 12 ? 1 : m + 1;
+    const length = new Date(Date.UTC(ny, nm, 0)).getUTCDate();
+    return `${ny}-${String(nm).padStart(2, '0')}-${String(Math.min(p.day, length)).padStart(2, '0')}`;
+  }
+  return isoFromDay(p.nextDay);
+}
 
 const money = (n: number) => `$${Number.isInteger(n) ? n : n.toFixed(2)}`;
 const range = (a: number, b: number) => (Math.abs(a - b) < 0.005 ? money(a) : `${money(Math.round(a))}–${money(Math.round(b)).slice(1)}`);
@@ -507,7 +537,7 @@ export function analyze(transactions: Txn[]): Analysis {
 
     // Nothing steady: either a habit, an unclear billing wrapper, or not worth showing.
     if (patterns.length === 0) {
-      const base = { id: key, name: resolved.name, logos, recent, monthly: null as number | null };
+      const base = { id: key, name: resolved.name, logos, recent, monthly: null as number | null, schedule: [] as ScheduledPayment[] };
       const total = occ.reduce((s, o) => s + o.amount, 0);
       if (resolved.aggregator && occ.length >= 3) {
         items.push({
@@ -582,8 +612,21 @@ export function analyze(transactions: Txn[]): Analysis {
 
     const monthly = resolved.aggregator || !active ? null : sortedPatterns.reduce((s, p) => s + p.typical * p.perMonth, 0);
 
+    const schedule: ScheduledPayment[] = sortedPatterns.map((p) => ({
+      next: nextChargeDate(p),
+      periodDays: p.periodDays,
+      day: p.cadence === 'monthly' ? p.day : null,
+      typical: p.typical,
+      min: p.amountMin,
+      max: p.amountMax,
+      fixed: p.fixed,
+      spread: p.spread,
+      count: p.count,
+    }));
+
     items.push({
       id: key,
+      schedule,
       name: resolved.name,
       kind: resolved.aggregator ? 'aggregator' : kind,
       confidence,
