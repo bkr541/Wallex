@@ -121,3 +121,37 @@ button:focus-visible {
     inset 0 1px 0 rgba(255, 255, 255, 0.1),
     inset 0 -16px 36px rgba(0, 0, 0, 0.3);
 }
+
+/* Header mockups: slow drifting and a light sweep. */
+@keyframes header-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes header-sweep {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(100%);
+  }
+}
+
+@keyframes header-pulse {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.45;
+    transform: scale(1.5);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [class*='header-anim'] {
+    animation: none !important;
+  }
+}

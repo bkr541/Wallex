@@ -7,27 +7,10 @@ import RecurringTab from './pages/RecurringTab';
 import UiComponentsTab from './pages/UiComponentsTab';
 import ChaseLogo from './components/ChaseLogo';
 import { accountLabel, useTransactions } from './lib/useTransactions';
-import { GearIcon, HomeIcon, ListIcon, PieIcon, ReceiptIcon } from './components/NavIcons';
+import { NAV, TABS } from './lib/pages';
+import HeadersTab from './pages/HeadersTab';
 import { Monitor, Smartphone } from 'lucide-react';
 import { ViewModeProvider } from './lib/viewMode';
-
-interface NavItem {
-  id: string;
-  name: string;
-  icon: React.ComponentType<{ className?: string }>;
-  description: string;
-  tabs?: string[];
-}
-
-const TABS = ['Tab One', 'Tab Two'];
-
-const NAV: NavItem[] = [
-  { id: 'overview', name: 'Overview', icon: HomeIcon, description: 'Your spending at a glance, all in one place.' },
-  { id: 'patterns', name: 'Patterns', icon: PieIcon, description: 'Track the spending routines that shape your month.', tabs: [] },
-  { id: 'transactions', name: 'Transactions', icon: ReceiptIcon, description: 'Review every purchase, payment and deposit.', tabs: ['Checking', 'Recurring'] },
-  { id: 'settings', name: 'Settings', icon: GearIcon, description: 'Manage your account and app preferences.', tabs: ['Profile', 'Appearance', 'Setup'] },
-  { id: 'scratchpad', name: 'Scratchpad', icon: ListIcon, description: 'A sandbox for trying out interface components.', tabs: ['UI Components'] },
-];
 
 export default function App() {
   const [activeId, setActiveId] = useState('overview');
@@ -205,6 +188,8 @@ export default function App() {
             <CheckingTab load={load} refreshing={refreshing} onRefresh={refresh} />
           ) : activeId === 'scratchpad' && activeTab === 'UI Components' ? (
             <UiComponentsTab />
+          ) : activeId === 'scratchpad' && activeTab === 'Headers' ? (
+            <HeadersTab />
           ) : activeId === 'transactions' && activeTab === 'Recurring' ? (
             <RecurringTab load={load} />
           ) : (
