@@ -365,7 +365,7 @@ export default function OverviewTab({
         )}
       </Collapsible>
 
-      <div className="contents @3xl:order-4 @3xl:grid @3xl:grid-cols-2 @3xl:gap-x-14">
+      <div className="contents @3xl:order-4 @3xl:flex @3xl:flex-col @3xl:gap-12">
         {/* 4 · Upcoming pressure */}
         <Collapsible
           {...sectionProps('upcoming')}
