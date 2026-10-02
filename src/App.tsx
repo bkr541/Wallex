@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import SetupTab from './pages/SetupTab';
 import CheckingTab from './pages/CheckingTab';
@@ -9,8 +9,10 @@ import ChaseLogo from './components/ChaseLogo';
 import { accountLabel, useTransactions } from './lib/useTransactions';
 import { NAV, TABS } from './lib/pages';
 import HeadersTab from './pages/HeadersTab';
+import LoadingTab from './pages/LoadingTab';
 import OverviewTab from './pages/OverviewTab';
 import LoadingLogo from './components/LoadingLogo';
+import { cashPosition } from './lib/overview';
 import { Monitor, Smartphone } from 'lucide-react';
 import { ViewModeProvider } from './lib/viewMode';
 
@@ -28,6 +30,18 @@ export default function App() {
     if (recurringFilter) setRecurringStart((r) => ({ filter: recurringFilter, nonce: r.nonce + 1 }));
   };
   const { load, refreshing, refresh } = useTransactions();
+
+  // The launch loader stays up while the data loads, then counts up to the available balance before it leaves.
+  // With no bank linked there is no balance, so it leaves as soon as loading is over.
+  const [launchDone, setLaunchDone] = useState(false);
+  const finishLaunch = useCallback(() => setLaunchDone(true), []);
+  const launchBalance = load.state === 'live' ? cashPosition(load.allAccounts).cash : null;
+  const onLoaderPage = ['overview', 'patterns', 'transactions'].includes(activeId);
+  const showLoader = onLoaderPage && !launchDone && (load.state === 'loading' || launchBalance !== null);
+  useEffect(() => {
+    // Loaded while the person was on another page: nothing to wait for, and it should not play later.
+    if (load.state !== 'loading' && !onLoaderPage) setLaunchDone(true);
+  }, [load.state, onLoaderPage]);
 
   // Desktop layout, or a phone-sized frame. Remembered between launches.
   const [frameEl, setFrameEl] = useState<HTMLDivElement | null>(null);
@@ -83,7 +97,7 @@ export default function App() {
 
       {/* Shown while the bank data is on its way, on the pages that need it. */}
       <AnimatePresence>
-        {load.state === 'loading' && ['overview', 'patterns', 'transactions'].includes(activeId) && <LoadingLogo key="loading" />}
+        {showLoader && <LoadingLogo key="loading" balance={launchBalance} onDone={finishLaunch} />}
       </AnimatePresence>
 
       <nav
@@ -208,6 +222,8 @@ export default function App() {
             <UiComponentsTab />
           ) : activeId === 'scratchpad' && activeTab === 'Headers' ? (
             <HeadersTab />
+          ) : activeId === 'scratchpad' && activeTab === 'Loading' ? (
+            <LoadingTab load={load} />
           ) : activeId === 'transactions' && activeTab === 'Recurring' ? (
             <RecurringTab key={recurringStart.nonce} load={load} initialFilter={recurringStart.filter} />
           ) : (

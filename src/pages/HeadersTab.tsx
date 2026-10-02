@@ -1,5 +1,11 @@
 import { useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
+import ArcHeader from '../components/headers/ArcHeader';
+import CropHeader from '../components/headers/CropHeader';
+import CutoutHeader from '../components/headers/CutoutHeader';
+import GhostHeader from '../components/headers/GhostHeader';
+import GlassHeader from '../components/headers/GlassHeader';
+import SlabHeader from '../components/headers/SlabHeader';
 import AuroraHeader from '../components/headers/AuroraHeader';
 import CompactHeader from '../components/headers/CompactHeader';
 import EditorialHeader from '../components/headers/EditorialHeader';
@@ -74,6 +80,42 @@ const STYLES: { id: string; name: string; note: string; Component: (props: Heade
     note: 'A solid colour block with a ghosted icon beside a dark panel with a neon title and a light sweep.',
     Component: SplitBlockHeader,
   },
+  {
+    id: 'crop',
+    name: 'Giant crop',
+    note: 'The page icon enlarged until the frame cuts it off, over a soft disc and a deep teal wash.',
+    Component: CropHeader,
+  },
+  {
+    id: 'slab',
+    name: 'Slab and disc',
+    note: 'A slanted translucent slab sweeping up from the bottom and a glowing disc holding a medium page icon.',
+    Component: SlabHeader,
+  },
+  {
+    id: 'arc',
+    name: 'Corner arc',
+    note: 'No icon. A huge dim disc swells in from the top-left behind the title and the rest stays empty.',
+    Component: ArcHeader,
+  },
+  {
+    id: 'cutout',
+    name: 'Cutout',
+    note: 'A bright slanted teal panel with a glowing edge and the page icon punched out of it in the dark.',
+    Component: CutoutHeader,
+  },
+  {
+    id: 'glass',
+    name: 'Frosted card',
+    note: 'Title and description on a pane of frosted glass in front of a big dim icon, a slab and teal light.',
+    Component: GlassHeader,
+  },
+  {
+    id: 'ghost',
+    name: 'Ghost outline',
+    note: 'A huge near-black icon with a thin teal line along its top edges, and the description in an outlined pill.',
+    Component: GhostHeader,
+  },
 ];
 
 // Five header styles to choose between. Each one takes a page's name, description, icon and colour,
@@ -89,7 +131,7 @@ export default function HeadersTab() {
         <div>
           <h2 className="text-lg font-semibold">Header styles</h2>
           <p className="mt-1 font-support text-sm text-muted">
-            Ten directions for the heading row at the top of every page. Switch page to see each one with that page’s
+            Sixteen directions for the heading row at the top of every page. Switch page to see each one with that page’s
             icon, colour and wording.
           </p>
         </div>
@@ -118,6 +160,15 @@ export default function HeadersTab() {
 
       {STYLES.map((style, i) => (
         <section key={style.id}>
+          {i === 10 && (
+            <div className="mb-8 border-t border-line px-3 pt-8">
+              <h2 className="text-lg font-semibold">Round three: big and teal</h2>
+              <p className="mt-1 font-support text-sm text-muted">
+                Built from three new references: oversized cropped icons, slanted slabs and discs, frosted glass,
+                cutouts and ghost outlines, all in the app’s teal.
+              </p>
+            </div>
+          )}
           {i === 5 && (
             <div className="mb-8 border-t border-line px-3 pt-8">
               <h2 className="text-lg font-semibold">Round two: mixed</h2>
