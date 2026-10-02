@@ -60,6 +60,7 @@ const item = (
     reason: notes[0] ?? '',
     uncertainty: confidence === 'review' ? notes[0] ?? null : null,
     settlement: null,
+    paidOnCard: false,
   };
 };
 

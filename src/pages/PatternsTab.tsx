@@ -37,6 +37,7 @@ import MerchantLogo from '../components/MerchantLogo';
 import PatternDetail from '../components/PatternDetail';
 import { withBalances } from '../lib/balances';
 import { computePatternMetrics } from '../lib/patternMetrics';
+import { useRecurring } from '../lib/recurringOverrides';
 import type { Load } from '../lib/useTransactions';
 import {
   DEFAULT_FILTERS,
@@ -349,9 +350,14 @@ export default function PatternsTab({ load }: { load: Load }) {
     return () => document.removeEventListener('keydown', onKey);
   }, [selected]);
 
+  // The same recurring analysis the Recurring tab shows (corrections included), so both agree on what is a bill.
+  const recurring = useRecurring(load.state === 'live' ? load.allTransactions : null, load.state === 'live' ? load.allAccounts : undefined);
   const data = useMemo(
-    () => (load.state === 'live' ? buildPatterns(load.allTransactions, load.allAccounts, filters) : SAMPLE_PATTERNS),
-    [load, filters],
+    () =>
+      load.state === 'live' && recurring
+        ? buildPatterns(load.allTransactions, load.allAccounts, filters, recurring)
+        : SAMPLE_PATTERNS,
+    [load, filters, recurring],
   );
 
   const pool = useMemo(() => {
@@ -672,7 +678,7 @@ export default function PatternsTab({ load }: { load: Load }) {
             <span className="font-semibold">{money(total)}</span>
             <span className="text-muted">
               {' '}
-              /mo · {percent(total, base)} of {hasIncome ? 'income' : 'spending'}
+              /mo spent · {percent(total, base)} of {hasIncome ? 'income' : 'spending'}
               {hidden.length > 0 && ` · showing the ${shown.length} biggest of ${matching.length} (${money(hiddenTotal)}/mo in the rest)`}
             </span>
           </p>

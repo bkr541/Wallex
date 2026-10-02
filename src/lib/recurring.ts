@@ -71,6 +71,7 @@ export interface Recurring {
   reason: string; // why Wallex recognised it
   uncertainty: string | null; // why it needs review, when it does
   settlement: 'card' | null; // pays a credit card, a cash-flow event rather than extra spending
+  paidOnCard: boolean; // charged to a credit card, so a card payment settles it later
 }
 
 // One recurring pattern's next expected charge. Overview turns these into an upcoming-payments list.
@@ -568,7 +569,7 @@ const localToday = () => {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 };
 
-export function analyze(transactions: Txn[], today = localToday()): Analysis {
+export function analyze(transactions: Txn[], today = localToday(), creditIds: Set<string> = new Set()): Analysis {
   const spend = transactions.filter((t) => t.amount < 0 && !t.pending);
   const dates = transactions.map((t) => t.date).sort();
   const latestDay = dates.length ? epochDay(dates[dates.length - 1]) : 0;
@@ -671,7 +672,7 @@ export function analyze(transactions: Txn[], today = localToday()): Analysis {
     const lastCharge = { date: newest[0].t.date, amount: newest[0].amount };
 
     // What every relationship carries, whatever its kind.
-    const common = { logos, recent, charges, firstDate, lastCharge, settlement };
+    const common = { logos, recent, charges, firstDate, lastCharge, settlement, paidOnCard: false };
 
     // Nothing steady: either a habit, an unclear billing wrapper, or not worth showing.
     if (patterns.length === 0) {
@@ -825,6 +826,7 @@ export function analyze(transactions: Txn[], today = localToday()): Analysis {
 
       return {
         ...common,
+        paidOnCard: from.length > 0 && from.filter((o) => creditIds.has(o.t.accountId)).length * 2 > from.length,
         charges: from === occ ? charges : [...from].sort((a, b) => b.day - a.day).map((o) => o.t),
         firstDate: [...from].sort((a, b) => a.day - b.day)[0].t.date,
         lastCharge: (() => {

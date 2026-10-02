@@ -1,4 +1,4 @@
-import { epochDay, isoDaysAgo, isoFromEpochDay, makeScope, DEFAULT_FILTERS, type PatternScope } from './patterns';
+import { epochDay, isIncome, isMoneyIn, isoDaysAgo, isoFromEpochDay, makeScope, DEFAULT_FILTERS, type PatternScope } from './patterns';
 import { projectNext, stepSchedule, type Analysis, type Recurring } from './recurring';
 import type { LinkedAccount, Txn } from './wallex';
 
@@ -46,24 +46,9 @@ export function cashPosition(accounts: LinkedAccount[]): CashPosition {
 // Money in, money out
 // ---------------------------------------------------------------------------------------------
 
-// Moves between your own accounts are not money coming in, just as they are not money going out.
-const IN_OWN_MONEY = new Set([
-  'TRANSFER_IN_ACCOUNT_TRANSFER',
-  'TRANSFER_IN_SAVINGS',
-  'TRANSFER_IN_INVESTMENT_AND_RETIREMENT_FUNDS',
-]);
-
-// Cash that arrived in a checking or savings account: pay, deposits, money sent to you, refunds and
-// advances (their repayments are counted as money out, so both sides are in).
-// Payments received by a credit card are not cash, and moves between your own accounts are not new money.
-export const isMoneyIn = (t: Txn, scope: PatternScope) =>
-  t.amount > 0 &&
-  !scope.creditIds.has(t.accountId) &&
-  !IN_OWN_MONEY.has(t.categoryDetailKey) &&
-  t.categoryKey !== 'LOAN_PAYMENTS';
-
 export interface Flow {
   moneyIn: number;
+  income: number; // the part of money in that is pay (what Patterns calls monthly income, before scaling to a month)
   moneyOut: number;
   net: number;
   savingsRate: number | null; // net / money in, null when nothing came in
@@ -74,6 +59,7 @@ export interface Flow {
 // Money in and money out come from one pass over one list, so they can never come from different data.
 export function flowBetween(txns: Txn[], scope: PatternScope, from: string, to: string | null = null): Flow {
   let moneyIn = 0;
+  let income = 0;
   let moneyOut = 0;
   let count = 0;
   let pending = 0;
@@ -81,6 +67,7 @@ export function flowBetween(txns: Txn[], scope: PatternScope, from: string, to: 
     if (t.date < from || (to !== null && t.date > to)) continue;
     if (isMoneyIn(t, scope)) {
       moneyIn += t.amount;
+      if (isIncome(t, scope)) income += t.amount;
     } else if (scope.isSpending(t)) {
       moneyOut += -t.amount;
     } else {
@@ -90,7 +77,7 @@ export function flowBetween(txns: Txn[], scope: PatternScope, from: string, to: 
     if (t.pending) pending += 1;
   }
   const net = moneyIn - moneyOut;
-  return { moneyIn, moneyOut, net, savingsRate: moneyIn > 0 ? net / moneyIn : null, count, pending };
+  return { moneyIn, income, moneyOut, net, savingsRate: moneyIn > 0 ? net / moneyIn : null, count, pending };
 }
 
 export const periodFlow = (txns: Txn[], scope: PatternScope): Flow => flowBetween(txns, scope, scope.start);
@@ -266,6 +253,12 @@ export interface CommitmentGroup {
   monthly: number; // estimated dollars per month
 }
 
+// How many active charges are left out of the upcoming list because your card payment covers them.
+export const coveredByCardPayment = (analysis: Analysis): number => {
+  const cardIsPaid = analysis.items.some((r) => isCommitment(r) && r.settlement === 'card');
+  return cardIsPaid ? analysis.items.filter((r) => isCommitment(r) && r.paidOnCard && r.kind !== 'habit' && r.kind !== 'aggregator').length : 0;
+};
+
 export interface Commitments {
   bills: CommitmentGroup;
   debt: CommitmentGroup; // debt repayments and instalments
@@ -312,8 +305,11 @@ export interface UpcomingPayment {
 export function upcomingPayments(analysis: Analysis, today: string, windowDays = 30): UpcomingPayment[] {
   const end = isoFromEpochDay(epochDay(today) + windowDays);
   const out: UpcomingPayment[] = [];
+  const cardIsPaid = analysis.items.some((r) => isCommitment(r) && r.settlement === 'card');
   for (const r of analysis.items) {
     if (!isCommitment(r) || r.kind === 'habit' || r.kind === 'aggregator') continue;
+    // A charge on a credit card reaches your cash through the card payment, which is already in the list.
+    if (r.paidOnCard && cardIsPaid) continue;
     for (const s of r.schedule) {
       // A charge whose date wanders by more than ~10 days has no dependable due date to show.
       if (s.spread > 10) continue;

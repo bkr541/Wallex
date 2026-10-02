@@ -1,6 +1,8 @@
 import { useMemo, useSyncExternalStore } from 'react';
 import { analyze, type Analysis, type Confidence, type Kind, type Recurring } from './recurring';
-import type { Txn } from './wallex';
+import type { LinkedAccount, Txn } from './wallex';
+
+const EMPTY: LinkedAccount[] = [];
 
 // Corrections the user makes to what Wallex detected: a new name, a confirmed type, or "this isn't
 // a bill". They are kept in the app's own browser storage (localStorage), which Electron saves in
@@ -130,8 +132,13 @@ export function applyOverrides(analysis: Analysis, overrides: Store): Analysis {
 }
 
 // The detector's result with the user's corrections on top, recomputed when either changes.
-export function useRecurring(transactions: Txn[] | null): Analysis | null {
+// Pass every linked account's transactions (cards included) and the accounts, so a subscription paid with a
+// card is found too and knows it was paid on a card.
+export function useRecurring(transactions: Txn[] | null, accounts: LinkedAccount[] = EMPTY): Analysis | null {
   const overrides = useOverrides();
-  const base = useMemo(() => (transactions ? analyze(transactions) : null), [transactions]);
+  const base = useMemo(
+    () => (transactions ? analyze(transactions, undefined, new Set(accounts.filter((a) => a.type === 'credit').map((a) => a.id))) : null),
+    [transactions, accounts],
+  );
   return useMemo(() => (base ? applyOverrides(base, overrides) : null), [base, overrides]);
 }

@@ -1,5 +1,5 @@
 import { faviconUrl } from './favicon';
-import { analyze, merchantOf, type Recurring } from './recurring';
+import { analyze, merchantOf, type Analysis, type Recurring } from './recurring';
 import type { LinkedAccount, Txn } from './wallex';
 
 // Turns transactions into the circles on the Patterns page: bills, merchants and categories,
@@ -30,6 +30,7 @@ export interface Bubble {
   categoryKey: string;
   noun: 'visits' | 'purchases' | 'payments' | 'transactions'; // what one charge is called
   classLabel?: string; // "Subscription", "Recurring obligation"... only when Wallex really knows
+  recurringMonthly?: number | null; // the Recurring tab's estimate for the same relationship, per month
 }
 
 export interface PatternData {
@@ -140,6 +141,26 @@ export interface PatternScope {
   isSpending: (t: Txn) => boolean; // money out that is really spending
 }
 
+// Moves between your own accounts are not money coming in, just as they are not money going out.
+const IN_OWN_MONEY = new Set([
+  'TRANSFER_IN_ACCOUNT_TRANSFER',
+  'TRANSFER_IN_SAVINGS',
+  'TRANSFER_IN_INVESTMENT_AND_RETIREMENT_FUNDS',
+]);
+
+// Cash that arrived in a checking or savings account: pay, deposits, money sent to you, refunds and
+// advances (their repayments are counted as money out, so both sides are in). Payments received by a
+// credit card are not cash. Overview's "Money in" is this.
+export const isMoneyIn = (t: Txn, scope: PatternScope) =>
+  t.amount > 0 &&
+  !scope.creditIds.has(t.accountId) &&
+  !IN_OWN_MONEY.has(t.categoryDetailKey) &&
+  t.categoryKey !== 'LOAN_PAYMENTS';
+
+// The part of money in that the bank tags as income (pay). Patterns' "Monthly Income" is this, so the two
+// screens are built from one definition: Overview shows the whole and how much of it is pay.
+export const isIncome = (t: Txn, scope: PatternScope) => isMoneyIn(t, scope) && t.categoryKey === 'INCOME';
+
 // Moving money between your own accounts is not spending, and neither is paying a card whose own
 // purchases are already counted.
 export function makeScope(txns: Txn[], accounts: LinkedAccount[], filters: PatternFilters): PatternScope {
@@ -219,6 +240,9 @@ interface Group {
 
 const dominant = (g: Group) => [...g.categories.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? '';
 
+// Only a relationship Wallex is fairly sure of has an estimate worth showing next to what was spent.
+const isCommitmentLike = (r: Recurring) => r.active && ['confirmed', 'likely', 'new'].includes(r.confidence);
+
 // What one charge at this merchant is called: you visit a shop, but you make a payment to a person.
 function nounFor(g: Group): Bubble['noun'] {
   if (/^(ZELLE|ATM|OVERDRAFT|CHECKS|APPLE CASH)/.test(g.key)) return 'payments';
@@ -241,15 +265,17 @@ function classLabelFor(rec: Recurring | undefined, isBill: boolean, category: st
   return isBill ? 'Bill' : undefined;
 }
 
-export function buildPatterns(txns: Txn[], accounts: LinkedAccount[], filters: PatternFilters): PatternData {
+export function buildPatterns(
+  txns: Txn[],
+  accounts: LinkedAccount[],
+  filters: PatternFilters,
+  analysis?: Analysis, // the Recurring tab's analysis, so both screens agree on what is a bill
+): PatternData {
   const scope = makeScope(txns, accounts, filters);
   const { creditIds, hasCredit, toMonthly, inView, isSpending } = scope;
 
   const windowed = txns.filter(inView);
-  const income =
-    windowed
-      .filter((t) => t.amount > 0 && t.categoryKey === 'INCOME' && !creditIds.has(t.accountId))
-      .reduce((sum, t) => sum + t.amount, 0) * toMonthly;
+  const income = windowed.filter((t) => isIncome(t, scope)).reduce((sum, t) => sum + t.amount, 0) * toMonthly;
 
   const merchants = new Map<string, Group>();
   const categories = new Map<string, Group>();
@@ -273,7 +299,7 @@ export function buildPatterns(txns: Txn[], accounts: LinkedAccount[], filters: P
   }
 
   // Which merchants are bills: found by the recurring detector, or in a billing category.
-  const recurring = new Map(analyze(txns).items.map((r) => [r.id, r]));
+  const recurring = new Map((analysis ?? analyze(txns)).items.map((r) => [r.id, r]));
   const labels = new Map<string, string>();
   for (const g of categories.values()) for (const [k, l] of g.labels) labels.set(k, categoryName(l));
 
@@ -306,6 +332,7 @@ export function buildPatterns(txns: Txn[], accounts: LinkedAccount[], filters: P
       categoryKey: cat,
       noun: isBill ? 'payments' : nounFor(g),
       classLabel: classLabelFor(rec, isBill, cat, g.key),
+      recurringMonthly: rec && isCommitmentLike(rec) ? rec.monthly : undefined,
     };
     (isBill ? bills : shops).push(bubble);
   }

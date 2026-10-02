@@ -8,6 +8,7 @@ import {
   cashBuffer,
   cashPosition,
   commitments,
+  coveredByCardPayment,
   latestDate,
   monthEndBalances,
   monthlyBuckets,
@@ -127,7 +128,7 @@ export default function OverviewTab({
   const [range, setRange] = useState<number | null>(null);
   const [percent, setPercent] = useState(20);
   // The Recurring tab's analysis, including any corrections the user made there.
-  const recurring = useRecurring(live ? load.transactions : null);
+  const recurring = useRecurring(live ? load.allTransactions : null, live ? load.allAccounts : undefined);
 
   // Everything below is derived once per data change from the same transactions and the same scope.
   const view = useMemo(() => {
@@ -228,6 +229,15 @@ export default function OverviewTab({
               <div className="min-w-0">
                 <p className="font-support text-xs text-muted">Money in</p>
                 <p className="mt-2 text-xl font-semibold tracking-tight tabular-nums @3xl:text-2xl">{money(flow.moneyIn)}</p>
+                {flow.moneyIn > 0 && (
+                  <p className="mt-1 font-support text-xs text-muted">
+                    {flow.income <= 0
+                      ? 'None of it tagged as pay'
+                      : flow.income < flow.moneyIn - 0.5
+                        ? `${money(flow.income)} of it is pay`
+                        : 'All of it is pay'}
+                  </p>
+                )}
               </div>
               <div className="min-w-0">
                 <p className="font-support text-xs text-muted">Money out</p>
@@ -259,18 +269,27 @@ export default function OverviewTab({
 
       {/* 2 · Recurring commitments */}
       <section className="order-3 border-t border-line px-3 pt-8 @3xl:order-2">
-        <Eyebrow>Commitments</Eyebrow>
+        <div className="flex flex-wrap items-baseline justify-between gap-2">
+          <Eyebrow>Commitments</Eyebrow>
+          <button
+            type="button"
+            onClick={() => onNavigate('transactions', 'Recurring', 'all')}
+            className="cursor-pointer font-support text-xs text-muted transition-colors hover:text-ink"
+          >
+            Amounts and details are in Recurring →
+          </button>
+        </div>
         <div className="mt-5 grid grid-cols-2 gap-x-8 gap-y-7 @3xl:grid-cols-4">
           <Commitment
             label="Bills"
             lead={owed.bills.count ? `${owed.bills.count} active` : 'None found'}
-            detail={owed.bills.count ? `${approx(owed.bills.monthly)} / month` : 'No recurring bills yet'}
+            detail={owed.bills.count ? 'recurring bills' : 'No recurring bills yet'}
             onOpen={() => onNavigate('transactions', 'Recurring', 'bills')}
           />
           <Commitment
             label="Debt & installments"
             lead={owed.debt.count ? `${owed.debt.count} active` : 'None found'}
-            detail={owed.debt.count ? `${approx(owed.debt.monthly)} / month` : 'No repayments found'}
+            detail={owed.debt.count ? 'repayments and installments' : 'No repayments found'}
             onOpen={() => onNavigate('transactions', 'Recurring', 'debt')}
           />
           <Commitment
@@ -278,7 +297,9 @@ export default function OverviewTab({
             lead={owed.subscriptions.count ? `${owed.subscriptions.count} active` : 'None found'}
             detail={
               owed.subscriptions.count
-                ? `${approx(owed.subscriptions.monthly)} / month${owed.unidentified ? ` · ${owed.unidentified} unidentified` : ''}`
+                ? owed.unidentified
+                  ? `${owed.unidentified} more unidentified`
+                  : 'recurring subscriptions'
                 : 'No subscriptions found'
             }
             onOpen={() => onNavigate('transactions', 'Recurring', 'subs')}
@@ -373,6 +394,12 @@ export default function OverviewTab({
               })}
               {upcoming.length > 10 && (
                 <p className="pt-3 font-support text-xs text-muted">+{upcoming.length - 10} more in this window</p>
+              )}
+              {coveredByCardPayment(analysis) > 0 && (
+                <p className="pt-3 font-support text-xs text-muted">
+                  {plural(coveredByCardPayment(analysis), 'recurring charge')} on your credit card {coveredByCardPayment(analysis) === 1 ? 'is' : 'are'} not
+                  listed separately, because your card payment covers {coveredByCardPayment(analysis) === 1 ? 'it' : 'them'}.
+                </p>
               )}
               <p className="mt-4 flex items-baseline justify-between font-support text-sm text-muted">
                 <span>Expected in the next {WINDOW_DAYS} days</span>

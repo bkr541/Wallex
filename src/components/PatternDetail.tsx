@@ -167,11 +167,16 @@ export default function PatternDetail({
               <p className="mt-1 text-2xl leading-none font-semibold tracking-tight">{money(m.total)}</p>
             </div>
             <div className="border-l border-line pl-6">
-              <p className="font-support text-xs text-muted">Monthly average</p>
+              <p className="font-support text-xs text-muted">Monthly average spent</p>
               <p className="mt-1 text-4xl leading-none font-semibold tracking-tight">
                 {money(m.monthly)}
                 <span className="ml-1 font-support text-base font-normal text-muted">/ month</span>
               </p>
+              {bubble.recurringMonthly != null && Math.abs(bubble.recurringMonthly - m.monthly) > Math.max(1, m.monthly * 0.02) && (
+                <p className="mt-1.5 font-support text-xs text-muted">
+                  Recurring estimates ~{money(bubble.recurringMonthly)} / month, from its usual charge
+                </p>
+              )}
             </div>
           </div>
         </div>

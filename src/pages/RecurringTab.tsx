@@ -220,6 +220,7 @@ function Detail({
         <div className="space-y-4">
           <Field label="Type" hint={r.kind === 'installment' ? 'A temporary recurring obligation. It should end.' : undefined}>
             {kindText(r)}
+            {r.paidOnCard && <span className="text-muted"> · paid with a credit card</span>}
             {c.userConfirmed && <span className="text-muted"> · confirmed by you</span>}
           </Field>
           <Field label="Status">
@@ -411,7 +412,8 @@ export default function RecurringTab({ load, initialFilter = 'all' }: { load: Lo
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
   const live = load.state === 'live';
-  const detected = useRecurring(live ? load.transactions : null);
+  // Every linked account, cards included, so a subscription paid with a card is found as well.
+  const detected = useRecurring(live ? load.allTransactions : null, live ? load.allAccounts : undefined);
   const analysis = live ? detected! : SAMPLE_ANALYSIS;
   const hidden = (analysis.hidden ?? []) as Recurring[];
 
@@ -437,7 +439,7 @@ export default function RecurringTab({ load, initialFilter = 'all' }: { load: Lo
       : load.state === 'sample'
         ? load.note
         : analysis.earliest
-          ? `${load.transactions.length} transactions from ${dateLong(analysis.earliest)} to ${dateLong(analysis.latest!)}.`
+          ? `${load.allTransactions.length} transactions from ${dateLong(analysis.earliest)} to ${dateLong(analysis.latest!)}.`
           : 'No transactions to analyze yet.';
 
   const tile = (id: Confidence, label: string) => {
