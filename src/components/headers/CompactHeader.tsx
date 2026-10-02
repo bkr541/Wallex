@@ -1,8 +1,8 @@
-import { pad, type HeaderProps } from './shared';
+import type { HeaderProps } from './shared';
 
 // 5 · Compact status bar: one slim row for dense pages (tables, forms) where tall artwork would
 // push the content down. Icon tile, title, live status and a light sweep along the bottom edge.
-export default function CompactHeader({ page, index, total }: HeaderProps) {
+export default function CompactHeader({ page }: HeaderProps) {
   const Icon = page.icon;
   return (
     <div className="relative overflow-hidden rounded-2xl border border-line bg-card">
@@ -29,9 +29,6 @@ export default function CompactHeader({ page, index, total }: HeaderProps) {
               style={{ background: `rgb(${page.accent})`, animation: 'header-pulse 2.2s ease-in-out infinite' }}
             />
             Synced just now
-          </span>
-          <span className="rounded-full border border-line px-3 py-1.5 font-support text-xs text-muted tabular-nums">
-            {pad(index)} / {pad(total)}
           </span>
         </div>
       </div>

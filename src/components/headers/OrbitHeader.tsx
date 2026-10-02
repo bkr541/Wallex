@@ -1,33 +1,17 @@
-import { BRAND, pad, type HeaderProps } from './shared';
+import { BRAND, type HeaderProps } from './shared';
 
 // 3 · Orbit spotlight: the page icon sits in a glowing disc with slow rings and moons around it,
-// echoing the Patterns circles. Breadcrumb and the page's own tabs sit on the left.
-export default function OrbitHeader({ page, index }: HeaderProps) {
+// echoing the Patterns circles.
+export default function OrbitHeader({ page }: HeaderProps) {
   const Icon = page.icon;
-  const tabs = page.tabs?.length ? page.tabs : [];
   return (
     <div
       className="relative min-h-[250px] overflow-hidden rounded-[30px] border border-line"
       style={{ background: `radial-gradient(120% 150% at 88% 50%, rgba(${page.accent}, 0.2), transparent 58%), #0c0f11` }}
     >
       <div className="relative z-10 flex min-h-[250px] flex-col justify-center gap-4 p-8 @xl:max-w-[60%]">
-        <p className="flex items-center gap-2 font-support text-xs tracking-wide text-muted">
-          <span>Wallex</span>
-          <span className="opacity-40">/</span>
-          <span className="text-ink">{page.name}</span>
-          <span className="ml-1 rounded-full border border-line px-2 py-0.5 text-[10px] tracking-widest">{pad(index)}</span>
-        </p>
         <h2 className="text-[clamp(2.5rem,6.5cqw,4.5rem)] leading-none font-semibold tracking-tight">{page.name}</h2>
         <p className="max-w-md font-support text-base text-muted">{page.description}</p>
-        {tabs.length > 0 && (
-          <div className="flex flex-wrap gap-2 pt-1">
-            {tabs.map((t) => (
-              <span key={t} className="rounded-full border border-line bg-white/[0.03] px-3 py-1 font-support text-xs text-muted">
-                {t}
-              </span>
-            ))}
-          </div>
-        )}
       </div>
 
       <div className="absolute top-1/2 right-6 hidden h-[270px] w-[270px] -translate-y-1/2 @xl:block">

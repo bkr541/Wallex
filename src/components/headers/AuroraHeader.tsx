@@ -1,11 +1,10 @@
-import { pad, type HeaderProps } from './shared';
-import { BRAND } from './shared';
+import { BRAND, type HeaderProps } from './shared';
 
 // Fine film grain, so the soft colour fields don't look like a flat web gradient.
 const GRAIN = `url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 .55 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>")`;
 
 // 1 · Aurora glass: blurred colour fields, grain, and a frosted tile holding the page icon.
-export default function AuroraHeader({ page, index }: HeaderProps) {
+export default function AuroraHeader({ page }: HeaderProps) {
   const Icon = page.icon;
   return (
     <div className="relative min-h-[250px] overflow-hidden rounded-[32px] border border-white/10 bg-[#0b0e10]">
@@ -17,11 +16,7 @@ export default function AuroraHeader({ page, index }: HeaderProps) {
 
       <div className="relative flex min-h-[250px] items-end justify-between gap-6 p-8">
         <div className="min-w-0">
-          <span className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.06] px-3 py-1 font-support text-xs tracking-wide text-white/70 backdrop-blur">
-            <span className="h-1.5 w-1.5 rounded-full" style={{ background: `rgb(${page.accent})` }} />
-            Page {pad(index)}
-          </span>
-          <h2 className="mt-4 text-[clamp(2.75rem,7cqw,5rem)] leading-none font-semibold tracking-tight">{page.name}</h2>
+          <h2 className="text-[clamp(2.75rem,7cqw,5rem)] leading-none font-semibold tracking-tight">{page.name}</h2>
           <p className="mt-4 inline-block max-w-full rounded-full border border-white/10 bg-white/[0.07] px-4 py-2 font-support text-sm text-white/75 backdrop-blur-md">
             {page.description}
           </p>

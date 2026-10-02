@@ -23,19 +23,19 @@ const STYLES: { id: string; name: string; note: string; Component: (props: Heade
   {
     id: 'editorial',
     name: 'Editorial index',
-    note: 'Section counter, hairline rule and an outlined oversize numeral. Pure typography, calm on busy pages.',
+    note: 'Brand eyebrow, hairline rule and a ghosted page icon. Pure typography, calm on busy pages.',
     Component: EditorialHeader,
   },
   {
     id: 'orbit',
     name: 'Orbit spotlight',
-    note: 'The page icon in a glowing disc with slow rings, plus a breadcrumb and the page’s tabs. Echoes the Patterns circles.',
+    note: 'The page icon in a glowing disc with slow rings and moons. Echoes the Patterns circles.',
     Component: OrbitHeader,
   },
   {
     id: 'folder',
     name: 'Dossier folder',
-    note: 'A numbered tab, pinstriped body, sheets peeking out below and a rubber stamp. Paperwork feel for the ledger pages.',
+    note: 'An icon tab, pinstriped body, sheets peeking out below and a rubber-stamp seal. Paperwork feel for the ledger pages.',
     Component: FolderHeader,
   },
   {
@@ -47,19 +47,19 @@ const STYLES: { id: string; name: string; note: string; Component: (props: Heade
   {
     id: 'neon',
     name: 'Neon rail',
-    note: 'No panel: a glowing rail, a title ending in a neon outline, the compact bar’s live pill and a light sweep.',
+    note: 'No panel: a glowing rail, a title ending in a neon outline, a live pill and a light sweep.',
     Component: NeonRailHeader,
   },
   {
     id: 'monogram',
     name: 'Monogram',
-    note: 'A gradient numeral with the page icon laid over it, an accent dash above the title and the section progress strip.',
+    note: 'The page icon over a big soft gradient disc, an accent dash above the title and aurora light behind.',
     Component: MonogramHeader,
   },
   {
     id: 'fan',
     name: 'Fan deck',
-    note: 'Flat cards fanned from the corner, a solid colour subtitle chip and the folder’s numbered tab.',
+    note: 'Flat cards fanned from the corner and a solid colour subtitle chip.',
     Component: FanDeckHeader,
   },
   {
@@ -71,7 +71,7 @@ const STYLES: { id: string; name: string; note: string; Component: (props: Heade
   {
     id: 'split',
     name: 'Split block',
-    note: 'A solid colour block with the numeral and icon beside a dark panel with a neon title, the page’s tabs and a sweep.',
+    note: 'A solid colour block with a ghosted icon beside a dark panel with a neon title and a light sweep.',
     Component: SplitBlockHeader,
   },
 ];
@@ -122,8 +122,8 @@ export default function HeadersTab() {
             <div className="mb-8 border-t border-line px-3 pt-8">
               <h2 className="text-lg font-semibold">Round two: mixed</h2>
               <p className="mt-1 font-support text-sm text-muted">
-                The first five blended with the new references: the vertical rail and neon outline, the gradient
-                numeral with an icon, flat fanned cards, stacked sheets and solid colour chips.
+                The first five blended with the new references: the vertical rail and neon outline, the icon over
+                a gradient disc, flat fanned cards, stacked sheets and solid colour chips.
               </p>
             </div>
           )}

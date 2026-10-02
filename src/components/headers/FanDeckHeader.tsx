@@ -1,9 +1,8 @@
-import { BRAND, pad, type HeaderProps } from './shared';
+import { BRAND, type HeaderProps } from './shared';
 
-// 8 · Fan deck: flat cards fanned out from the corner in the page colour and teal, a solid colour
-// subtitle chip, and the folder header's numbered tab.
-export default function FanDeckHeader({ page, index, total }: HeaderProps) {
-  const Icon = page.icon;
+// 8 · Fan deck: flat cards fanned out from the corner in the page colour and teal, with a solid
+// colour subtitle chip.
+export default function FanDeckHeader({ page }: HeaderProps) {
   const cards: { rotate: number; background: string; left: string }[] = [
     { rotate: -52, background: `rgba(${BRAND}, 0.28)`, left: '12%' },
     { rotate: -34, background: `rgba(${page.accent}, 0.9)`, left: '22%' },
@@ -23,13 +22,6 @@ export default function FanDeckHeader({ page, index, total }: HeaderProps) {
       </div>
 
       <div className="relative flex min-h-[260px] flex-col justify-center gap-4 p-8 @lg:max-w-[62%]">
-        <span
-          className="inline-flex w-fit items-center gap-2 rounded-full border px-3 py-1 font-support text-xs"
-          style={{ borderColor: `rgba(${page.accent}, 0.5)`, background: `rgba(${page.accent}, 0.14)` }}
-        >
-          <Icon className="h-4 w-4" />
-          {pad(index)} <span className="text-muted">/ {pad(total)}</span>
-        </span>
         <h2 className="text-[clamp(2.75rem,7cqw,5.25rem)] leading-none font-semibold tracking-tight">{page.name}</h2>
         <p
           className="w-fit max-w-full rounded-2xl px-4 py-2.5 font-support text-base font-medium text-[#0b0e10]"

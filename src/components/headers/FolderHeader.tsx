@@ -1,8 +1,8 @@
-import { pad, type HeaderProps } from './shared';
+import type { HeaderProps } from './shared';
 
-// 4 · Dossier folder: a tab for the section number, a pinstriped body, loose sheets peeking out
-// underneath and a rubber-stamp icon. Reads like paperwork, which suits a ledger.
-export default function FolderHeader({ page, index, total }: HeaderProps) {
+// 4 · Dossier folder: an icon tab, a pinstriped body, loose sheets peeking out underneath and a
+// rubber-stamp seal. Reads like paperwork, which suits a ledger.
+export default function FolderHeader({ page }: HeaderProps) {
   const Icon = page.icon;
   return (
     <div className="relative pt-11 pb-5">
@@ -14,8 +14,7 @@ export default function FolderHeader({ page, index, total }: HeaderProps) {
         }}
       >
         <Icon className="h-6 w-6" />
-        <span>{pad(index)}</span>
-        <span className="text-muted">/ {pad(total)}</span>
+        <span className="font-support text-xs tracking-[0.25em] text-muted uppercase">Wallex</span>
       </div>
 
       <div className="absolute inset-x-8 bottom-0 h-8 rounded-b-3xl border border-line bg-white/[0.025]" />
@@ -37,12 +36,12 @@ export default function FolderHeader({ page, index, total }: HeaderProps) {
           </div>
 
           <div
-            className="hidden h-28 w-28 shrink-0 rotate-[-10deg] flex-col items-center justify-center rounded-full border-2 border-dashed @xl:flex"
+            className="hidden h-28 w-28 shrink-0 rotate-[-10deg] flex-col items-center justify-center gap-1 rounded-full border-2 border-dashed @xl:flex"
             style={{ borderColor: `rgba(${page.accent}, 0.6)`, color: `rgb(${page.accent})` }}
           >
-            <span className="text-[10px] font-semibold tracking-[0.3em] uppercase">Section</span>
-            <span className="text-4xl leading-none font-bold">{pad(index)}</span>
-            <span className="text-[9px] tracking-[0.25em] uppercase opacity-70">Wallex</span>
+            <span className="text-[9px] font-semibold tracking-[0.3em] uppercase">Wallex</span>
+            <Icon className="h-10 w-10" />
+            <span className="text-[9px] tracking-[0.3em] uppercase opacity-70">Money</span>
           </div>
         </div>
       </div>

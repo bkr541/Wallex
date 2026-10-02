@@ -1,9 +1,9 @@
 import NeonTitle from './NeonTitle';
-import { BRAND, pad, type HeaderProps } from './shared';
+import { BRAND, type HeaderProps } from './shared';
 
 // 6 · Neon rail: no panel at all. A glowing vertical rail beside a title whose last syllable is
 // a neon outline, with the compact bar's live status and light sweep underneath.
-export default function NeonRailHeader({ page, index, total }: HeaderProps) {
+export default function NeonRailHeader({ page }: HeaderProps) {
   return (
     <div className="px-2 pt-4 pb-5">
       <div className="flex flex-wrap items-end gap-x-5 gap-y-4">
@@ -22,9 +22,6 @@ export default function NeonRailHeader({ page, index, total }: HeaderProps) {
               style={{ background: `rgb(${BRAND})`, animation: 'header-pulse 2.2s ease-in-out infinite' }}
             />
             Live
-          </span>
-          <span className="rounded-full border border-line px-3 py-1.5 font-support text-xs text-muted tabular-nums">
-            {pad(index)} / {pad(total)}
           </span>
         </div>
       </div>
