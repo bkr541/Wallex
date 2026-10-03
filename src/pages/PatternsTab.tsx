@@ -226,7 +226,7 @@ const VIEWS: { id: View; label: string; dot?: string }[] = [
   { id: 'all', label: 'All' },
   { id: 'bills', label: 'Bills', dot: '#4fa3ff' },
   { id: 'merchants', label: 'Merchants', dot: '#a67cff' },
-  { id: 'categories', label: 'Categories', dot: '#4fb8a5' },
+  { id: 'categories', label: 'Categories', dot: 'var(--accent)' },
 ];
 
 function BubbleIcon({ bubble, size }: { bubble: Bubble; size: number }) {
@@ -569,7 +569,7 @@ export default function PatternsTab({ load }: { load: Load }) {
         <div role="tablist" aria-label="Show" className={`flex gap-2 ${mobile ? 'w-full flex-nowrap gap-1.5' : 'flex-wrap'}`}>
           {VIEWS.map((v) => {
             const selected = v.id === view;
-            const dot = v.dot ?? (mobile ? '#e4e4e7' : undefined);
+            const dot = v.dot ?? (mobile ? 'var(--text)' : undefined);
 
             // On a phone every option fits in one row: the chosen one shows its name, the others
             // are just a colored dot and a count. The name slides in and out as you switch.

@@ -9,6 +9,49 @@
   --accent: #4fb8a5;
   --accent-soft: rgba(79, 184, 165, 0.16);
   --line: rgba(255, 255, 255, 0.08);
+  --bubble-base: #101214;
+  --bubble-center: #15181a;
+  --backdrop: #050506;
+  color-scheme: dark;
+}
+
+/* Light theme: the same variables, light values. Set from Settings → Appearance. */
+:root[data-theme='light'] {
+  --canvas: #f4f4f1;
+  --card: #ffffff;
+  --surface: #ebebe7;
+  --text: #171717;
+  --muted: #6b6b6b;
+  --line: rgba(0, 0, 0, 0.1);
+  --bubble-base: #ffffff;
+  --bubble-center: #ffffff;
+  --backdrop: #dcdcd7;
+  color-scheme: light;
+}
+
+:root[data-theme='light'] .bubble-badge {
+  background: rgba(0, 0, 0, 0.05);
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.08);
+}
+
+/* Launch hand-off: the balance from the loading screen flies to its place on Overview, which stays hidden
+   until it lands. */
+[data-cash-balance] {
+  transition: opacity 0.4s ease;
+}
+
+:root[data-handoff='flying'] [data-cash-balance] {
+  opacity: 0;
+}
+
+/* Reduce motion: nothing moves. (Without it the app follows the system setting where it can.) */
+:root[data-reduce-motion='true'] *,
+:root[data-reduce-motion='true'] *::before,
+:root[data-reduce-motion='true'] *::after {
+  animation-duration: 0.001ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.001ms !important;
+  scroll-behavior: auto !important;
 }
 
 @theme inline {
@@ -45,7 +88,7 @@ button:focus-visible {
   cursor: pointer;
   background:
     radial-gradient(circle at 30% 18%, rgba(var(--rgb), 0.26), rgba(var(--rgb), 0.07) 62%),
-    color-mix(in srgb, rgb(var(--rgb)) 6%, #101214);
+    color-mix(in srgb, rgb(var(--rgb)) 6%, var(--bubble-base));
   border: 2px solid rgba(var(--rgb), 0.8);
   box-shadow:
     0 14px 34px rgba(0, 0, 0, 0.55),
@@ -113,11 +156,11 @@ button:focus-visible {
 .center-orb {
   background:
     radial-gradient(circle at 30% 18%, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.015) 62%),
-    #15181a;
-  border: 2px solid rgba(79, 184, 165, 0.6);
+    var(--bubble-center);
+  border: 2px solid color-mix(in srgb, var(--accent) 60%, transparent);
   box-shadow:
     0 22px 50px rgba(0, 0, 0, 0.65),
-    0 0 40px rgba(79, 184, 165, 0.16),
+    0 0 40px color-mix(in srgb, var(--accent) 16%, transparent),
     inset 0 1px 0 rgba(255, 255, 255, 0.1),
     inset 0 -16px 36px rgba(0, 0, 0, 0.3);
 }

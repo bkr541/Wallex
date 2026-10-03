@@ -50,7 +50,7 @@ function Spark({ buckets, rgb }: { buckets: TrendBucket[]; rgb: string }) {
             className="flex h-full w-3 flex-col justify-end"
           >
             {none || b.amount === 0 ? (
-              <span className="h-[3px] w-full rounded-full" style={{ background: none ? 'rgba(255,255,255,0.06)' : `rgba(${rgb}, 0.3)` }} />
+              <span className="h-[3px] w-full rounded-full" style={{ background: none ? 'var(--line)' : `rgba(${rgb}, 0.3)` }} />
             ) : (
               <motion.span
                 className="block w-full origin-bottom rounded-[3px]"
@@ -122,7 +122,7 @@ export default function PatternDetail({
         style={
           {
             '--rgb': bubble.rgb,
-            background: `radial-gradient(circle at 12% 0%, rgba(${bubble.rgb}, 0.3), rgba(${bubble.rgb}, 0.06) 55%), #101214`,
+            background: `radial-gradient(circle at 12% 0%, rgba(${bubble.rgb}, 0.3), rgba(${bubble.rgb}, 0.06) 55%), var(--bubble-base)`,
             border: `1.5px solid rgba(${bubble.rgb}, 0.7)`,
             boxShadow: `0 22px 54px rgba(0, 0, 0, 0.55), 0 0 44px rgba(${bubble.rgb}, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.1)`,
           } as React.CSSProperties

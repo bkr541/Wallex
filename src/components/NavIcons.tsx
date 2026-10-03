@@ -5,8 +5,8 @@ interface IconProps {
   className?: string;
 }
 
-// The app's accent, the same teal as the selected period button, and the standard icon grey.
-const TEAL = '#4FB8A5';
+// The app's accent, the same colour as the selected period button (it follows the accent chosen in Settings), and the standard icon grey.
+const TEAL = 'var(--accent)';
 const GRAY = '#8E9199';
 const GRAY_DARK = '#4A4D55';
 

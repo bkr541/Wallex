@@ -10,6 +10,7 @@ import { accountLabel, useTransactions } from './lib/useTransactions';
 import { NAV, TABS } from './lib/pages';
 import HeadersTab from './pages/HeadersTab';
 import LoadingTab from './pages/LoadingTab';
+import AppearanceTab from './pages/AppearanceTab';
 import OverviewTab from './pages/OverviewTab';
 import LoadingLogo from './components/LoadingLogo';
 import { cashPosition } from './lib/overview';
@@ -74,7 +75,7 @@ export default function App() {
   return (
     <ViewModeProvider value={{ mobile, frame: frameEl }}>
     <div
-      className={`h-screen w-screen bg-canvas ${mobile ? 'flex items-center justify-center bg-[#050506]' : ''}`}
+      className={`h-screen w-screen bg-canvas ${mobile ? 'flex items-center justify-center bg-[var(--backdrop)]' : ''}`}
       style={sizeVars}
     >
       <div
@@ -123,7 +124,7 @@ export default function App() {
               {isActive && (
                 <motion.div
                   layoutId="active-indicator"
-                  className={`absolute rounded-full bg-accent ${mobile ? '-top-[9px] h-1.5 w-7' : '-left-[14px] h-7 w-1.5'}`}
+                  className={`absolute rounded-full bg-accent ${mobile ? '-top-[9px] left-[10px] h-1.5 w-7' : '-left-[14px] h-7 w-1.5'}`}
                   transition={{ type: 'spring', stiffness: 450, damping: 32 }}
                 />
               )}
@@ -214,6 +215,8 @@ export default function App() {
             <OverviewTab load={load} onNavigate={goTo} />
           ) : activeId === 'patterns' ? (
             <PatternsTab load={load} />
+          ) : activeId === 'settings' && activeTab === 'Appearance' ? (
+            <AppearanceTab />
           ) : activeId === 'settings' && activeTab === 'Setup' ? (
             <SetupTab onConnectionChange={refresh} />
           ) : activeId === 'transactions' && activeTab === 'Checking' ? (

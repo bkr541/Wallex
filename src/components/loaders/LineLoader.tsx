@@ -5,13 +5,13 @@ import { AnimatePresence, animate, motion } from 'motion/react';
 const K = 0.65;
 const STAGE_MS = 2500;
 const MIN_SCENE_MS = 1500; // the first scene always gets this long, even when the data is already there
-const HOLD_MS = 900;
+const HOLD_MS = 700;
 
 interface LoaderProps {
   balance: number | null;
   onDone?: () => void;
 }
-const TEAL = '#4fb8a5';
+const TEAL = 'var(--accent)'; // the accent chosen in Settings → Appearance
 const CORAL = '#ff6b7a';
 const AMBER = '#ffb000';
 const GRID = 'rgba(255,255,255,0.06)';
@@ -29,7 +29,7 @@ function Trace() {
       ))}
       <motion.path
         d={AREA}
-        fill="rgba(79,184,165,0.12)"
+        fill="color-mix(in srgb, var(--accent) 12%, transparent)"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ delay: 1.7 * K, duration: 0.6 * K }}
@@ -40,7 +40,7 @@ function Trace() {
         strokeWidth="2.5"
         strokeLinecap="round"
         strokeLinejoin="round"
-        style={{ filter: 'drop-shadow(0 0 6px rgba(79,184,165,0.6))' }}
+        style={{ filter: 'drop-shadow(0 0 6px color-mix(in srgb, var(--accent) 60%, transparent))' }}
         initial={{ pathLength: 0 }}
         animate={{ pathLength: 1 }}
         transition={{ duration: 1.8 * K, ease: 'easeInOut' }}
@@ -270,6 +270,7 @@ function Balance({ balance, onDone }: LoaderProps) {
         transition={{ duration: 0.8 }}
       />
       <motion.p
+        data-loader-balance
         className="relative text-5xl font-semibold tracking-tight tabular-nums"
         animate={{ scale: done ? [1, 1.06, 1] : 1 }}
         transition={{ duration: 0.45, ease: 'easeOut' }}

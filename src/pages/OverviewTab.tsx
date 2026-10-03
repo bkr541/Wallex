@@ -268,7 +268,7 @@ export default function OverviewTab({
 
         <div className="mt-8 border-t border-line pt-6">
           <Eyebrow>Cash available</Eyebrow>
-          <p className="mt-3 text-5xl leading-none font-semibold tracking-tight @3xl:text-6xl">
+          <p data-cash-balance className="mt-3 text-5xl leading-none font-semibold tracking-tight @3xl:text-6xl">
             {position.cash === null ? '—' : money(position.cash)}
           </p>
           <p className="mt-3 font-support text-sm text-muted">
@@ -455,7 +455,7 @@ export default function OverviewTab({
                   </dd>
                 </div>
               </dl>
-              <div className="mt-4 h-1.5 overflow-hidden rounded-full bg-white/[0.06]">
+              <div className="mt-4 h-1.5 overflow-hidden rounded-full bg-line">
                 <div
                   className="h-full rounded-full bg-accent/80"
                   style={{ width: `${buffer.available > 0 ? Math.min(100, (buffer.obligations / buffer.available) * 100) : 100}%` }}

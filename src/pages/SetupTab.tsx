@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { ChevronDown, Eye, EyeOff } from 'lucide-react';
+import PlumpIcon, { type PlumpName } from '../components/PlumpIcon';
 import { BANKS } from '../lib/banks';
 import { wallex } from '../lib/wallex';
 
@@ -35,10 +36,13 @@ const LANGUAGES = [
 const inputClass =
   'w-full rounded-lg border border-line bg-surface px-3 py-2.5 text-sm text-ink outline-none placeholder:text-muted focus:border-accent';
 
-function Field({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
+function Field({ label, icon, hint, children }: { label: string; icon: PlumpName; hint?: string; children: React.ReactNode }) {
   return (
     <label className="block">
-      <span className="mb-1.5 block text-sm font-medium">{label}</span>
+      <span className="mb-1.5 flex items-center gap-2 text-sm font-medium">
+        <PlumpIcon name={icon} className="h-5 w-5 shrink-0 text-muted" />
+        {label}
+      </span>
       {children}
       {hint && <span className="mt-1.5 block font-support text-xs text-muted">{hint}</span>}
     </label>
@@ -74,18 +78,23 @@ function Select({
 
 function CheckGroup({
   legend,
+  icon,
   options,
   selected,
   onToggle,
 }: {
   legend: string;
+  icon: PlumpName;
   options: { value: string; label: string }[];
   selected: string[];
   onToggle: (value: string) => void;
 }) {
   return (
     <fieldset>
-      <legend className="mb-1.5 text-sm font-medium">{legend}</legend>
+      <legend className="mb-1.5 flex items-center gap-2 text-sm font-medium">
+        <PlumpIcon name={icon} className="h-5 w-5 shrink-0 text-muted" />
+        {legend}
+      </legend>
       <div className="flex flex-wrap gap-2">
         {options.map((o) => {
           const on = selected.includes(o.value);
@@ -207,11 +216,11 @@ export default function SetupTab({ onConnectionChange }: { onConnectionChange?: 
 
         <div className="grid grid-cols-1 gap-x-8 gap-y-5 @3xl:grid-cols-2">
 
-          <Field label="Environment">
+          <Field label="Environment" icon="cloud-data-transfer">
             <Select value={environment} onChange={setEnvironment} options={ENVIRONMENTS} />
           </Field>
 
-          <Field label="Client ID">
+          <Field label="Client ID" icon="user-face-id-mask">
             <input
               type="text"
               value={clientId}
@@ -223,7 +232,7 @@ export default function SetupTab({ onConnectionChange }: { onConnectionChange?: 
             />
           </Field>
 
-          <Field label="Secret" hint="Use the secret that matches the environment selected above.">
+          <Field label="Secret" icon="padlock-key" hint="Use the secret that matches the environment selected above.">
             <div className="relative">
               <input
                 type={showSecret ? 'text' : 'password'}
@@ -257,7 +266,7 @@ export default function SetupTab({ onConnectionChange }: { onConnectionChange?: 
 
         <div className="grid grid-cols-1 gap-x-8 gap-y-5 @3xl:grid-cols-2">
 
-          <Field label="Bank" hint="Plaid Link opens with this bank pre-selected.">
+          <Field label="Bank" icon="government-building-1" hint="Plaid Link opens with this bank pre-selected.">
             <Select
               value={bankId}
               onChange={setBankId}
@@ -265,18 +274,20 @@ export default function SetupTab({ onConnectionChange }: { onConnectionChange?: 
             />
           </Field>
 
-          <Field label="Language">
+          <Field label="Language" icon="chat-bubble-text-square">
             <Select value={language} onChange={setLanguage} options={LANGUAGES} />
           </Field>
 
           <CheckGroup
             legend="Products"
+            icon="layers-1"
             options={PRODUCTS}
             selected={products}
             onToggle={(v) => setProducts((p) => toggle(p, v))}
           />
           <CheckGroup
             legend="Countries"
+            icon="world"
             options={COUNTRIES}
             selected={countries}
             onToggle={(v) => setCountries((c) => toggle(c, v))}
@@ -291,7 +302,7 @@ export default function SetupTab({ onConnectionChange }: { onConnectionChange?: 
 
         <div className="grid grid-cols-1 gap-x-8 gap-y-5 @3xl:grid-cols-2">
 
-          <Field label="Webhook URL" hint="Plaid sends transaction updates here.">
+          <Field label="Webhook URL" icon="lightning-cloud" hint="Plaid sends transaction updates here.">
             <input
               type="url"
               value={webhookUrl}
@@ -301,7 +312,7 @@ export default function SetupTab({ onConnectionChange }: { onConnectionChange?: 
             />
           </Field>
 
-          <Field label="Redirect URI" hint="Required for Chase and other OAuth banks. Use an HTTPS address allowlisted in your Plaid dashboard; Wallex catches the redirect itself, so nothing has to be hosted there.">
+          <Field label="Redirect URI" icon="share-link" hint="Required for Chase and other OAuth banks. Use an HTTPS address allowlisted in your Plaid dashboard; Wallex catches the redirect itself, so nothing has to be hosted there.">
             <input
               type="url"
               value={redirectUri}
@@ -363,6 +374,8 @@ export default function SetupTab({ onConnectionChange }: { onConnectionChange?: 
           <span className="font-support text-xs text-muted">Enter your client ID and secret to continue.</span>
         )}
       </div>
+
+      <p className="font-support text-xs text-muted">Field icons: Streamline Plump, CC BY 4.0.</p>
     </form>
   );
 }

@@ -3,7 +3,9 @@ import { useEffect, useRef, useState } from 'react';
 const DURATION = 900; // how long the digits spin, in ms
 const TICK = 45;
 
-const reduced = () => typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+const reduced = () =>
+  typeof window !== 'undefined' &&
+  (document.documentElement.dataset.reduceMotion === 'true' || !!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches);
 
 // Shows a number and, whenever it changes, spins its digits like a slot machine and settles them one at
 // a time, left to right, on the new value. Anything that is not a digit ($ , . + -) stays put.
