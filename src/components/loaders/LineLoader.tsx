@@ -337,14 +337,6 @@ export default function LineLoader({ balance, onDone }: LoaderProps) {
           </motion.p>
         </AnimatePresence>
       </div>
-      <div className="flex gap-1.5" aria-hidden="true">
-        {STAGES.map((_, i) => (
-          <span
-            key={i}
-            className={`h-1 rounded-full transition-all duration-300 ${i === stage ? 'w-5 bg-accent' : 'w-1.5 bg-white/15'}`}
-          />
-        ))}
-      </div>
     </div>
   );
 }
