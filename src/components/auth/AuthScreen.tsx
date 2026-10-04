@@ -24,6 +24,9 @@ type Key = 'first' | 'last' | 'email' | 'password' | 'confirm';
 
 const ease = [0.22, 1, 0.36, 1] as const;
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+// Pressing a button that leaves the form must not first blur the field you were in, or that field is checked (and its
+// error shown) a moment before the screen changes.
+const keepFocus = { onMouseDown: (e: React.MouseEvent) => e.preventDefault() };
 const COOLDOWN_S = 60; // Supabase allows one email a minute to the same address
 
 const FIELD: Record<Key, { label: string; icon: PlumpName; placeholder: string; type: 'text' | 'email' | 'password'; auto: string }> = {
@@ -193,7 +196,7 @@ export default function AuthScreen() {
         value={values[k]}
         placeholder={k === 'password' && step === 'login' ? 'Your password' : f.placeholder}
         onChange={(e) => set(k, e.target.value)}
-        onBlur={() => setTouched((c) => ({ ...c, [k]: true }))}
+        onBlur={() => values[k] && setTouched((c) => ({ ...c, [k]: true }))}
         error={shown(k)}
         autoFocus={k === keys[0]}
         trailing={isPw ? <RevealButton shown={showPw} onClick={() => setShowPw((s) => !s)} className="h-8 w-8 shrink-0" /> : undefined}
@@ -267,7 +270,7 @@ export default function AuthScreen() {
                     type="button"
                     role="tab"
                     aria-selected={step === m}
-                    onClick={() => go(m)}
+                    {...keepFocus} onClick={() => go(m)}
                     className={`relative z-10 flex-1 cursor-pointer rounded-full py-2 text-sm transition-colors ${step === m ? 'font-semibold text-ink' : 'text-muted'}`}
                   >
                     {step === m && <motion.span layoutId="auth-pill" className="absolute inset-0 -z-10 rounded-full bg-card shadow" transition={{ type: 'spring', stiffness: 420, damping: 34 }} />}
@@ -286,7 +289,7 @@ export default function AuthScreen() {
                 transition={{ duration: 0.22, ease }}
               >
                 {(step === 'forgot' || step === 'forgot-sent') && (
-                  <button type="button" onClick={() => go('login')} className="mb-5 flex cursor-pointer items-center gap-1.5 font-support text-sm text-muted transition-colors hover:text-ink">
+                  <button type="button" {...keepFocus} onClick={() => go('login')} className="mb-5 flex cursor-pointer items-center gap-1.5 font-support text-sm text-muted transition-colors hover:text-ink">
                     <ArrowLeft className="h-4 w-4" />
                     Back to log in
                   </button>
@@ -340,7 +343,7 @@ export default function AuthScreen() {
                       <p role="alert" className="font-support text-sm text-red-300">
                         {error}{' '}
                         {exists && (
-                          <button type="button" onClick={() => go('login')} className="cursor-pointer underline underline-offset-2 hover:text-red-200">
+                          <button type="button" {...keepFocus} onClick={() => go('login')} className="cursor-pointer underline underline-offset-2 hover:text-red-200">
                             Log in instead
                           </button>
                         )}
@@ -353,12 +356,12 @@ export default function AuthScreen() {
                     </button>
 
                     {step === 'login' && (
-                      <button type="button" onClick={() => go('forgot')} className="block cursor-pointer font-support text-xs text-muted underline-offset-2 transition-colors hover:text-ink hover:underline">
+                      <button type="button" {...keepFocus} onClick={() => go('forgot')} className="block cursor-pointer font-support text-xs text-muted underline-offset-2 transition-colors hover:text-ink hover:underline">
                         Forgot your password?
                       </button>
                     )}
                     {step === 'newpassword' && (
-                      <button type="button" onClick={() => void cancelRecovery()} className="block cursor-pointer font-support text-xs text-muted underline-offset-2 transition-colors hover:text-ink hover:underline">
+                      <button type="button" {...keepFocus} onClick={() => void cancelRecovery()} className="block cursor-pointer font-support text-xs text-muted underline-offset-2 transition-colors hover:text-ink hover:underline">
                         Cancel
                       </button>
                     )}
@@ -377,7 +380,7 @@ export default function AuthScreen() {
                       <button type="button" onClick={resend} disabled={busy || wait > 0} className="cursor-pointer text-muted underline-offset-2 transition-colors hover:text-ink hover:underline disabled:cursor-default disabled:no-underline disabled:opacity-60">
                         {wait > 0 ? `Resend email in ${wait}s` : 'Resend email'}
                       </button>
-                      <button type="button" onClick={() => go('signup')} className="cursor-pointer text-muted underline-offset-2 transition-colors hover:text-ink hover:underline">
+                      <button type="button" {...keepFocus} onClick={() => go('signup')} className="cursor-pointer text-muted underline-offset-2 transition-colors hover:text-ink hover:underline">
                         Use a different email
                       </button>
                     </div>
