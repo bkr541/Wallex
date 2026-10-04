@@ -11,6 +11,7 @@ import { NAV, TABS } from './lib/pages';
 import HeadersTab from './pages/HeadersTab';
 import LoadingTab from './pages/LoadingTab';
 import AppearanceTab from './pages/AppearanceTab';
+import OnboardingTab from './pages/OnboardingTab';
 import OverviewTab from './pages/OverviewTab';
 import LoadingLogo from './components/LoadingLogo';
 import { cashPosition } from './lib/overview';
@@ -227,6 +228,8 @@ export default function App() {
             <HeadersTab />
           ) : activeId === 'scratchpad' && activeTab === 'Loading' ? (
             <LoadingTab load={load} />
+          ) : activeId === 'scratchpad' && activeTab === 'Onboarding' ? (
+            <OnboardingTab />
           ) : activeId === 'transactions' && activeTab === 'Recurring' ? (
             <RecurringTab key={recurringStart.nonce} load={load} initialFilter={recurringStart.filter} />
           ) : (

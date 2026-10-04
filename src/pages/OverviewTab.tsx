@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { ChevronRight } from 'lucide-react';
+import { ArrowDown, ArrowUp, ChevronRight, Landmark, TrendingDown, TrendingUp, Wallet } from 'lucide-react';
 import CashFlowChart from '../components/overview/CashFlowChart';
 import Collapsible from '../components/overview/Collapsible';
 import SlotNumber from '../components/overview/SlotNumber';
@@ -40,23 +40,21 @@ const approx = (n: number) => `~${money(n)}`;
 const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`;
 const weekday = (iso: string) => ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][new Date(`${iso}T00:00:00Z`).getUTCDay()];
 
-const Eyebrow = ({ children }: { children: React.ReactNode }) => (
-  <h2 className="font-support text-xs font-semibold tracking-[0.18em] text-muted uppercase">{children}</h2>
-);
-
 function Segmented<T extends string | number>({
   value,
   onChange,
   options,
   label,
+  large = false,
 }: {
   value: T;
   onChange: (v: T) => void;
   options: { value: T; label: string }[];
   label: string;
+  large?: boolean;
 }) {
   return (
-    <div role="tablist" aria-label={label} className="flex gap-1">
+    <div role="tablist" aria-label={label} className={`flex ${large ? 'gap-3' : 'gap-1'}`}>
       {options.map((o) => (
         <button
           key={String(o.value)}
@@ -64,13 +62,51 @@ function Segmented<T extends string | number>({
           role="tab"
           aria-selected={value === o.value}
           onClick={() => onChange(o.value)}
-          className={`cursor-pointer rounded-lg px-3 py-1.5 text-sm transition-colors ${
-            value === o.value ? 'bg-accent text-canvas' : 'bg-surface text-muted hover:text-ink'
-          }`}
+          className={
+            large
+              ? `cursor-pointer rounded-xl border px-5 py-2.5 text-sm transition-colors ${
+                  value === o.value ? 'border-accent bg-accent font-medium text-canvas' : 'border-line bg-card/40 text-ink hover:border-muted'
+                }`
+              : `cursor-pointer rounded-lg px-3 py-1.5 text-sm transition-colors ${
+                  value === o.value ? 'bg-accent text-canvas' : 'bg-surface text-muted hover:text-ink'
+                }`
+          }
         >
           {o.label}
         </button>
       ))}
+    </div>
+  );
+}
+
+// One figure in the position card: an icon, a small label, the number, and a line of explanation.
+function Stat({
+  icon,
+  tone,
+  label,
+  value,
+  desc,
+  className = '',
+  descUnderIcon = false,
+}: {
+  icon: React.ReactNode;
+  tone: string;
+  label: string;
+  value: React.ReactNode;
+  desc: React.ReactNode;
+  className?: string;
+  descUnderIcon?: boolean; // on a narrow screen the explanation may run the full width of the cell
+}) {
+  return (
+    <div className={`grid min-w-0 grid-cols-[auto_minmax(0,1fr)] content-start gap-x-3 gap-y-3 @3xl:gap-x-4 ${className}`}>
+      <span className={`mt-0.5 ${tone}`}>{icon}</span>
+      <div className="min-w-0">
+        <p className="font-support text-[10px] font-semibold tracking-[0.14em] whitespace-nowrap text-ink/80 uppercase @3xl:text-[11px] @3xl:tracking-[0.2em]">{label}</p>
+        <p className="mt-2 text-[1.7rem] leading-none font-semibold tracking-tight @3xl:text-5xl">{value}</p>
+      </div>
+      <p className={`font-support text-[13px] leading-snug text-muted @3xl:text-sm @3xl:leading-relaxed ${descUnderIcon ? 'col-span-2 @3xl:col-span-1 @3xl:col-start-2' : 'col-start-2'}`}>
+        {desc}
+      </p>
     </div>
   );
 }
@@ -210,11 +246,24 @@ export default function OverviewTab({
   const totalSaved = ideas.reduce((s, i) => s + savingFor(i, percent), 0);
   const periodLabel = scope.partial ? `${scope.effectiveDays} days` : `${scope.days} days`;
 
+  const netTone = flow.count === 0 ? 'text-muted' : flow.net >= 0 ? 'text-accent' : 'text-red-300';
+  const cashInfo = (
+    <>
+      <Landmark className="h-6 w-6 shrink-0 text-muted" strokeWidth={1.7} />
+      <span className="font-support text-sm text-muted">
+        {position.cash === null
+          ? 'No checking or savings balance reported.'
+          : `In ${plural(position.cashAccounts.length, 'checking or savings account')}`}
+        {position.cardsOwed !== null && position.cardsOwed > 0 && ` · ${money(position.cardsOwed)} owed on cards`}
+      </span>
+    </>
+  );
+
   return (
-    <div className="flex flex-col gap-12 px-1 pb-10">
-      {/* Context */}
-      <div className="order-first flex flex-wrap items-center justify-between gap-x-6 gap-y-3 px-3">
-        <p className="font-support text-sm text-muted">
+    <div className="flex flex-col gap-5 px-1 pb-10">
+      {/* Context: what period and which accounts, and the period switch */}
+      <div className="flex flex-col gap-4 px-3 @3xl:flex-row @3xl:items-center @3xl:justify-between @3xl:gap-x-6">
+        <p className="font-support text-sm text-ink/80">
           {shortDate(scope.partial && scope.historyStart ? scope.historyStart : scope.start)} – {shortDate(scope.today)}
           {' · '}
           {plural(accounts.length, 'account')} included
@@ -222,6 +271,7 @@ export default function OverviewTab({
         </p>
         {view.periods.length > 1 && (
           <Segmented
+            large
             label="Period"
             value={scope.days as OverviewDays}
             onChange={setDays}
@@ -230,60 +280,76 @@ export default function OverviewTab({
         )}
       </div>
 
-      {/* 1 · Financial position: money in and out first, then the cash on hand */}
-      <section className="order-1 px-3">
-        <div className="grid grid-cols-3 gap-4 @3xl:gap-10">
-          <div className="min-w-0">
-            <p className="font-support text-xs text-muted">Money in</p>
-            <p className="mt-2 text-2xl font-semibold tracking-tight @3xl:text-4xl">
-              <SlotNumber text={money(flow.moneyIn)} />
-            </p>
-          </div>
-          <div className="min-w-0">
-            <p className="font-support text-xs text-muted">Money out</p>
-            <p className="mt-2 text-2xl font-semibold tracking-tight @3xl:text-4xl">
-              <SlotNumber text={money(flow.moneyOut)} />
-            </p>
-          </div>
-          <div className="min-w-0 border-l border-line pl-4 @3xl:pl-10">
-            <p className="font-support text-xs text-muted">Net cash flow</p>
-            <p
-              className={`mt-2 text-2xl font-semibold tracking-tight @3xl:text-4xl ${
-                flow.count === 0 ? '' : flow.net >= 0 ? 'text-accent' : 'text-red-300'
-              }`}
-            >
-              <SlotNumber text={flow.count === 0 ? '—' : signed(flow.net)} />
-            </p>
-          </div>
+      {/* Financial position: money in and out, net flow, then the cash on hand */}
+      <section className="mx-3 rounded-[28px] border border-line bg-card/50 p-5 @3xl:p-8">
+        <div className="grid grid-cols-2 gap-y-6 @3xl:grid-cols-3">
+          <Stat
+            icon={<ArrowDown className="h-6 w-6 @3xl:h-7 @3xl:w-7" strokeWidth={1.8} />}
+            tone="text-accent"
+            label="Money in"
+            value={<SlotNumber text={money(flow.moneyIn)} />}
+            desc="From deposits, income and other credits"
+            descUnderIcon
+            className="pr-4 @3xl:pr-8"
+          />
+          <Stat
+            icon={<ArrowUp className="h-6 w-6 @3xl:h-7 @3xl:w-7" strokeWidth={1.8} />}
+            tone="text-muted"
+            label="Money out"
+            value={<SlotNumber text={money(flow.moneyOut)} />}
+            desc="From bills, purchases and other debits"
+            descUnderIcon
+            className="border-l border-line pl-4 @3xl:px-8"
+          />
+          <Stat
+            icon={
+              flow.count !== 0 && flow.net >= 0 ? (
+                <TrendingUp className="h-7 w-7" strokeWidth={1.8} />
+              ) : (
+                <TrendingDown className="h-7 w-7" strokeWidth={1.8} />
+              )
+            }
+            tone={flow.count === 0 ? 'text-muted' : flow.net >= 0 ? 'text-accent' : 'text-red-300'}
+            label="Net cash flow"
+            value={
+              <span className={netTone}>
+                <SlotNumber text={flow.count === 0 ? '—' : signed(flow.net)} />
+              </span>
+            }
+            desc={
+              <>
+                {flow.count === 0
+                  ? `No money in or out in the last ${periodLabel}.`
+                  : flow.savingsRate === null
+                    ? `No income detected in the last ${periodLabel}, so there is no savings rate.`
+                    : `${flow.savingsRate >= 0 ? '+' : '-'}${percentText(Math.abs(flow.savingsRate))} savings rate over the last ${periodLabel}`}
+                {flow.pending > 0 && ` · includes ${plural(flow.pending, 'pending transaction')}`}
+                {scope.partial && ` · only ${scope.effectiveDays} days of history so far`}
+              </>
+            }
+            className="col-span-2 border-t border-line pt-6 @3xl:col-span-1 @3xl:border-t-0 @3xl:border-l @3xl:pt-0 @3xl:pl-8"
+          />
         </div>
-        <p className="mt-4 font-support text-sm text-muted">
-          {flow.count === 0
-            ? `No money in or out in the last ${periodLabel}.`
-            : flow.savingsRate === null
-              ? `No income detected in the last ${periodLabel}, so there is no savings rate.`
-              : `${flow.savingsRate >= 0 ? '+' : '-'}${percentText(Math.abs(flow.savingsRate))} savings rate over the last ${periodLabel}`}
-          {flow.pending > 0 && ` · includes ${plural(flow.pending, 'pending transaction')}`}
-          {scope.partial && ` · only ${scope.effectiveDays} days of history so far`}
-        </p>
 
-        <div className="mt-8 border-t border-line pt-6">
-          <Eyebrow>Cash available</Eyebrow>
-          <p data-cash-balance className="mt-3 text-5xl leading-none font-semibold tracking-tight @3xl:text-6xl">
-            {position.cash === null ? '—' : money(position.cash)}
-          </p>
-          <p className="mt-3 font-support text-sm text-muted">
-            {position.cash === null
-              ? 'No checking or savings balance reported.'
-              : `In ${plural(position.cashAccounts.length, 'checking or savings account')}`}
-            {position.cardsOwed !== null && position.cardsOwed > 0 && ` · ${money(position.cardsOwed)} owed on cards`}
-          </p>
+        <div className="mt-6 grid border-t border-line pt-6 @3xl:grid-cols-[3fr_2fr] @3xl:items-center">
+          <div className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-4 gap-y-3">
+            <Wallet className="mt-0.5 h-7 w-7 text-accent/80" strokeWidth={1.7} />
+            <div className="min-w-0">
+              <p className="font-support text-[11px] font-semibold tracking-[0.2em] text-ink/80 uppercase">Cash available</p>
+              <p data-cash-balance className="mt-2 text-4xl leading-none font-semibold tracking-tight @3xl:text-6xl">
+                {position.cash === null ? '—' : money(position.cash)}
+              </p>
+            </div>
+            <div className="col-start-2 flex items-start gap-2.5 @3xl:hidden">{cashInfo}</div>
+          </div>
+          <div className="hidden items-center gap-3 border-l border-line pl-8 @3xl:flex">{cashInfo}</div>
         </div>
       </section>
 
+      <div className="mx-3 mt-1 border-b border-line">
       {/* 2 · Recurring commitments */}
       <Collapsible
         {...sectionProps('commitments')}
-        className="order-3 @3xl:order-2"
         title="Commitments"
         aside={
           <button
@@ -331,7 +397,6 @@ export default function OverviewTab({
       {/* 3 · Cash-flow history */}
       <Collapsible
         {...sectionProps('cashflow')}
-        className="order-4 @3xl:order-3"
         title="Cash flow"
         subtitle={chosen ? `Month by month, last ${chosen} months.` : 'Week by week. Monthly bars appear once there are three months of history.'}
         aside={
@@ -365,23 +430,21 @@ export default function OverviewTab({
         )}
       </Collapsible>
 
-      <div className="contents @3xl:order-4 @3xl:flex @3xl:flex-col @3xl:gap-12">
         {/* 4 · Upcoming pressure */}
         <Collapsible
           {...sectionProps('upcoming')}
-          className="order-2 @3xl:order-none"
           title="Upcoming pressure"
           subtitle={`Recurring payments expected in the next ${WINDOW_DAYS} days.`}
         >
 
           {upcoming.length === 0 ? (
-            <p className="mt-5 font-support text-sm text-muted">
+            <p className="font-support text-sm text-muted">
               {analysis.items.some(isUpcomingSource)
                 ? `Nothing recurring is expected in the next ${WINDOW_DAYS} days.`
                 : 'No recurring payments found yet. They appear once Wallex has seen a payment repeat.'}
             </p>
           ) : (
-            <div className="mt-5">
+            <div>
               {upcoming.slice(0, 10).map((p, i) => {
                 const inside = pressure?.ids.has(p.id) ?? false;
                 const startsGroup = inside && !pressure!.ids.has(upcoming[i - 1]?.id ?? '');
@@ -430,15 +493,14 @@ export default function OverviewTab({
         {/* 5 · Cash buffer */}
         <Collapsible
           {...sectionProps('buffer')}
-          className="order-5 @3xl:order-none"
           title="Cash buffer"
           subtitle="What is left of your cash after the payments above."
         >
 
           {buffer === null ? (
-            <p className="mt-5 font-support text-sm text-muted">No checking or savings balance is available to measure against.</p>
+            <p className="font-support text-sm text-muted">No checking or savings balance is available to measure against.</p>
           ) : (
-            <div className="mt-5">
+            <div>
               <dl className="space-y-3 font-support text-sm">
                 <div className="flex items-baseline justify-between">
                   <dt className="text-muted">Cash available</dt>
@@ -477,12 +539,10 @@ export default function OverviewTab({
             </div>
           )}
         </Collapsible>
-      </div>
 
       {/* 6 · Opportunities */}
       <Collapsible
         {...sectionProps('opportunities')}
-        className="order-6 @3xl:order-5"
         title="Opportunities"
         subtitle={`What-ifs based on your last ${periodLabel} of spending. They are estimates, not advice.`}
         aside={
@@ -497,9 +557,9 @@ export default function OverviewTab({
         }
       >
         {ideas.length === 0 ? (
-          <p className="mt-5 font-support text-sm text-muted">No spending in these areas yet, so there is nothing to model.</p>
+          <p className="font-support text-sm text-muted">No spending in these areas yet, so there is nothing to model.</p>
         ) : (
-          <div className="mt-5">
+          <div>
             {ideas.slice(0, 5).map((i) => {
               const monthly = savingFor(i, percent);
               return (
@@ -528,6 +588,7 @@ export default function OverviewTab({
           </div>
         )}
       </Collapsible>
+      </div>
     </div>
   );
 }

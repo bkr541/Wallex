@@ -1,7 +1,8 @@
 import { AnimatePresence, motion } from 'motion/react';
+import { ChevronRight } from 'lucide-react';
 
-// A section of the Overview that can be folded away. The title row is the button; any controls for the
-// section (a range picker, a link) sit on the right and only show while it is open.
+// A section of the Overview that can be folded away. Closed it is a single row, a title with an arrow at
+// the right; open it shows an optional description and controls (a range picker, a link), then the content.
 export default function Collapsible({
   title,
   subtitle,
@@ -20,21 +21,18 @@ export default function Collapsible({
   children: React.ReactNode;
 }) {
   return (
-    <section className={`border-t border-line px-3 pt-6 ${open ? '' : '-mb-9'} ${className}`}>
-      <div className="flex flex-wrap items-start justify-between gap-x-6 gap-y-3">
-        <button
-          type="button"
-          onClick={onToggle}
-          aria-expanded={open}
-          className="group flex min-w-0 cursor-pointer flex-col items-start text-left"
-        >
-          <span className="flex items-center gap-2 font-support text-xs font-semibold tracking-[0.18em] text-muted uppercase transition-colors group-hover:text-ink">
-            {title}
-          </span>
-          {open && subtitle && <span className="mt-2 font-support text-sm font-normal tracking-normal text-muted normal-case">{subtitle}</span>}
-        </button>
-        {open && aside && <div className="flex flex-wrap items-center gap-x-5 gap-y-2">{aside}</div>}
-      </div>
+    <section className={`border-t border-line ${className}`}>
+      <button
+        type="button"
+        onClick={onToggle}
+        aria-expanded={open}
+        className="group flex w-full cursor-pointer items-center justify-between gap-4 py-5 text-left"
+      >
+        <span className="font-support text-sm font-semibold tracking-[0.2em] text-ink/90 uppercase">{title}</span>
+        <ChevronRight
+          className={`h-5 w-5 shrink-0 text-muted transition-transform duration-200 group-hover:text-ink ${open ? 'rotate-90' : ''}`}
+        />
+      </button>
 
       <AnimatePresence initial={false}>
         {open && (
@@ -46,7 +44,15 @@ export default function Collapsible({
             transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
             className="overflow-hidden"
           >
-            <div className="pt-5 pb-8">{children}</div>
+            <div className="pb-8">
+              {(subtitle || aside) && (
+                <div className="mb-5 flex flex-wrap items-center justify-between gap-x-6 gap-y-3">
+                  {subtitle && <p className="font-support text-sm text-muted">{subtitle}</p>}
+                  {aside && <div className="ml-auto flex flex-wrap items-center gap-x-5 gap-y-2">{aside}</div>}
+                </div>
+              )}
+              {children}
+            </div>
           </motion.div>
         )}
       </AnimatePresence>
