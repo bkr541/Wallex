@@ -7,7 +7,16 @@ import type { LinkedAccount, Txn } from './wallex';
 // transactions count as spending, so credit card payments and moves between your own accounts are
 // never counted a second time, and Overview and Patterns agree for the same period.
 
-export type OverviewDays = 30 | 60 | 90;
+export type OverviewDays = 30 | 60 | 90 | 180 | 365;
+
+// How each period is named: on its button, and inside a sentence ("savings rate over the last 6 months").
+export const OVERVIEW_PERIODS: { days: OverviewDays; button: string; phrase: string }[] = [
+  { days: 30, button: '30 days', phrase: '30 days' },
+  { days: 60, button: '60 days', phrase: '60 days' },
+  { days: 90, button: '90 days', phrase: '90 days' },
+  { days: 180, button: '6 months', phrase: '6 months' },
+  { days: 365, button: '1 year', phrase: 'year' },
+];
 
 // All linked accounts, over the last `days` days.
 export const overviewScope = (txns: Txn[], accounts: LinkedAccount[], days: OverviewDays): PatternScope =>

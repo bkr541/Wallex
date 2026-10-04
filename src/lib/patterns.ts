@@ -8,7 +8,7 @@ import type { LinkedAccount, Txn } from './wallex';
 export type View = 'all' | 'bills' | 'merchants' | 'categories';
 
 export interface PatternFilters {
-  days: 30 | 60 | 90; // how far back to look; amounts are averaged to a month
+  days: 30 | 60 | 90 | 180 | 365; // how far back to look; amounts are averaged to a month
   account: 'all' | 'checking' | 'credit';
   categories: string[]; // Plaid primary categories; empty means all
   minAmount: number; // monthly dollars

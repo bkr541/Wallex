@@ -13,6 +13,7 @@ import HeadersTab from './pages/HeadersTab';
 import LoadingTab from './pages/LoadingTab';
 import AppearanceTab from './pages/AppearanceTab';
 import OnboardingTab from './pages/OnboardingTab';
+import PageHeader from './components/PageHeader';
 import OverviewTab from './pages/OverviewTab';
 import LoadingLogo from './components/LoadingLogo';
 import { cashPosition } from './lib/overview';
@@ -170,18 +171,13 @@ export default function App() {
           mobile ? 'inset-x-4 top-0 bottom-24 pt-10' : 'inset-y-0 right-8 left-32 pt-6 pb-8'
         }`}
       >
-        <h1 className={`font-semibold tracking-tight ${mobile ? 'self-start text-4xl' : 'self-end text-6xl'}`}>
-          {activePage.name}
-        </h1>
-        <p className={`mt-2 font-support text-muted ${mobile ? 'self-start text-sm' : 'self-end text-base'}`}>
-          {activePage.description}
-        </p>
+        <PageHeader page={activePage} compact={mobile} />
 
         {tabs.length > 0 && (
         <div
           role="tablist"
           className={`flex w-full items-center justify-start gap-3 border-b border-line ${
-            mobile ? 'mt-5 overflow-x-auto' : 'mt-12'
+            mobile ? 'mt-4 overflow-x-auto' : 'mt-6'
           }`}
         >
           {tabs.map((tab) => {

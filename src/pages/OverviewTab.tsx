@@ -1,4 +1,5 @@
-import { useMemo, useState } from 'react';
+import { useId, useMemo, useState } from 'react';
+import { motion } from 'motion/react';
 import { ChevronRight } from 'lucide-react';
 import CashFlowChart from '../components/overview/CashFlowChart';
 import Collapsible from '../components/overview/Collapsible';
@@ -24,6 +25,7 @@ import {
   shortDate,
   upcomingPayments,
   weeklyBuckets,
+  OVERVIEW_PERIODS,
   type OverviewDays,
   type UpcomingPayment,
 } from '../lib/overview';
@@ -53,8 +55,46 @@ function Segmented<T extends string | number>({
   label: string;
   large?: boolean;
 }) {
+  const thumb = useId();
+
+  // The large one is a switch: a rounded track with a lighter pill that slides to the chosen option.
+  if (large) {
+    return (
+      <div
+        role="tablist"
+        aria-label={label}
+        className="flex w-full rounded-full border border-line bg-[var(--switch-track)] p-1 shadow-[inset_0_1px_3px_rgba(0,0,0,0.25)] @3xl:w-auto"
+      >
+        {options.map((o) => {
+          const on = value === o.value;
+          return (
+            <button
+              key={String(o.value)}
+              type="button"
+              role="tab"
+              aria-selected={on}
+              onClick={() => onChange(o.value)}
+              className={`relative z-10 flex-1 cursor-pointer rounded-full px-1.5 py-2 text-[13px] whitespace-nowrap transition-colors @3xl:min-w-[5.75rem] @3xl:flex-none @3xl:px-4 @3xl:text-sm ${
+                on ? 'font-semibold text-ink' : 'text-muted hover:text-ink'
+              }`}
+            >
+              {on && (
+                <motion.span
+                  layoutId={thumb}
+                  className="absolute inset-0 -z-10 rounded-full border border-line bg-[var(--switch-thumb)] shadow-[0_2px_8px_rgba(0,0,0,0.22)]"
+                  transition={{ type: 'spring', stiffness: 420, damping: 34 }}
+                />
+              )}
+              {o.label}
+            </button>
+          );
+        })}
+      </div>
+    );
+  }
+
   return (
-    <div role="tablist" aria-label={label} className={`flex ${large ? 'gap-3' : 'gap-1'}`}>
+    <div role="tablist" aria-label={label} className="flex gap-1">
       {options.map((o) => (
         <button
           key={String(o.value)}
@@ -62,15 +102,9 @@ function Segmented<T extends string | number>({
           role="tab"
           aria-selected={value === o.value}
           onClick={() => onChange(o.value)}
-          className={
-            large
-              ? `cursor-pointer rounded-xl border px-5 py-2.5 text-sm transition-colors ${
-                  value === o.value ? 'border-accent bg-accent font-medium text-canvas' : 'border-line bg-card/40 text-ink hover:border-muted'
-                }`
-              : `cursor-pointer rounded-lg px-3 py-1.5 text-sm transition-colors ${
-                  value === o.value ? 'bg-accent text-canvas' : 'bg-surface text-muted hover:text-ink'
-                }`
-          }
+          className={`cursor-pointer rounded-lg px-3 py-1.5 text-sm transition-colors ${
+            value === o.value ? 'bg-accent text-canvas' : 'bg-surface text-muted hover:text-ink'
+          }`}
         >
           {o.label}
         </button>
@@ -80,14 +114,14 @@ function Segmented<T extends string | number>({
 }
 
 // Money in against money out as one bar: the teal part is what came in, the coral part what went out, and
-// the marker sits where they meet. Below it, the difference between the two hangs off the marker.
-function FlowBar({ moneyIn, moneyOut, net, empty }: { moneyIn: number; moneyOut: number; net: number; empty: boolean }) {
+// the marker sits where they meet, with a dotted line dropping from it toward the cash available.
+function FlowBar({ moneyIn, moneyOut }: { moneyIn: number; moneyOut: number }) {
   const total = moneyIn + moneyOut;
-  const share = total > 0 ? Math.min(0.96, Math.max(0.04, moneyIn / total)) : 0.5;
+  // Where the marker sits is exactly money in's share of the total: all the way left when everything went out,
+  // all the way right when everything came in, and just left of the middle when out is 51%.
+  const share = total > 0 ? moneyIn / total : 0.5;
   const at = `${share * 100}%`;
   const grow = 'width 0.7s cubic-bezier(0.22, 1, 0.36, 1), left 0.7s cubic-bezier(0.22, 1, 0.36, 1)';
-  const tone = empty ? 'text-muted' : net >= 0 ? 'text-accent' : 'text-red-300';
-  const flip = share > 0.62; // near the right edge the label hangs to the left of the line so it stays inside
   return (
     <div className="mt-6 @3xl:mt-8">
       <div className="relative h-3.5 rounded-full bg-line">
@@ -119,13 +153,6 @@ function FlowBar({ moneyIn, moneyOut, net, empty }: { moneyIn: number; moneyOut:
           className="absolute h-2 w-2 -translate-x-1/2 rounded-full bg-accent"
           style={{ left: at, top: 'calc(3.1rem - 2px)', transition: grow }}
         />
-        <div
-          className={`absolute top-1 ${flip ? 'text-right' : 'text-left'}`}
-          style={flip ? { right: `calc(${100 - share * 100}% + 14px)`, transition: grow } : { left: `calc(${at} + 14px)`, transition: grow }}
-        >
-          <p className="font-support text-[10px] font-semibold tracking-[0.16em] whitespace-nowrap text-ink/80 uppercase">Net difference</p>
-          <p className={`mt-0.5 text-lg leading-none font-semibold ${tone}`}>{empty ? '—' : signed(net)}</p>
-        </div>
       </div>
     </div>
   );
@@ -212,8 +239,9 @@ export default function OverviewTab({
   // Everything below is derived once per data change from the same transactions and the same scope.
   const view = useMemo(() => {
     if (!live || !recurring) return null;
-    const scopes = ([30, 60, 90] as OverviewDays[]).map((d) => ({ days: d, scope: overviewScope(txns, accounts, d) }));
-    const periods = scopes.filter((s) => s.days === 30 || !s.scope.partial).map((s) => s.days);
+    // Every period is offered. When the history is shorter than the one chosen, the page says how much it has.
+    const scopes = OVERVIEW_PERIODS.map((p) => ({ days: p.days, scope: overviewScope(txns, accounts, p.days) }));
+    const periods = scopes.map((s) => s.days);
     return { scopes, periods, analysis: recurring! };
   }, [live, load, recurring]);
 
@@ -264,7 +292,7 @@ export default function OverviewTab({
   const lowMonths = monthEnds.filter((m) => m.balance < LOW_BALANCE).length;
   const lowest = monthEnds.length ? monthEnds.reduce((lo, m) => (m.balance < lo.balance ? m : lo)) : null;
   const totalSaved = ideas.reduce((s, i) => s + savingFor(i, percent), 0);
-  const periodLabel = scope.partial ? `${scope.effectiveDays} days` : `${scope.days} days`;
+  const periodLabel = scope.partial ? `${scope.effectiveDays} days` : (OVERVIEW_PERIODS.find((p) => p.days === scope.days)?.phrase ?? `${scope.days} days`);
 
   const netTone = flow.count === 0 ? '' : flow.net >= 0 ? 'text-accent' : 'text-red-300';
   // Things worth knowing about the figures above that the card itself has no room for.
@@ -294,7 +322,7 @@ export default function OverviewTab({
             label="Period"
             value={scope.days as OverviewDays}
             onChange={setDays}
-            options={view.periods.map((d) => ({ value: d as OverviewDays, label: `${d} days` }))}
+            options={OVERVIEW_PERIODS.map((p) => ({ value: p.days, label: p.button }))}
           />
         )}
       </div>
@@ -328,7 +356,7 @@ export default function OverviewTab({
           </div>
         </div>
 
-        <FlowBar moneyIn={flow.moneyIn} moneyOut={flow.moneyOut} net={flow.net} empty={flow.count === 0} />
+        <FlowBar moneyIn={flow.moneyIn} moneyOut={flow.moneyOut} />
 
         <div className="text-center">
           <p className="font-support text-xs font-semibold tracking-[0.2em] text-ink/80 uppercase">Cash available</p>

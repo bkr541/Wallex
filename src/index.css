@@ -12,6 +12,8 @@
   --bubble-base: #101214;
   --bubble-center: #15181a;
   --backdrop: #050506;
+  --switch-track: #141414;
+  --switch-thumb: #2c2c2c;
   color-scheme: dark;
 }
 
@@ -26,6 +28,8 @@
   --bubble-base: #ffffff;
   --bubble-center: #ffffff;
   --backdrop: #dcdcd7;
+  --switch-track: #e8e8e4;
+  --switch-thumb: #ffffff;
   color-scheme: light;
 }
 
