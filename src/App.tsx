@@ -16,6 +16,8 @@ import OnboardingTab from './pages/OnboardingTab';
 import PageHeader from './components/PageHeader';
 import CardsTab from './pages/CardsTab';
 import LoginTab from './pages/LoginTab';
+import ProfileTab from './pages/ProfileTab';
+import CalendarTab from './pages/CalendarTab';
 import OverviewTab from './pages/OverviewTab';
 import LoadingLogo from './components/LoadingLogo';
 import { cashPosition } from './lib/overview';
@@ -223,6 +225,8 @@ export default function App() {
             <OverviewTab load={load} onNavigate={goTo} />
           ) : activeId === 'patterns' ? (
             <PatternsTab load={load} />
+          ) : activeId === 'settings' && activeTab === 'Profile' ? (
+            <ProfileTab />
           ) : activeId === 'settings' && activeTab === 'Appearance' ? (
             <AppearanceTab />
           ) : activeId === 'settings' && activeTab === 'Setup' ? (
@@ -231,6 +235,8 @@ export default function App() {
             <CheckingTab load={load} refreshing={refreshing} onRefresh={refresh} filter={txFilter} onClearFilter={() => setTxFilter(null)} />
           ) : activeId === 'scratchpad' && activeTab === 'UI Components' ? (
             <ComponentsTab />
+          ) : activeId === 'scratchpad' && activeTab === 'Calendar' ? (
+            <CalendarTab load={load} />
           ) : activeId === 'scratchpad' && activeTab === 'Login' ? (
             <LoginTab />
           ) : activeId === 'scratchpad' && activeTab === 'UI Cards' ? (

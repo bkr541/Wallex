@@ -1,10 +1,16 @@
 import Silhouette from './headers/Silhouette';
 import type { NavItem } from '../lib/pages';
+import { displayName, useProfile } from '../lib/profile';
 
 // The heading at the top of every page, in the "Giant crop" style: the page's own icon blown up until the
 // frame cuts it off, on a soft disc, with a wash of the accent colour behind the title. Everything is
 // drawn from the theme variables, so it follows the theme and accent chosen in Settings → Appearance.
 export default function PageHeader({ page, compact = false }: { page: NavItem; compact?: boolean }) {
+  const name = displayName(useProfile());
+  const hour = new Date().getHours();
+  const greeting = hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
+  // Overview greets you by name once you have told Wallex what to call you.
+  const description = page.id === 'overview' && name ? `${greeting}, ${name}. ${page.description}` : page.description;
   return (
     <header
       className={`relative shrink-0 overflow-hidden border ${compact ? 'min-h-[132px] rounded-[24px]' : 'min-h-[184px] rounded-[28px]'}`}
@@ -30,7 +36,7 @@ export default function PageHeader({ page, compact = false }: { page: NavItem; c
       />
       <div className={`relative flex flex-col justify-center ${compact ? 'min-h-[132px] px-5 py-4' : 'min-h-[184px] px-8 py-5'}`}>
         <h1 className={`leading-none font-semibold tracking-tight ${compact ? 'text-3xl' : 'text-5xl'}`}>{page.name}</h1>
-        <p className={`mt-2.5 font-support text-ink/70 ${compact ? 'max-w-[11.5rem] text-sm' : 'max-w-md text-base'}`}>{page.description}</p>
+        <p className={`mt-2.5 font-support text-ink/70 ${compact ? 'max-w-[11.5rem] text-sm' : 'max-w-md text-base'}`}>{description}</p>
       </div>
     </header>
   );
