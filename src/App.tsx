@@ -20,6 +20,7 @@ import LoadingLogo from './components/LoadingLogo';
 import { cashPosition } from './lib/overview';
 import { Monitor, Smartphone } from 'lucide-react';
 import { ViewModeProvider } from './lib/viewMode';
+import type { TxFilter } from './lib/txFilter';
 
 export default function App() {
   const [activeId, setActiveId] = useState('overview');
@@ -29,8 +30,12 @@ export default function App() {
   // choosing the same one twice still starts the tab fresh.
   const [recurringStart, setRecurringStart] = useState<{ filter: string; nonce: number }>({ filter: 'all', nonce: 0 });
 
-  const goTo = (page: string, tab?: string, recurringFilter?: string) => {
+  // When Overview sends you to the Checking tab for one merchant or bill, only its transactions are listed.
+  const [txFilter, setTxFilter] = useState<TxFilter | null>(null);
+
+  const goTo = (page: string, tab?: string, recurringFilter?: string, filter?: TxFilter) => {
     setActiveId(page);
+    setTxFilter(filter ?? null);
     if (tab) setActiveTabs((prev) => ({ ...prev, [page]: tab }));
     if (recurringFilter) setRecurringStart((r) => ({ filter: recurringFilter, nonce: r.nonce + 1 }));
   };
@@ -149,7 +154,10 @@ export default function App() {
 
               <button
                 type="button"
-                onClick={() => setActiveId(item.id)}
+                onClick={() => {
+                  setActiveId(item.id);
+                  setTxFilter(null);
+                }}
                 aria-label={item.name}
                 aria-current={isActive ? 'page' : undefined}
                 className={`group relative z-20 flex h-12 w-12 cursor-pointer items-center justify-center rounded-full transition-colors ${
@@ -219,7 +227,7 @@ export default function App() {
           ) : activeId === 'settings' && activeTab === 'Setup' ? (
             <SetupTab onConnectionChange={refresh} />
           ) : activeId === 'transactions' && activeTab === 'Checking' ? (
-            <CheckingTab load={load} refreshing={refreshing} onRefresh={refresh} />
+            <CheckingTab load={load} refreshing={refreshing} onRefresh={refresh} filter={txFilter} onClearFilter={() => setTxFilter(null)} />
           ) : activeId === 'scratchpad' && activeTab === 'UI Components' ? (
             <ComponentsTab />
           ) : activeId === 'scratchpad' && activeTab === 'UI Cards' ? (

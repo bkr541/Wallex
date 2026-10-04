@@ -347,6 +347,7 @@ export interface UpcomingPayment {
   amountApprox: boolean; // the amount varies from charge to charge
   dateApprox: boolean; // the day varies from month to month
   paidMonths: string[]; // "YYYY-MM" of every month this payment has already been made in
+  chargeIds: string[]; // every transaction that belongs to this payment, so they can be listed together
 }
 
 // The recurring payments expected in the next `windowDays`, soonest first. A weekly payment can
@@ -358,6 +359,7 @@ export function upcomingPayments(analysis: Analysis, today: string, windowDays =
   for (const r of analysis.items) {
     if (!isCommitment(r) || r.kind === 'habit' || r.kind === 'aggregator') continue;
     const paidMonths = [...new Set(r.charges.filter((c) => c.amount < 0).map((c) => c.date.slice(0, 7)))];
+    const chargeIds = r.charges.map((c) => c.id);
     // A charge on a credit card reaches your cash through the card payment, which is already in the list.
     if (r.paidOnCard && cardIsPaid) continue;
     for (const s of r.schedule) {
@@ -379,6 +381,7 @@ export function upcomingPayments(analysis: Analysis, today: string, windowDays =
           amountApprox: !s.fixed,
           dateApprox: s.spread >= 2,
           paidMonths,
+          chargeIds,
         });
         date = stepSchedule(date, s);
       }

@@ -33,6 +33,7 @@ import {
 import { money, percentText } from '../lib/patternFormat';
 import { useMobile } from '../lib/viewMode';
 import type { Load } from '../lib/useTransactions';
+import type { TxFilter } from '../lib/txFilter';
 
 const WINDOW_DAYS = 30; // how far ahead "upcoming" looks
 const LOW_BALANCE = 1000; // the line month-end balances are compared against
@@ -207,7 +208,7 @@ export default function OverviewTab({
   onNavigate,
 }: {
   load: Load;
-  onNavigate: (page: string, tab?: string, recurringFilter?: string) => void;
+  onNavigate: (page: string, tab?: string, recurringFilter?: string, filter?: TxFilter) => void;
 }) {
   const mobile = useMobile();
   const live = load.state === 'live';
@@ -557,8 +558,20 @@ export default function OverviewTab({
                         Highest concentration · {shortDate(pressure!.start)} – {shortDate(pressure!.end)} · {approx(pressure!.total)}
                       </p>
                     )}
-                    <div className={`border-b border-line py-3 ${inside ? 'border-l-2 border-l-accent bg-accent-soft/40 pl-3' : ''}`}>
-                      <div className="grid grid-cols-[4.75rem_minmax(0,1fr)_auto] items-center gap-3">
+                    <div
+                      role="button"
+                      tabIndex={0}
+                      title={`Show every transaction for ${p.name}`}
+                      onClick={() => onNavigate('transactions', 'Checking', undefined, { name: p.name, ids: p.chargeIds })}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault();
+                          onNavigate('transactions', 'Checking', undefined, { name: p.name, ids: p.chargeIds });
+                        }
+                      }}
+                      className={`cursor-pointer border-b border-line py-3 transition-colors hover:bg-line focus-visible:bg-line focus-visible:outline-none ${inside ? 'border-l-2 border-l-accent bg-accent-soft/40 pl-3' : ''}`}
+                    >
+                      <div className="grid grid-cols-[3.25rem_minmax(0,1fr)_auto] items-center gap-3">
                         <span className="font-support text-sm text-muted tabular-nums">{shortDate(p.date)}</span>
                         <span className="flex min-w-0 items-center gap-2.5">
                           <MerchantLogo name={p.name} sources={p.logos} />

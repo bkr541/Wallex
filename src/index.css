@@ -202,3 +202,30 @@ button:focus-visible {
     animation: none !important;
   }
 }
+
+/* Range slider used in the UI components tab: a filled track and a ringed thumb. */
+.wx-range {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 6px;
+  border-radius: 9999px;
+  background: linear-gradient(90deg, var(--accent) var(--pct), var(--line) var(--pct));
+  outline: none;
+}
+.wx-range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 24px;
+  width: 24px;
+  border-radius: 9999px;
+  background: var(--canvas);
+  border: 4px solid var(--accent);
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.4);
+  cursor: grab;
+  transition: transform 0.15s;
+}
+.wx-range:active::-webkit-slider-thumb {
+  transform: scale(1.15);
+  cursor: grabbing;
+}

@@ -4,6 +4,7 @@ import type { Txn } from '../lib/wallex';
 import TransactionTable from '../components/TransactionTable';
 import { withBalances } from '../lib/balances';
 import type { Load } from '../lib/useTransactions';
+import type { TxFilter } from '../lib/txFilter';
 
 // Sample data shown until a bank is connected in Settings → Setup.
 const SAMPLE_TRANSACTIONS: Omit<Txn, 'id' | 'accountId' | 'details' | 'logos' | 'categoryKey' | 'categoryDetailKey'>[] = [
@@ -52,10 +53,14 @@ export default function CheckingTab({
   load,
   refreshing,
   onRefresh,
+  filter,
+  onClearFilter,
 }: {
   load: Load;
   refreshing: boolean;
   onRefresh: () => void;
+  filter?: TxFilter | null;
+  onClearFilter?: () => void;
 }) {
   const rows = useMemo(
     () =>
@@ -67,8 +72,31 @@ export default function CheckingTab({
     [load],
   );
 
+  // Balances are worked out over every transaction first, so a filtered row still shows the real balance after it.
+  const shown = useMemo(() => {
+    if (!filter) return rows;
+    const ids = new Set(filter.ids);
+    return rows.filter((r) => ids.has(r.id));
+  }, [rows, filter]);
+
   return (
     <div className="w-full">
+      {filter && (
+        <div className="mx-4 mb-3 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-line bg-accent-soft px-4 py-3">
+          <p className="font-support text-sm">
+            Showing <span className="font-semibold">{shown.length}</span> of {rows.length} transactions for{' '}
+            <span className="font-semibold">{filter.name}</span>
+            {shown.length === 0 && ' (none were found in this account)'}
+          </p>
+          <button
+            type="button"
+            onClick={onClearFilter}
+            className="cursor-pointer rounded-lg border border-line px-3 py-1.5 text-sm text-ink transition-colors hover:border-muted"
+          >
+            Show all
+          </button>
+        </div>
+      )}
       <div className="flex items-center justify-between gap-4 px-4 pb-3">
         <p
           className={`font-support text-sm ${load.state === 'sample' && load.isError ? 'text-red-400' : 'text-muted'}`}
@@ -87,7 +115,7 @@ export default function CheckingTab({
         </button>
       </div>
 
-      <TransactionTable rows={rows} showEmpty={load.state === 'live'} />
+      <TransactionTable rows={shown} showEmpty={load.state === 'live'} />
     </div>
   );
 }
