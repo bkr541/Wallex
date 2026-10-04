@@ -5,6 +5,7 @@ import CheckingTab from './pages/CheckingTab';
 import PatternsTab from './pages/PatternsTab';
 import RecurringTab from './pages/RecurringTab';
 import UiComponentsTab from './pages/UiComponentsTab';
+import ComponentsTab from './pages/ComponentsTab';
 import ChaseLogo from './components/ChaseLogo';
 import { accountLabel, useTransactions } from './lib/useTransactions';
 import { NAV, TABS } from './lib/pages';
@@ -223,6 +224,8 @@ export default function App() {
           ) : activeId === 'transactions' && activeTab === 'Checking' ? (
             <CheckingTab load={load} refreshing={refreshing} onRefresh={refresh} />
           ) : activeId === 'scratchpad' && activeTab === 'UI Components' ? (
+            <ComponentsTab />
+          ) : activeId === 'scratchpad' && activeTab === 'Logos' ? (
             <UiComponentsTab />
           ) : activeId === 'scratchpad' && activeTab === 'Headers' ? (
             <HeadersTab />

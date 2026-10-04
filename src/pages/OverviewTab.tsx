@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { ArrowDown, ArrowUp, ChevronRight, Landmark, TrendingDown, TrendingUp, Wallet } from 'lucide-react';
+import { ChevronRight } from 'lucide-react';
 import CashFlowChart from '../components/overview/CashFlowChart';
 import Collapsible from '../components/overview/Collapsible';
 import SlotNumber from '../components/overview/SlotNumber';
@@ -79,34 +79,54 @@ function Segmented<T extends string | number>({
   );
 }
 
-// One figure in the position card: an icon, a small label, the number, and a line of explanation.
-function Stat({
-  icon,
-  tone,
-  label,
-  value,
-  desc,
-  className = '',
-  descUnderIcon = false,
-}: {
-  icon: React.ReactNode;
-  tone: string;
-  label: string;
-  value: React.ReactNode;
-  desc: React.ReactNode;
-  className?: string;
-  descUnderIcon?: boolean; // on a narrow screen the explanation may run the full width of the cell
-}) {
+// Money in against money out as one bar: the teal part is what came in, the coral part what went out, and
+// the marker sits where they meet. Below it, the difference between the two hangs off the marker.
+function FlowBar({ moneyIn, moneyOut, net, empty }: { moneyIn: number; moneyOut: number; net: number; empty: boolean }) {
+  const total = moneyIn + moneyOut;
+  const share = total > 0 ? Math.min(0.96, Math.max(0.04, moneyIn / total)) : 0.5;
+  const at = `${share * 100}%`;
+  const grow = 'width 0.7s cubic-bezier(0.22, 1, 0.36, 1), left 0.7s cubic-bezier(0.22, 1, 0.36, 1)';
+  const tone = empty ? 'text-muted' : net >= 0 ? 'text-accent' : 'text-red-300';
+  const flip = share > 0.62; // near the right edge the label hangs to the left of the line so it stays inside
   return (
-    <div className={`grid min-w-0 grid-cols-[auto_minmax(0,1fr)] content-start gap-x-3 gap-y-3 @3xl:gap-x-4 ${className}`}>
-      <span className={`mt-0.5 ${tone}`}>{icon}</span>
-      <div className="min-w-0">
-        <p className="font-support text-[10px] font-semibold tracking-[0.14em] whitespace-nowrap text-ink/80 uppercase @3xl:text-[11px] @3xl:tracking-[0.2em]">{label}</p>
-        <p className="mt-2 text-[1.7rem] leading-none font-semibold tracking-tight @3xl:text-5xl">{value}</p>
+    <div className="mt-6 @3xl:mt-8">
+      <div className="relative h-3.5 rounded-full bg-line">
+        <span
+          className="absolute inset-y-0 left-0 rounded-full shadow-[0_0_16px_color-mix(in_srgb,var(--accent)_45%,transparent)]"
+          style={{ width: at, background: 'linear-gradient(90deg, color-mix(in srgb, var(--accent) 55%, transparent), var(--accent))', transition: grow }}
+        />
+        <span
+          className="absolute inset-y-0 right-0 rounded-full"
+          style={{ left: at, background: 'linear-gradient(90deg, #f87171, color-mix(in srgb, #f87171 12%, transparent))', transition: grow }}
+        />
+        <span
+          className="absolute top-1/2 flex h-7 w-7 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border-2 border-ink/80 bg-canvas"
+          style={{ left: at, transition: grow }}
+        >
+          <span className="h-3 w-3 rounded-full bg-accent" />
+        </span>
       </div>
-      <p className={`font-support text-[13px] leading-snug text-muted @3xl:text-sm @3xl:leading-relaxed ${descUnderIcon ? 'col-span-2 @3xl:col-span-1 @3xl:col-start-2' : 'col-start-2'}`}>
-        {desc}
-      </p>
+      <div className="mt-2 flex justify-between font-support text-sm text-muted tabular-nums">
+        <span>{money(moneyIn)}</span>
+        <span>{money(moneyOut)}</span>
+      </div>
+      <div className="relative mt-1 h-[3.75rem] @3xl:h-16">
+        <span
+          className="absolute top-0 h-[3.1rem] -translate-x-1/2 border-l border-dashed border-accent/70 @3xl:h-14"
+          style={{ left: at, transition: grow }}
+        />
+        <span
+          className="absolute h-2 w-2 -translate-x-1/2 rounded-full bg-accent"
+          style={{ left: at, top: 'calc(3.1rem - 2px)', transition: grow }}
+        />
+        <div
+          className={`absolute top-1 ${flip ? 'text-right' : 'text-left'}`}
+          style={flip ? { right: `calc(${100 - share * 100}% + 14px)`, transition: grow } : { left: `calc(${at} + 14px)`, transition: grow }}
+        >
+          <p className="font-support text-[10px] font-semibold tracking-[0.16em] whitespace-nowrap text-ink/80 uppercase">Net difference</p>
+          <p className={`mt-0.5 text-lg leading-none font-semibold ${tone}`}>{empty ? '—' : signed(net)}</p>
+        </div>
+      </div>
     </div>
   );
 }
@@ -246,18 +266,17 @@ export default function OverviewTab({
   const totalSaved = ideas.reduce((s, i) => s + savingFor(i, percent), 0);
   const periodLabel = scope.partial ? `${scope.effectiveDays} days` : `${scope.days} days`;
 
-  const netTone = flow.count === 0 ? 'text-muted' : flow.net >= 0 ? 'text-accent' : 'text-red-300';
-  const cashInfo = (
-    <>
-      <Landmark className="h-6 w-6 shrink-0 text-muted" strokeWidth={1.7} />
-      <span className="font-support text-sm text-muted">
-        {position.cash === null
-          ? 'No checking or savings balance reported.'
-          : `In ${plural(position.cashAccounts.length, 'checking or savings account')}`}
-        {position.cardsOwed !== null && position.cardsOwed > 0 && ` · ${money(position.cardsOwed)} owed on cards`}
-      </span>
-    </>
-  );
+  const netTone = flow.count === 0 ? '' : flow.net >= 0 ? 'text-accent' : 'text-red-300';
+  // Things worth knowing about the figures above that the card itself has no room for.
+  const caveats = [
+    flow.count === 0
+      ? `No money in or out in the last ${periodLabel}.`
+      : flow.savingsRate === null
+        ? `No income detected in the last ${periodLabel}, so there is no savings rate.`
+        : `${flow.savingsRate >= 0 ? '+' : '-'}${percentText(Math.abs(flow.savingsRate))} savings rate over the last ${periodLabel}`,
+    flow.pending > 0 ? `includes ${plural(flow.pending, 'pending transaction')}` : '',
+    scope.partial ? `only ${scope.effectiveDays} days of history so far` : '',
+  ].filter(Boolean);
 
   return (
     <div className="flex flex-col gap-5 px-1 pb-10">
@@ -280,71 +299,51 @@ export default function OverviewTab({
         )}
       </div>
 
-      {/* Financial position: money in and out, net flow, then the cash on hand */}
-      <section className="mx-3 rounded-[28px] border border-line bg-card/50 p-5 @3xl:p-8">
-        <div className="grid grid-cols-2 gap-y-6 @3xl:grid-cols-3">
-          <Stat
-            icon={<ArrowDown className="h-6 w-6 @3xl:h-7 @3xl:w-7" strokeWidth={1.8} />}
-            tone="text-accent"
-            label="Money in"
-            value={<SlotNumber text={money(flow.moneyIn)} />}
-            desc="From deposits, income and other credits"
-            descUnderIcon
-            className="pr-4 @3xl:pr-8"
-          />
-          <Stat
-            icon={<ArrowUp className="h-6 w-6 @3xl:h-7 @3xl:w-7" strokeWidth={1.8} />}
-            tone="text-muted"
-            label="Money out"
-            value={<SlotNumber text={money(flow.moneyOut)} />}
-            desc="From bills, purchases and other debits"
-            descUnderIcon
-            className="border-l border-line pl-4 @3xl:px-8"
-          />
-          <Stat
-            icon={
-              flow.count !== 0 && flow.net >= 0 ? (
-                <TrendingUp className="h-7 w-7" strokeWidth={1.8} />
-              ) : (
-                <TrendingDown className="h-7 w-7" strokeWidth={1.8} />
-              )
-            }
-            tone={flow.count === 0 ? 'text-muted' : flow.net >= 0 ? 'text-accent' : 'text-red-300'}
-            label="Net cash flow"
-            value={
-              <span className={netTone}>
-                <SlotNumber text={flow.count === 0 ? '—' : signed(flow.net)} />
-              </span>
-            }
-            desc={
-              <>
-                {flow.count === 0
-                  ? `No money in or out in the last ${periodLabel}.`
-                  : flow.savingsRate === null
-                    ? `No income detected in the last ${periodLabel}, so there is no savings rate.`
-                    : `${flow.savingsRate >= 0 ? '+' : '-'}${percentText(Math.abs(flow.savingsRate))} savings rate over the last ${periodLabel}`}
-                {flow.pending > 0 && ` · includes ${plural(flow.pending, 'pending transaction')}`}
-                {scope.partial && ` · only ${scope.effectiveDays} days of history so far`}
-              </>
-            }
-            className="col-span-2 border-t border-line pt-6 @3xl:col-span-1 @3xl:border-t-0 @3xl:border-l @3xl:pt-0 @3xl:pl-8"
-          />
+      {/* Financial position: money in against money out, then the cash on hand */}
+      <section
+        className="mx-3 rounded-[28px] border p-5 @3xl:p-8"
+        style={{
+          borderColor: 'color-mix(in srgb, var(--accent) 22%, var(--line))',
+          background: 'linear-gradient(140deg, color-mix(in srgb, var(--accent) 9%, var(--card)), var(--card) 70%)',
+        }}
+      >
+        <div className="grid grid-cols-3">
+          <div className="min-w-0 pr-3 @3xl:pr-8">
+            <p className="font-support text-xs text-ink/80 @3xl:text-sm">Money in</p>
+            <p className="mt-2 text-[1.55rem] leading-none font-semibold tracking-tight @3xl:text-5xl">
+              <SlotNumber text={money(flow.moneyIn)} />
+            </p>
+          </div>
+          <div className="min-w-0 border-l border-line px-3 @3xl:px-8">
+            <p className="font-support text-xs text-ink/80 @3xl:text-sm">Money out</p>
+            <p className="mt-2 text-[1.55rem] leading-none font-semibold tracking-tight @3xl:text-5xl">
+              <SlotNumber text={money(flow.moneyOut)} />
+            </p>
+          </div>
+          <div className="min-w-0 border-l border-line pl-3 @3xl:pl-8">
+            <p className="font-support text-xs whitespace-nowrap text-ink/80 @3xl:text-sm">Net cash flow</p>
+            <p className={`mt-2 text-[1.55rem] leading-none font-semibold tracking-tight @3xl:text-5xl ${netTone}`}>
+              <SlotNumber text={flow.count === 0 ? '—' : signed(flow.net)} />
+            </p>
+          </div>
         </div>
 
-        <div className="mt-6 grid border-t border-line pt-6 @3xl:grid-cols-[3fr_2fr] @3xl:items-center">
-          <div className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-4 gap-y-3">
-            <Wallet className="mt-0.5 h-7 w-7 text-accent/80" strokeWidth={1.7} />
-            <div className="min-w-0">
-              <p className="font-support text-[11px] font-semibold tracking-[0.2em] text-ink/80 uppercase">Cash available</p>
-              <p data-cash-balance className="mt-2 text-4xl leading-none font-semibold tracking-tight @3xl:text-6xl">
-                {position.cash === null ? '—' : money(position.cash)}
-              </p>
-            </div>
-            <div className="col-start-2 flex items-start gap-2.5 @3xl:hidden">{cashInfo}</div>
-          </div>
-          <div className="hidden items-center gap-3 border-l border-line pl-8 @3xl:flex">{cashInfo}</div>
+        <FlowBar moneyIn={flow.moneyIn} moneyOut={flow.moneyOut} net={flow.net} empty={flow.count === 0} />
+
+        <div className="text-center">
+          <p className="font-support text-xs font-semibold tracking-[0.2em] text-ink/80 uppercase">Cash available</p>
+          <p data-cash-balance className="mx-auto mt-2 w-fit text-5xl leading-none font-semibold tracking-tight @3xl:text-6xl">
+            {position.cash === null ? '—' : money(position.cash)}
+          </p>
+          <p className="mt-3 font-support text-sm text-ink/80">
+            {position.cash === null
+              ? 'No checking or savings balance reported.'
+              : `In ${plural(position.cashAccounts.length, 'checking or savings account')}`}
+            {position.cardsOwed !== null && position.cardsOwed > 0 && ` · ${money(position.cardsOwed)} owed on cards`}
+          </p>
         </div>
       </section>
+      <p className="-mt-1 px-6 font-support text-xs text-muted">{caveats.join(' · ')}</p>
 
       <div className="mx-3 mt-1 border-b border-line">
       {/* 2 · Recurring commitments */}
