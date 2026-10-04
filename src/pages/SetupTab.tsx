@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import SectionTitle from '../components/SectionTitle';
-import { ChevronDown, Eye, EyeOff } from 'lucide-react';
+import { Check, ChevronDown, Eye, EyeOff } from 'lucide-react';
+import UnderlineField from '../components/UnderlineField';
 import PlumpIcon, { type PlumpName } from '../components/PlumpIcon';
 import { BANKS } from '../lib/banks';
 import { wallex } from '../lib/wallex';
@@ -106,10 +107,13 @@ function CheckGroup({
               role="checkbox"
               aria-checked={on}
               onClick={() => onToggle(o.value)}
-              className={`cursor-pointer rounded-lg border px-3 py-2 text-sm transition-colors ${
-                on ? 'border-accent bg-accent-soft text-ink' : 'border-line bg-surface text-muted hover:text-ink'
+              className={`flex cursor-pointer items-center gap-1.5 rounded-full border py-1.5 pr-3.5 pl-2 text-sm transition-colors ${
+                on ? 'border-accent text-ink' : 'border-line text-muted hover:text-ink'
               }`}
             >
+              <span className={`flex h-4 w-4 items-center justify-center rounded-full ${on ? 'bg-accent text-canvas' : 'bg-line'}`}>
+                {on && <Check className="h-3 w-3" strokeWidth={3} />}
+              </span>
               {o.label}
             </button>
           );
@@ -203,45 +207,44 @@ export default function SetupTab({ onConnectionChange }: { onConnectionChange?: 
           </p>
         </div>
 
-        <div className="grid grid-cols-1 gap-x-8 gap-y-5 @3xl:grid-cols-2">
+        <div className="grid grid-cols-1 gap-x-8 gap-y-6 @3xl:grid-cols-2">
 
           <Field label="Environment" icon="cloud-data-transfer">
             <Select value={environment} onChange={setEnvironment} options={ENVIRONMENTS} />
           </Field>
 
-          <Field label="Client ID" icon="user-face-id-mask">
-            <input
-              type="text"
-              value={clientId}
-              onChange={(e) => setClientId(e.target.value)}
-              placeholder="Your Plaid client ID"
-              autoComplete="off"
-              spellCheck={false}
-              className={inputClass}
-            />
-          </Field>
+          <UnderlineField
+            label="Client ID"
+            icon="user-face-id-mask"
+            type="text"
+            value={clientId}
+            onChange={(e) => setClientId(e.target.value)}
+            placeholder="Your Plaid client ID"
+            autoComplete="off"
+            spellCheck={false}
+          />
 
-          <Field label="Secret" icon="padlock-key" hint="Use the secret that matches the environment selected above.">
-            <div className="relative">
-              <input
-                type={showSecret ? 'text' : 'password'}
-                value={secret}
-                onChange={(e) => setSecret(e.target.value)}
-                placeholder={hasSavedSecret ? 'Saved — leave blank to keep it' : 'Your Plaid secret'}
-                autoComplete="off"
-                spellCheck={false}
-                className={`${inputClass} pr-10`}
-              />
+          <UnderlineField
+            label="Secret"
+            icon="padlock-key"
+            hint="Use the secret that matches the environment selected above."
+            type={showSecret ? 'text' : 'password'}
+            value={secret}
+            onChange={(e) => setSecret(e.target.value)}
+            placeholder={hasSavedSecret ? 'Saved — leave blank to keep it' : 'Your Plaid secret'}
+            autoComplete="off"
+            spellCheck={false}
+            trailing={
               <button
                 type="button"
                 onClick={() => setShowSecret((v) => !v)}
                 aria-label={showSecret ? 'Hide secret' : 'Show secret'}
-                className="absolute inset-y-0 right-0 flex w-10 cursor-pointer items-center justify-center text-muted hover:text-ink"
+                className="flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center text-muted hover:text-ink"
               >
                 {showSecret ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
               </button>
-            </div>
-          </Field>
+            }
+          />
         </div>
       </section>
 
@@ -253,7 +256,7 @@ export default function SetupTab({ onConnectionChange }: { onConnectionChange?: 
           </p>
         </div>
 
-        <div className="grid grid-cols-1 gap-x-8 gap-y-5 @3xl:grid-cols-2">
+        <div className="grid grid-cols-1 gap-x-8 gap-y-6 @3xl:grid-cols-2">
 
           <Field label="Bank" icon="government-building-1" hint="Plaid Link opens with this bank pre-selected.">
             <Select
@@ -289,27 +292,27 @@ export default function SetupTab({ onConnectionChange }: { onConnectionChange?: 
           <SectionTitle icon="code-monitor-2">Advanced (optional)</SectionTitle>
         </div>
 
-        <div className="grid grid-cols-1 gap-x-8 gap-y-5 @3xl:grid-cols-2">
+        <div className="grid grid-cols-1 gap-x-8 gap-y-6 @3xl:grid-cols-2">
 
-          <Field label="Webhook URL" icon="lightning-cloud" hint="Plaid sends transaction updates here.">
-            <input
-              type="url"
-              value={webhookUrl}
-              onChange={(e) => setWebhookUrl(e.target.value)}
-              placeholder="https://example.com/plaid/webhook"
-              className={inputClass}
-            />
-          </Field>
+          <UnderlineField
+            label="Webhook URL"
+            icon="lightning-cloud"
+            hint="Plaid sends transaction updates here."
+            type="url"
+            value={webhookUrl}
+            onChange={(e) => setWebhookUrl(e.target.value)}
+            placeholder="https://example.com/plaid/webhook"
+          />
 
-          <Field label="Redirect URI" icon="share-link" hint="Required for Chase and other OAuth banks. Use an HTTPS address allowlisted in your Plaid dashboard; Wallex catches the redirect itself, so nothing has to be hosted there.">
-            <input
-              type="url"
-              value={redirectUri}
-              onChange={(e) => setRedirectUri(e.target.value)}
-              placeholder="https://example.com/oauth-return"
-              className={inputClass}
-            />
-          </Field>
+          <UnderlineField
+            label="Redirect URI"
+            icon="share-link"
+            hint="Required for Chase and other OAuth banks. Use an HTTPS address allowlisted in your Plaid dashboard; Wallex catches the redirect itself, so nothing has to be hosted there."
+            type="url"
+            value={redirectUri}
+            onChange={(e) => setRedirectUri(e.target.value)}
+            placeholder="https://example.com/oauth-return"
+          />
         </div>
       </section>
 

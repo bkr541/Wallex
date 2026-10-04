@@ -18,7 +18,6 @@ import {
   Package,
   Plane,
   Scissors,
-  Search,
   Shapes,
   ShieldCheck,
   ShoppingBag,
@@ -26,7 +25,6 @@ import {
   SlidersHorizontal,
   Smartphone,
   Utensils,
-  Wallet,
   Wine,
   Zap,
   type LucideIcon,
@@ -34,6 +32,7 @@ import {
 import ChaseLogo from '../components/ChaseLogo';
 import { createPortal } from 'react-dom';
 import { useMobile, usePhoneFrame } from '../lib/viewMode';
+import ExpandingSearch from '../components/ExpandingSearch';
 import MerchantLogo from '../components/MerchantLogo';
 import PatternDetail from '../components/PatternDetail';
 import { withBalances } from '../lib/balances';
@@ -381,6 +380,7 @@ export default function PatternsTab({ load }: { load: Load }) {
   const base = hasIncome ? data.income : total;
   const centerLabel = hasIncome ? 'Monthly Income' : 'Monthly spending';
   const centerAmount = base;
+  const fillShare = base > 0 ? Math.min(1, total / base) : 0;
   const viewLabel = VIEWS.find((v) => v.id === view)!.label;
 
   // Everything the detail view shows for the selected circle. It reuses the scope the circles were
@@ -629,15 +629,9 @@ export default function PatternsTab({ load }: { load: Load }) {
         </div>
 
         <div className={`flex items-center gap-3 ${mobile ? 'w-full' : ''}`}>
-          <label className={`flex items-center gap-2 rounded-xl border border-line bg-card px-3.5 py-2.5 ${mobile ? 'min-w-0 flex-1' : ''}`}>
-            <Search className="h-4 w-4 text-muted" />
-            <input
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search recurring transactions…"
-              className={`bg-transparent text-sm outline-none placeholder:text-muted select-text ${mobile ? 'w-full min-w-0' : 'w-60'}`}
-            />
-          </label>
+          <div className={mobile ? 'min-w-0 flex-1' : ''}>
+            <ExpandingSearch value={query} onChange={setQuery} placeholder={mobile ? "Search…" : "Search recurring transactions…"} width={mobile ? '100%' : 280} />
+          </div>
 
           <div ref={filterRef} className="relative">
             <button
@@ -774,34 +768,31 @@ export default function PatternsTab({ load }: { load: Load }) {
           </AnimatePresence>
 
           <div
-            className="center-orb bubble-move pointer-events-none absolute flex -translate-x-1/2 -translate-y-1/2 flex-col items-center justify-center rounded-full"
+            className="fill-orb bubble-move pointer-events-none absolute flex -translate-x-1/2 -translate-y-1/2 flex-col items-center justify-center overflow-hidden rounded-full border-2 border-accent/60 bg-card text-center"
             style={{
               left: '50%',
               top: '50%',
               width: `${layout.centerDiameter}cqh`,
               height: `${layout.centerDiameter}cqh`,
-              gap: `${layout.centerDiameter * 0.02}cqh`,
             }}
           >
+            {/* The orb fills from the bottom with the share of income the circles in view add up to. */}
             <span
-              className="bubble-icon"
-              style={{
-                width: `${layout.centerDiameter * 0.17}cqh`,
-                height: `${layout.centerDiameter * 0.17}cqh`,
-                ['--rgb' as string]: '79, 184, 165',
-              }}
-            >
-              <Wallet className="h-[56%] w-[56%] text-accent" strokeWidth={1.8} />
-            </span>
-            <span className="font-support text-muted" style={{ fontSize: `${layout.centerDiameter * 0.065}cqh` }}>
-              {centerLabel}
-            </span>
-            <span className="leading-none font-semibold tracking-tight" style={{ fontSize: `${layout.centerDiameter * 0.14}cqh` }}>
-              {money(centerAmount)}
-            </span>
-            <span className="font-support leading-none text-muted" style={{ fontSize: `${layout.centerDiameter * 0.058}cqh` }}>
-              100%
-            </span>
+              aria-hidden="true"
+              className="absolute inset-x-0 bottom-0 bg-accent/25"
+              style={{ height: `${fillShare * 100}%`, transition: 'height 0.8s cubic-bezier(0.22, 1, 0.36, 1)' }}
+            />
+            <div className="relative flex flex-col items-center justify-center" style={{ gap: `${layout.centerDiameter * 0.02}cqh` }}>
+              <span className="font-support text-muted" style={{ fontSize: `${layout.centerDiameter * 0.065}cqh` }}>
+                {centerLabel}
+              </span>
+              <span className="leading-none font-semibold tracking-tight" style={{ fontSize: `${layout.centerDiameter * 0.14}cqh` }}>
+                {money(centerAmount)}
+              </span>
+              <span className={`font-support leading-none ${hasIncome ? 'text-accent' : 'text-muted'}`} style={{ fontSize: `${layout.centerDiameter * 0.058}cqh` }}>
+                {hasIncome ? `${percent(total, base)} spent` : '100%'}
+              </span>
+            </div>
           </div>
         </div>
       )}

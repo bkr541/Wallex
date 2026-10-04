@@ -105,11 +105,8 @@ export default function TransactionTable({
                 className={`${grid} ${expanded ? 'items-start bg-surface/50' : 'items-center'} cursor-pointer py-3 text-sm transition-colors hover:bg-surface/50`}
               >
                 <div role="cell" className="min-w-0">
-                  <span
-                    className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${
-                      t.pending ? 'bg-surface text-muted' : 'bg-accent-soft text-accent'
-                    }`}
-                  >
+                  <span className={`flex items-center gap-1.5 font-support text-xs ${t.pending ? 'text-muted' : ''}`}>
+                    <span className={`h-2 w-2 rounded-full ${t.pending ? 'animate-pulse bg-amber-400' : 'bg-accent'}`} />
                     {t.pending ? 'Pending' : 'Posted'}
                   </span>
                 </div>

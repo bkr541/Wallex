@@ -1,12 +1,13 @@
 import { useState } from 'react';
 import SectionTitle from './SectionTitle';
 import { motion } from 'motion/react';
-import { ArrowDown, ArrowUp, ChevronUp, Minus } from 'lucide-react';
+import { ChevronUp } from 'lucide-react';
+import MetricCard, { type MetricChip } from './MetricCard';
 import TransactionTable from './TransactionTable';
 import type { TxnWithBalance } from '../lib/balances';
 import type { Bubble } from '../lib/patterns';
 import type { PatternMetrics, TrendBucket } from '../lib/patternMetrics';
-import { changeText, frequencyText, money, percentText, periodText } from '../lib/patternFormat';
+import { changeText, frequencyText, money, percentText, periodText, signed } from '../lib/patternFormat';
 
 const KIND_LABEL: Record<Bubble['kind'], string> = { bill: 'Bill', merchant: 'Merchant', category: 'Category' };
 
@@ -24,16 +25,6 @@ const rise = {
     transition: { duration: 0.35, ease: [0.22, 1, 0.36, 1] as const, delay: 0.12 + i * 0.06 },
   }),
 };
-
-function Stat({ label, value, hint }: { label: string; value: string; hint?: string }) {
-  return (
-    <div className="min-w-0">
-      <p className="text-xl leading-tight font-semibold tracking-tight">{value}</p>
-      <p className="mt-1 font-support text-xs text-muted">{label}</p>
-      {hint && <p className="font-support text-xs text-muted/70">{hint}</p>}
-    </div>
-  );
-}
 
 // A small row of bars, one per slice of the period. It is there to show the shape of the spending
 // (rising, falling, steady, spiky, occasional), so it carries no axes.
@@ -101,10 +92,20 @@ export default function PatternDetail({
   if (m.incomeShare !== null && hasIncome) stats.push({ label: 'Of monthly income', value: percentText(m.incomeShare) });
   if (m.discretionaryShare !== null) stats.push({ label: 'Of discretionary spending', value: percentText(m.discretionaryShare) });
 
+  // How this period compares with the one before it. The chip carries the percentage; the value is the dollars.
+  const changeChip: MetricChip | undefined =
+    m.change.state !== 'available'
+      ? undefined
+      : m.change.isNew
+        ? { text: 'New', direction: 'up' }
+        : change.direction === 'flat'
+          ? { text: 'Flat', direction: 'flat' }
+          : { text: `${Math.round(Math.abs(m.change.pct ?? 0) * 100)}%`, direction: change.direction === 'down' ? 'down' : 'up' };
+  const changeValue =
+    m.change.state !== 'available' ? '—' : m.change.isNew ? money(m.change.current) : change.direction === 'flat' ? '$0' : signed(m.change.delta);
+
   const showContext = m.change.state === 'available' || m.highestMonth || m.trend.label;
   const rows = scope === 'period' ? periodRows : historyRows;
-  const arrow = change.direction === 'up' ? ArrowUp : change.direction === 'down' ? ArrowDown : Minus;
-  const Arrow = arrow;
 
   return (
     <motion.div
@@ -192,9 +193,9 @@ export default function PatternDetail({
         {(stats.length > 0 || single) && (
           <div className="mt-5 border-t border-line pt-4">
             {stats.length > 0 && (
-              <div className="grid grid-cols-2 gap-x-6 gap-y-4 @xl:grid-cols-4">
+              <div className="grid grid-cols-1 gap-3 @xl:grid-cols-2">
                 {stats.map((s) => (
-                  <Stat key={s.label} label={s.label} value={s.value} />
+                  <MetricCard key={s.label} label={s.label} value={s.value} />
                 ))}
               </div>
             )}
@@ -209,31 +210,10 @@ export default function PatternDetail({
         {/* Context: change, best/worst month and shape. */}
         {(showContext || m.change.state === 'unavailable') && (
           <div className="mt-5 grid gap-5 border-t border-line pt-4 @xl:grid-cols-[1fr_auto] @xl:items-end">
-            <div className="flex flex-wrap gap-x-10 gap-y-4">
-              <div className="min-w-0">
-                <p className="flex items-center gap-1.5 text-base font-semibold">
-                  <Arrow
-                    className={`h-4 w-4 ${change.direction === 'up' ? 'text-amber-300' : change.direction === 'down' ? 'text-accent' : 'text-muted'}`}
-                    strokeWidth={2.4}
-                  />
-                  {change.headline}
-                </p>
-                <p className="mt-1 font-support text-xs text-muted">{change.detail}</p>
-              </div>
-              {m.highestMonth && (
-                <div className="min-w-0">
-                  <p className="text-base font-semibold">
-                    {m.highestMonth.label} · {money(m.highestMonth.amount)}
-                  </p>
-                  <p className="mt-1 font-support text-xs text-muted">Highest month</p>
-                </div>
-              )}
-              {bubble.kind !== 'category' && m.credits > 0 && (
-                <div className="min-w-0">
-                  <p className="text-base font-semibold">{money(m.credits)} back</p>
-                  <p className="mt-1 font-support text-xs text-muted">Refunds, not subtracted from the total</p>
-                </div>
-              )}
+            <div className="grid min-w-0 gap-3 @xl:grid-cols-2">
+              <MetricCard label="Change" value={changeValue} note={m.change.state === 'unavailable' ? `${change.headline} ${change.detail}` : change.detail} chip={changeChip} />
+              {m.highestMonth && <MetricCard label="Highest month" value={money(m.highestMonth.amount)} note={m.highestMonth.label} />}
+              {bubble.kind !== 'category' && m.credits > 0 && <MetricCard label="Refunds" value={money(m.credits)} note="Not subtracted from the total" />}
             </div>
 
             {m.trend.label && (

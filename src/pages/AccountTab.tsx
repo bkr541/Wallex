@@ -1,35 +1,18 @@
 import { useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
-import { Camera, Check, Download, LogOut, RefreshCw, Trash2 } from 'lucide-react';
-import PlumpIcon, { type PlumpName } from '../components/PlumpIcon';
+import { Check, Download, LogOut, RefreshCw } from 'lucide-react';
+import DestructiveAction from '../components/DestructiveAction';
+import PhotoDropZone from '../components/PhotoDropZone';
 import SectionTitle from '../components/SectionTitle';
-import { fullName, initials, photoFromFile, saveProfile, useProfile, type Profile } from '../lib/profile';
+import UnderlineField from '../components/UnderlineField';
+import { fullName, photoFromFile, saveProfile, useProfile, type Profile } from '../lib/profile';
 import { wallex } from '../lib/wallex';
-
-const inputClass =
-  'w-full rounded-lg border border-line bg-surface px-3 py-2.5 text-sm text-ink outline-none placeholder:text-muted focus:border-accent';
-
-function Field({ label, icon, hint, error, children }: { label: string; icon: PlumpName; hint?: string; error?: string | null; children: React.ReactNode }) {
-  return (
-    <label className="block">
-      <span className="mb-1.5 flex items-center gap-2 text-sm font-medium">
-        <PlumpIcon name={icon} className="h-5 w-5 shrink-0 text-muted" />
-        {label}
-      </span>
-      {children}
-      {(error || hint) && <span className={`mt-1.5 block font-support text-xs ${error ? 'text-red-300' : 'text-muted'}`}>{error ?? hint}</span>}
-    </label>
-  );
-}
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const PHONE = /^[+()\-.\s\d]{7,20}$/;
 
 const outlineBtn =
   'flex cursor-pointer items-center gap-2 rounded-lg border border-line px-4 py-2.5 text-sm font-semibold transition-colors hover:border-muted disabled:cursor-not-allowed disabled:opacity-40';
-const dangerBtn =
-  'flex cursor-pointer items-center gap-2 rounded-lg border border-line px-4 py-2.5 text-sm font-semibold text-ink transition-colors hover:border-red-400/60 hover:text-red-300 disabled:cursor-not-allowed disabled:opacity-40';
-
 // Sign-in isn't connected yet, so the buttons that need it say so instead of pretending to work.
 const NOT_CONNECTED = "Sign-in isn't connected yet, so nothing was changed.";
 
@@ -79,19 +62,6 @@ function Fold({ open, children }: { open: boolean; children: React.ReactNode }) 
     </AnimatePresence>
   );
 }
-
-function Avatar({ p, className }: { p: Profile; className: string }) {
-  const letters = initials(p);
-  return (
-    <span
-      className={`relative flex shrink-0 items-center justify-center overflow-hidden rounded-full font-semibold text-canvas ${className}`}
-      style={p.photo ? undefined : { background: 'linear-gradient(150deg, color-mix(in srgb, var(--accent) 80%, white), color-mix(in srgb, var(--accent) 55%, black))' }}
-    >
-      {p.photo ? <img src={p.photo} alt="" className="h-full w-full object-cover" draggable={false} /> : letters || <PlumpIcon name="user-face-male" className="h-1/2 w-1/2" />}
-    </span>
-  );
-}
-
 
 function LogOutButton() {
   const [notice, flash] = useNotice();
@@ -165,8 +135,7 @@ function SignIn() {
           <Fold open={editing === 'email'}>
             <form onSubmit={saveEmail} noValidate className="flex flex-wrap items-start gap-3">
               <div className="min-w-[16rem] flex-1">
-                <input type="email" value={newEmail} autoComplete="email" onChange={(e) => setNewEmail(e.target.value)} placeholder="New email address" aria-label="New email address" className={inputClass} />
-                {tried && emailError && <span className="mt-1.5 block font-support text-xs text-red-300">{emailError}</span>}
+                <UnderlineField label="New email address" icon="mail-send" type="email" value={newEmail} autoComplete="email" onChange={(e) => setNewEmail(e.target.value)} placeholder="you@example.com" error={tried ? emailError : null} />
               </div>
               <button type="submit" className="cursor-pointer rounded-lg bg-accent px-5 py-2.5 text-sm font-semibold text-canvas transition-opacity hover:opacity-90">Save email</button>
             </form>
@@ -181,10 +150,10 @@ function SignIn() {
           </InfoRow>
           <Fold open={editing === 'password'}>
             <form onSubmit={savePassword} noValidate className="space-y-3">
-              <div className="grid grid-cols-1 gap-3 @3xl:grid-cols-3">
-                <input type="password" value={pw.current} autoComplete="current-password" onChange={(e) => setPw({ ...pw, current: e.target.value })} placeholder="Current password" aria-label="Current password" className={inputClass} />
-                <input type="password" value={pw.next} autoComplete="new-password" onChange={(e) => setPw({ ...pw, next: e.target.value })} placeholder="New password" aria-label="New password" className={inputClass} />
-                <input type="password" value={pw.again} autoComplete="new-password" onChange={(e) => setPw({ ...pw, again: e.target.value })} placeholder="Confirm new password" aria-label="Confirm new password" className={inputClass} />
+              <div className="grid grid-cols-1 gap-x-8 gap-y-5 @3xl:grid-cols-3">
+                <UnderlineField label="Current password" icon="padlock-key" type="password" value={pw.current} autoComplete="current-password" onChange={(e) => setPw({ ...pw, current: e.target.value })} placeholder="••••••••" />
+                <UnderlineField label="New password" icon="padlock-key" type="password" value={pw.next} autoComplete="new-password" onChange={(e) => setPw({ ...pw, next: e.target.value })} placeholder="At least 8 characters" />
+                <UnderlineField label="Confirm new password" icon="padlock-key" type="password" value={pw.again} autoComplete="new-password" onChange={(e) => setPw({ ...pw, again: e.target.value })} placeholder="Repeat it" />
               </div>
               <div className="flex flex-wrap items-center gap-3">
                 <button type="submit" className="cursor-pointer rounded-lg bg-accent px-5 py-2.5 text-sm font-semibold text-canvas transition-opacity hover:opacity-90">Update password</button>
@@ -205,7 +174,6 @@ function SignIn() {
 
 function Banks({ onConnectionChange }: { onConnectionChange?: () => void }) {
   const [bank, setBank] = useState<string | null | undefined>(undefined); // undefined while loading
-  const [confirming, setConfirming] = useState(false);
   const [busy, setBusy] = useState(false);
   const [notice, flash] = useNotice();
 
@@ -214,7 +182,6 @@ function Banks({ onConnectionChange }: { onConnectionChange?: () => void }) {
   }, []);
 
   const unlink = async () => {
-    setConfirming(false);
     setBusy(true);
     const res = await wallex.disconnect();
     setBusy(false);
@@ -231,16 +198,16 @@ function Banks({ onConnectionChange }: { onConnectionChange?: () => void }) {
         <p className="mt-1 font-support text-sm text-muted">Banks Wallex reads through Plaid. Unlinking removes the connection, not your bank account.</p>
       </div>
       {bank ? (
-        <InfoRow title={bank} value="Linked through Plaid">
-          {confirming ? (
-            <>
-              <button type="button" onClick={unlink} disabled={busy} className="cursor-pointer rounded-lg bg-red-500/90 px-4 py-2 text-sm font-semibold text-white disabled:opacity-40">Yes, unlink {bank}</button>
-              <button type="button" onClick={() => setConfirming(false)} className="cursor-pointer rounded-lg border border-line px-4 py-2 text-sm font-semibold">Cancel</button>
-            </>
-          ) : (
-            <button type="button" onClick={() => setConfirming(true)} disabled={busy} className={dangerBtn}>Unlink</button>
-          )}
-        </InfoRow>
+        <DestructiveAction
+          heading={bank}
+          description="Linked through Plaid"
+          trigger="Unlink…"
+          title={`Unlink ${bank}?`}
+          body="Wallex stops reading its accounts and transactions. Your saved Plaid credentials are kept, so you can connect again in Setup."
+          confirm="Unlink"
+          onConfirm={unlink}
+          confirmDisabled={busy}
+        />
       ) : (
         <p className="font-support text-sm text-muted">
           {bank === undefined ? 'Checking…' : wallex.available() ? 'No bank is linked. Connect one in Settings → Setup.' : 'Open the Wallex desktop app to see linked banks.'}
@@ -252,8 +219,6 @@ function Banks({ onConnectionChange }: { onConnectionChange?: () => void }) {
 }
 
 function YourData({ onRefresh, refreshing }: { onRefresh?: () => void; refreshing?: boolean }) {
-  const [confirmReset, setConfirmReset] = useState(false);
-
   const exportData = () => {
     const out: Record<string, unknown> = {};
     for (let i = 0; i < localStorage.length; i++) {
@@ -304,16 +269,15 @@ function YourData({ onRefresh, refreshing }: { onRefresh?: () => void; refreshin
             {refreshing ? 'Refreshing…' : 'Refresh'}
           </button>
         </InfoRow>
-        <InfoRow title="Reset saved settings" value="Erases your profile, appearance and Recurring corrections from this device.">
-          {confirmReset ? (
-            <>
-              <button type="button" onClick={reset} className="cursor-pointer rounded-lg bg-red-500/90 px-4 py-2 text-sm font-semibold text-white">Yes, erase</button>
-              <button type="button" onClick={() => setConfirmReset(false)} className="cursor-pointer rounded-lg border border-line px-4 py-2 text-sm font-semibold">Cancel</button>
-            </>
-          ) : (
-            <button type="button" onClick={() => setConfirmReset(true)} className={dangerBtn}>Reset</button>
-          )}
-        </InfoRow>
+        <DestructiveAction
+          heading="Reset saved settings"
+          description="Erases your profile, appearance and Recurring corrections from this device."
+          trigger="Reset…"
+          title="Erase everything saved here?"
+          body="Your profile, appearance and Recurring corrections are removed from this device. Your bank stays linked."
+          confirm="Erase"
+          onConfirm={reset}
+        />
       </div>
     </section>
   );
@@ -330,15 +294,9 @@ function About() {
 }
 
 function DangerZone() {
-  const [confirming, setConfirming] = useState(false);
   const [typed, setTyped] = useState('');
   const [notice, flash] = useNotice();
   const ready = typed.trim().toUpperCase() === 'DELETE';
-
-  const close = () => {
-    setConfirming(false);
-    setTyped('');
-  };
 
   return (
     <section className="space-y-5 rounded-xl border border-red-400/30 p-5">
@@ -346,29 +304,19 @@ function DangerZone() {
         <SectionTitle icon="notification-alert" className="text-lg font-semibold text-red-300">Danger zone</SectionTitle>
         <p className="mt-1 font-support text-sm text-muted">Deleting your account removes your sign-in, your saved settings and any linked banks. This can't be undone.</p>
       </div>
-      <div className="flex flex-wrap items-center gap-3">
-        {confirming ? (
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              if (!ready) return;
-              close();
-              flash(NOT_CONNECTED);
-            }}
-            className="flex flex-wrap items-center gap-3"
-          >
-            <input value={typed} onChange={(e) => setTyped(e.target.value)} autoFocus placeholder="Type DELETE to confirm" aria-label="Type DELETE to confirm" className={`${inputClass} !w-60`} />
-            <button type="submit" disabled={!ready} className="cursor-pointer rounded-lg bg-red-500/90 px-4 py-2.5 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-40">Delete my account</button>
-            <button type="button" onClick={close} className="cursor-pointer rounded-lg border border-line px-4 py-2.5 text-sm font-semibold">Cancel</button>
-          </form>
-        ) : (
-          <button type="button" onClick={() => setConfirming(true)} className="flex cursor-pointer items-center gap-2 rounded-lg bg-red-500/90 px-4 py-2.5 text-sm font-semibold text-white transition-opacity hover:opacity-90">
-            <Trash2 className="h-4 w-4" />
-            Delete account
-          </button>
-        )}
-        <Notice text={notice} />
-      </div>
+      <DestructiveAction
+        heading="Delete account"
+        trigger="Delete account…"
+        title="Delete your account?"
+        body="Your sign-in, saved settings and linked banks are removed for good."
+        confirm="Delete account"
+        confirmDisabled={!ready}
+        onConfirm={() => flash(NOT_CONNECTED)}
+        onClose={() => setTyped('')}
+      >
+        <UnderlineField label="Type DELETE to confirm" icon="notification-alert" value={typed} onChange={(e) => setTyped(e.target.value)} placeholder="DELETE" autoComplete="off" autoFocus />
+      </DestructiveAction>
+      <Notice text={notice} />
     </section>
   );
 }
@@ -389,7 +337,6 @@ export default function AccountTab({
   const [touched, setTouched] = useState(false);
   const [justSaved, setJustSaved] = useState(false);
   const [photoError, setPhotoError] = useState<string | null>(null);
-  const file = useRef<HTMLInputElement>(null);
   const timer = useRef<number | null>(null);
   useEffect(() => () => { if (timer.current) clearTimeout(timer.current); }, []);
 
@@ -433,28 +380,14 @@ export default function AccountTab({
           <SectionTitle icon="user-face-male">Your profile</SectionTitle>
           <p className="mt-1 font-support text-sm text-muted">This is how Wallex knows you. It stays on this device.</p>
         </div>
-        <div className="flex flex-wrap items-center gap-6">
-          <Avatar p={draft} className="h-28 w-28 text-4xl" />
-          <div className="min-w-0 flex-1">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div className="min-w-0">
             <p className="truncate text-xl font-semibold tracking-tight">{name || 'Your name'}</p>
             <p className="truncate font-support text-sm text-muted">{draft.email || 'No email added'}</p>
-            <div className="mt-3 flex flex-wrap items-center gap-2">
-              <button type="button" onClick={() => file.current?.click()} className="flex cursor-pointer items-center gap-2 rounded-lg border border-line px-3.5 py-2 text-sm font-medium transition-colors hover:border-muted">
-                <Camera className="h-4 w-4" />
-                {draft.photo ? 'Change photo' : 'Upload photo'}
-              </button>
-              {draft.photo && (
-                <button type="button" onClick={() => set('photo', null)} className="flex cursor-pointer items-center gap-2 rounded-lg px-3 py-2 text-sm text-muted transition-colors hover:text-ink">
-                  <Trash2 className="h-4 w-4" />
-                  Remove
-                </button>
-              )}
-              <input ref={file} type="file" accept="image/*" hidden onChange={(e) => { pick(e.target.files?.[0]); e.target.value = ''; }} />
-            </div>
-            {photoError && <p className="mt-2 font-support text-xs text-red-300">{photoError}</p>}
           </div>
           <LogOutButton />
         </div>
+        <PhotoDropZone photo={draft.photo} error={photoError} onFile={pick} onRemove={() => set('photo', null)} />
       </section>
 
       <section className="space-y-5 border-t border-line pt-8">
@@ -462,19 +395,11 @@ export default function AccountTab({
           <SectionTitle icon="text-box-1">Personal details</SectionTitle>
           <p className="mt-1 font-support text-sm text-muted">Your name is used on Overview, and your phone number is for your own reference.</p>
         </div>
-        <div className="grid grid-cols-1 gap-x-8 gap-y-5 @3xl:grid-cols-2">
-          <Field label="First name" icon="user-face-male" error={shown('firstName')}>
-            <input value={draft.firstName} autoComplete="given-name" onChange={(e) => set('firstName', e.target.value)} placeholder="Ada" className={inputClass} />
-          </Field>
-          <Field label="Last name" icon="user-face-male" error={shown('lastName')}>
-            <input value={draft.lastName} autoComplete="family-name" onChange={(e) => set('lastName', e.target.value)} placeholder="Lovelace" className={inputClass} />
-          </Field>
-          <Field label="Preferred name" icon="chat-bubble-text-square" hint="What Wallex calls you. Leave blank to use your first name.">
-            <input value={draft.preferredName} onChange={(e) => set('preferredName', e.target.value)} placeholder="Ada" className={inputClass} />
-          </Field>
-          <Field label="Phone (optional)" icon="phone" error={shown('phone')}>
-            <input type="tel" value={draft.phone} autoComplete="tel" onChange={(e) => set('phone', e.target.value)} placeholder="+1 555 123 4567" className={inputClass} />
-          </Field>
+        <div className="grid grid-cols-1 gap-x-8 gap-y-6 @3xl:grid-cols-2">
+          <UnderlineField label="First name" icon="user-face-male" value={draft.firstName} autoComplete="given-name" onChange={(e) => set('firstName', e.target.value)} placeholder="Ada" error={shown('firstName')} />
+          <UnderlineField label="Last name" icon="user-face-male" value={draft.lastName} autoComplete="family-name" onChange={(e) => set('lastName', e.target.value)} placeholder="Lovelace" error={shown('lastName')} />
+          <UnderlineField label="Preferred name" icon="chat-bubble-text-square" value={draft.preferredName} onChange={(e) => set('preferredName', e.target.value)} placeholder="Ada" hint="What Wallex calls you. Leave blank to use your first name." />
+          <UnderlineField label="Phone (optional)" icon="phone" type="tel" value={draft.phone} autoComplete="tel" onChange={(e) => set('phone', e.target.value)} placeholder="+1 555 123 4567" error={shown('phone')} />
         </div>
       </section>
 

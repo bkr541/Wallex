@@ -35,7 +35,7 @@ export function frequencyText(perMonth: number, noun: Bubble['noun']): string {
 }
 
 // "+$84" or "-$42", whole dollars once it is big enough to not need the cents.
-const signed = (n: number) => `${n >= 0 ? '+' : '-'}${money(Math.abs(n))}`;
+export const signed = (n: number) => `${n >= 0 ? '+' : '-'}${money(Math.abs(n))}`;
 
 export interface ChangeText {
   headline: string;

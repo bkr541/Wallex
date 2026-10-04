@@ -112,7 +112,7 @@ export default function AppearanceTab() {
         </Setting>
 
         <Setting icon="paint-palette" label="Accent color" hint="Used for buttons, highlights and the active page marker.">
-          <div role="radiogroup" aria-label="Accent color" className="flex flex-wrap gap-3">
+          <div role="radiogroup" aria-label="Accent color" className="flex flex-wrap gap-2">
             {ACCENTS.map((c) => {
               const on = a.accent === c.id;
               return (
@@ -121,16 +121,13 @@ export default function AppearanceTab() {
                   type="button"
                   role="radio"
                   aria-checked={on}
-                  aria-label={c.name}
-                  title={c.name}
                   onClick={() => setAppearance({ accent: c.id })}
-                  className={`flex h-10 w-10 cursor-pointer items-center justify-center rounded-full border-2 transition-transform hover:scale-105 ${
-                    on ? 'border-ink' : 'border-transparent'
+                  className={`flex cursor-pointer items-center gap-2 rounded-full border px-3.5 py-1.5 text-sm transition-colors ${
+                    on ? 'border-ink bg-surface font-semibold' : 'border-line text-muted hover:text-ink'
                   }`}
                 >
-                  <span className="flex h-7 w-7 items-center justify-center rounded-full" style={{ background: c.color }}>
-                    {on && <Check className="h-4 w-4 text-[#0a0a0a]" strokeWidth={3} />}
-                  </span>
+                  <span className="h-3 w-3 rounded-full" style={{ background: c.color }} />
+                  {c.name}
                 </button>
               );
             })}

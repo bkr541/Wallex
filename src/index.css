@@ -114,7 +114,8 @@ button:focus-visible {
     height 0.8s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
-.center-orb {
+.center-orb,
+.fill-orb {
   transition:
     width 0.8s cubic-bezier(0.22, 1, 0.36, 1),
     height 0.8s cubic-bezier(0.22, 1, 0.36, 1);
@@ -124,7 +125,8 @@ button:focus-visible {
   .bubble,
   .bubble-move,
   .bubble-move span,
-  .center-orb {
+  .center-orb,
+  .fill-orb {
     transition-duration: 0.01ms;
   }
 }

@@ -1,7 +1,8 @@
 import { useMemo, useState } from 'react';
 import SectionTitle from '../components/SectionTitle';
 import { AnimatePresence, motion } from 'motion/react';
-import { ArrowDown, ArrowUp, Search } from 'lucide-react';
+import { ArrowDown, ArrowUp } from 'lucide-react';
+import ExpandingSearch from '../components/ExpandingSearch';
 import MerchantLogo from '../components/MerchantLogo';
 import type { Load } from '../lib/useTransactions';
 import { cadenceWord, type Confidence, type Kind, type Recurring } from '../lib/recurring';
@@ -529,15 +530,9 @@ export default function RecurringTab({ load, initialFilter = 'all' }: { load: Lo
             </button>
           )}
         </div>
-        <label className={`flex items-center gap-2 rounded-full border border-line bg-surface px-3.5 py-2 ${mobile ? 'w-full' : ''}`}>
-          <Search className="h-4 w-4 text-muted" />
-          <input
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search recurring items"
-            className={`bg-transparent text-sm outline-none placeholder:text-muted select-text ${mobile ? 'w-full' : 'w-56'}`}
-          />
-        </label>
+        <div className={mobile ? 'w-full' : ''}>
+          <ExpandingSearch value={query} onChange={setQuery} placeholder="Search recurring items" width={mobile ? '100%' : 260} />
+        </div>
       </div>
 
       <div role="table" aria-label="Recurring relationships" className="mt-4 w-full">

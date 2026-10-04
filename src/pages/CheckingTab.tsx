@@ -108,10 +108,10 @@ export default function CheckingTab({
           onClick={onRefresh}
           disabled={refreshing}
           aria-label="Refresh transactions"
-          className="ml-auto flex cursor-pointer items-center gap-1.5 text-sm text-muted transition-colors hover:text-ink disabled:opacity-50"
+          title="Refresh"
+          className="ml-auto flex h-11 w-11 shrink-0 cursor-pointer items-center justify-center rounded-full border border-line bg-surface text-ink transition-colors hover:border-accent hover:text-accent disabled:cursor-default disabled:opacity-60"
         >
-          <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
-          Refresh
+          <RefreshCw className={`h-5 w-5 ${refreshing ? 'animate-spin' : ''}`} />
         </button>
       </div>
 

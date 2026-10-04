@@ -63,14 +63,10 @@ function Segmented<T extends string | number>({
 }) {
   const thumb = useId();
 
-  // The large one is a switch: a rounded track with a lighter pill that slides to the chosen option.
+  // The large one is a row of tabs along a line, with an accent bar that slides to the chosen option.
   if (large) {
     return (
-      <div
-        role="tablist"
-        aria-label={label}
-        className="flex w-full rounded-full border border-line bg-[var(--switch-track)] p-1 shadow-[inset_0_1px_3px_rgba(0,0,0,0.25)] @3xl:w-auto"
-      >
+      <div role="tablist" aria-label={label} className="flex w-full border-b border-line @3xl:w-auto">
         {options.map((o) => {
           const on = value === o.value;
           return (
@@ -80,18 +76,18 @@ function Segmented<T extends string | number>({
               role="tab"
               aria-selected={on}
               onClick={() => onChange(o.value)}
-              className={`relative z-10 flex-1 cursor-pointer rounded-full px-1.5 py-2 text-[13px] whitespace-nowrap transition-colors @3xl:min-w-[5.75rem] @3xl:flex-none @3xl:px-4 @3xl:text-sm ${
+              className={`relative flex-1 cursor-pointer px-1 pb-2.5 text-[13px] whitespace-nowrap transition-colors @3xl:min-w-[5.75rem] @3xl:flex-none @3xl:px-5 @3xl:text-sm ${
                 on ? 'font-semibold text-ink' : 'text-muted hover:text-ink'
               }`}
             >
+              {o.label}
               {on && (
                 <motion.span
                   layoutId={thumb}
-                  className="absolute inset-0 -z-10 rounded-full border border-line bg-[var(--switch-thumb)] shadow-[0_2px_8px_rgba(0,0,0,0.22)]"
-                  transition={{ type: 'spring', stiffness: 420, damping: 34 }}
+                  className="absolute inset-x-1 -bottom-px h-0.5 rounded-full bg-accent"
+                  transition={{ type: 'spring', stiffness: 420, damping: 32 }}
                 />
               )}
-              {o.label}
             </button>
           );
         })}
@@ -164,6 +160,40 @@ function FlowBar({ moneyIn, moneyOut }: { moneyIn: number; moneyOut: number }) {
   );
 }
 
+// What is left of the cash after the payments ahead, drawn as a half circle that empties as they take more.
+function BufferGauge({ remaining, available }: { remaining: number; available: number }) {
+  const left = available > 0 ? Math.min(1, Math.max(0, remaining / available)) : 0;
+  const arc = Math.PI * 52;
+  const over = remaining < 0;
+  const path = 'M 8 62 A 52 52 0 0 1 112 62';
+  return (
+    <div className="shrink-0 text-center" role="img" aria-label={`Remaining buffer ${signed(remaining).replace(/^\+/, '')}, ${Math.round(left * 100)}% of your cash left`}>
+      <div className="relative w-[240px]">
+      <svg viewBox="0 0 120 70" className="w-full">
+        <path d={path} fill="none" stroke="var(--line)" strokeWidth="10" strokeLinecap="round" />
+        <path
+          d={path}
+          fill="none"
+          stroke={over ? '#f87171' : 'var(--accent)'}
+          strokeWidth="10"
+          strokeLinecap="round"
+          strokeDasharray={`${arc * left} ${arc}`}
+          opacity={left > 0 ? 1 : 0}
+          style={{ transition: 'stroke-dasharray 0.7s cubic-bezier(0.22, 1, 0.36, 1)' }}
+        />
+      </svg>
+      <div className="absolute inset-x-0 bottom-0 text-center">
+        <p className={`text-3xl leading-none font-semibold tracking-tight tabular-nums ${over ? 'text-red-300' : ''}`}>
+          {signed(remaining).replace(/^\+/, '')}
+        </p>
+        <p className="mt-1 font-support text-xs text-muted">{Math.round(left * 100)}% left</p>
+      </div>
+      </div>
+      <p className="mt-3 font-support text-xs font-semibold tracking-[0.2em] text-muted uppercase">Remaining buffer</p>
+    </div>
+  );
+}
+
 function Commitment({
   label,
   lead,
@@ -217,7 +247,9 @@ export default function OverviewTab({
 
   const [days, setDays] = useState<OverviewDays>(30);
   const [range, setRange] = useState<number | null>(null);
-  const [percent, setPercent] = useState(20);
+  // Each opportunity has its own reduction, picked on its card.
+  const [percents, setPercents] = useState<Record<string, number>>({});
+  const percentFor = (id: string) => percents[id] ?? 20;
   // Which sections are folded away, remembered between visits.
   const [closed, setClosed] = useState<Record<string, boolean>>(() => {
     try {
@@ -281,6 +313,7 @@ export default function OverviewTab({
   const flow = periodFlow(txns, scope);
   const fees = bankFees(txns, scope);
   const breakdown = spendingBreakdown(txns, scope);
+  const topShare = Math.max(0.0001, ...breakdown.slices.map((sl) => sl.share));
   const owed = commitments(analysis);
   const upcoming = upcomingPayments(analysis, scope.today, WINDOW_DAYS);
   const pressure = pressureWindow(upcoming);
@@ -305,7 +338,7 @@ export default function OverviewTab({
 
   const lowMonths = monthEnds.filter((m) => m.balance < LOW_BALANCE).length;
   const lowest = monthEnds.length ? monthEnds.reduce((lo, m) => (m.balance < lo.balance ? m : lo)) : null;
-  const totalSaved = ideas.reduce((s, i) => s + savingFor(i, percent), 0);
+  const totalSaved = ideas.reduce((s, i) => s + savingFor(i, percentFor(i.id)), 0);
   const periodLabel = scope.partial ? `${scope.effectiveDays} days` : (OVERVIEW_PERIODS.find((p) => p.days === scope.days)?.phrase ?? `${scope.days} days`);
 
   const netTone = flow.count === 0 ? '' : flow.net >= 0 ? 'text-accent' : 'text-red-300';
@@ -387,7 +420,7 @@ export default function OverviewTab({
       </section>
       <p className="-mt-1 px-6 font-support text-xs text-muted">{caveats.join(' · ')}</p>
 
-      <div className="mx-3 mt-1 border-b border-line">
+      <div className="mx-3 mt-1">
       {/* 2 · Recurring commitments */}
       <Collapsible
         {...sectionProps('commitments')}
@@ -498,33 +531,26 @@ export default function OverviewTab({
               <span className="text-lg font-semibold tracking-tight tabular-nums">{money(breakdown.total)}</span>
             </div>
 
-            <div className="mt-4 flex h-3.5 gap-0.5 overflow-hidden rounded-full" role="img" aria-label="Spending by category">
+            {/* One bar per category, each as long as its share compared with the biggest one. */}
+            <ul className="mt-5 space-y-4">
               {breakdown.slices.map((sl, i) => (
-                <span
-                  key={sl.key}
-                  className="h-full min-w-[3px] first:rounded-l-full last:rounded-r-full"
-                  style={{
-                    width: `${sl.share * 100}%`,
-                    background: sl.other ? STRIPES : SLICE_COLORS[i % SLICE_COLORS.length],
-                    transition: 'width 0.6s cubic-bezier(0.22, 1, 0.36, 1)',
-                  }}
-                />
-              ))}
-            </div>
-
-            <ul className="mt-6 space-y-3.5">
-              {breakdown.slices.map((sl, i) => (
-                <li key={sl.key} className="flex items-center gap-3">
-                  <span
-                    className="h-[18px] w-[18px] shrink-0 rounded-md"
-                    style={{ background: sl.other ? STRIPES : SLICE_COLORS[i % SLICE_COLORS.length] }}
-                  />
-                  <span className="min-w-0 truncate font-support text-sm text-ink/90">{sl.name}</span>
-                  <span className="h-px min-w-3 flex-1 bg-line" />
-                  <span className="hidden font-support text-xs text-muted tabular-nums @xl:inline">{money(sl.amount)}</span>
-                  <span className="w-11 text-right text-sm font-semibold tabular-nums">
-                    {sl.share > 0 && sl.share < 0.005 ? '<1%' : `${Math.round(sl.share * 100)}%`}
-                  </span>
+                <li key={sl.key}>
+                  <div className="mb-1.5 flex items-baseline gap-3 font-support text-sm">
+                    <span className="min-w-0 flex-1 truncate text-ink/90">{sl.name}</span>
+                    <span className="hidden text-xs text-muted tabular-nums @xl:inline">{money(sl.amount)}</span>
+                    <span className="w-11 text-right font-semibold text-ink tabular-nums">
+                      {sl.share > 0 && sl.share < 0.005 ? '<1%' : `${Math.round(sl.share * 100)}%`}
+                    </span>
+                  </div>
+                  <div className="h-2 overflow-hidden rounded-sm bg-line">
+                    <motion.div
+                      className="h-full min-w-[3px] rounded-sm"
+                      style={{ background: sl.other ? STRIPES : SLICE_COLORS[i % SLICE_COLORS.length] }}
+                      initial={{ width: 0 }}
+                      animate={{ width: `${(sl.share / topShare) * 100}%` }}
+                      transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
+                    />
+                  </div>
                 </li>
               ))}
             </ul>
@@ -630,29 +656,20 @@ export default function OverviewTab({
             <p className="font-support text-sm text-muted">No checking or savings balance is available to measure against.</p>
           ) : (
             <div>
-              <dl className="space-y-3 font-support text-sm">
-                <div className="flex items-baseline justify-between">
-                  <dt className="text-muted">Cash available</dt>
-                  <dd className="tabular-nums">{money(buffer.available)}</dd>
-                </div>
-                <div className="flex items-baseline justify-between">
-                  <dt className="text-muted">Expected recurring payments</dt>
-                  <dd className="tabular-nums">-{money(buffer.obligations)}</dd>
-                </div>
-                <div className="flex items-baseline justify-between border-t border-line pt-3">
-                  <dt className="text-ink">Remaining buffer</dt>
-                  <dd className={`text-2xl font-semibold tracking-tight tabular-nums ${buffer.remaining < 0 ? 'text-red-300' : ''}`}>
-                    {signed(buffer.remaining).replace(/^\+/, '')}
-                  </dd>
-                </div>
-              </dl>
-              <div className="mt-4 h-1.5 overflow-hidden rounded-full bg-line">
-                <div
-                  className="h-full rounded-full bg-accent/80"
-                  style={{ width: `${buffer.available > 0 ? Math.min(100, (buffer.obligations / buffer.available) * 100) : 100}%` }}
-                />
+              <div className="flex flex-col items-center gap-6 @3xl:flex-row @3xl:gap-14">
+                <BufferGauge remaining={buffer.remaining} available={buffer.available} />
+                <dl className="w-full max-w-md space-y-3 font-support text-sm">
+                  <div className="flex items-baseline justify-between">
+                    <dt className="text-muted">Cash available</dt>
+                    <dd className="tabular-nums">{money(buffer.available)}</dd>
+                  </div>
+                  <div className="flex items-baseline justify-between border-t border-line pt-3">
+                    <dt className="text-muted">Expected recurring payments</dt>
+                    <dd className="tabular-nums">-{money(buffer.obligations)}</dd>
+                  </div>
+                </dl>
               </div>
-              <p className="mt-2 font-support text-xs text-muted">
+              <p className="mt-5 font-support text-xs text-muted">
                 {buffer.available > 0
                   ? `Known payments take ${percentText(Math.min(1, buffer.obligations / buffer.available))} of your cash.`
                   : 'There is no cash to cover them.'}{' '}
@@ -675,40 +692,52 @@ export default function OverviewTab({
         title="Opportunities"
         icon="lightbulb"
         subtitle={`What-ifs based on your last ${periodLabel} of spending. They are estimates, not advice.`}
-        aside={
-          ideas.some((i) => i.fixedPercent === null) ? (
-            <Segmented
-              label="Reduction"
-              value={percent}
-              onChange={setPercent}
-              options={PERCENTS.map((n) => ({ value: n, label: `${n}%` }))}
-            />
-          ) : undefined
-        }
       >
         {ideas.length === 0 ? (
           <p className="font-support text-sm text-muted">No spending in these areas yet, so there is nothing to model.</p>
         ) : (
           <div>
-            {ideas.slice(0, 5).map((i) => {
-              const monthly = savingFor(i, percent);
-              return (
-                <div key={i.id} className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-4 border-b border-line py-4">
-                  <div className="min-w-0">
-                    <p className="truncate text-sm font-medium">
-                      {i.fixedPercent ? `Eliminate ${i.label.toLowerCase()}` : `Reduce ${i.label.toLowerCase()} ${percent}%`}
-                    </p>
-                    <p className="mt-1 font-support text-xs text-muted">
-                      {money(i.monthly)} / month now · {plural(i.count, 'charge')}
-                    </p>
+            <div className="space-y-3">
+              {ideas.slice(0, 5).map((i) => {
+                const pct = percentFor(i.id);
+                const monthly = savingFor(i, pct);
+                return (
+                  <div key={i.id} className="rounded-2xl border border-line bg-card p-4">
+                    <div className="flex items-center justify-between gap-4">
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-semibold">{i.label}</p>
+                        <p className="mt-1 font-support text-xs text-muted">
+                          {money(i.monthly)} / month now · {plural(i.count, 'charge')}
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-lg font-semibold text-accent tabular-nums">+{money(monthly)}/mo</p>
+                        <p className="mt-0.5 font-support text-xs text-muted tabular-nums">{approx(monthly * 12)} / year</p>
+                      </div>
+                    </div>
+                    {i.fixedPercent === null ? (
+                      <div role="group" aria-label={`How much to cut ${i.label.toLowerCase()}`} className="mt-3 flex gap-1.5">
+                        {PERCENTS.map((n) => (
+                          <button
+                            key={n}
+                            type="button"
+                            aria-pressed={pct === n}
+                            onClick={() => setPercents((p) => ({ ...p, [i.id]: n }))}
+                            className={`flex-1 cursor-pointer rounded-lg py-1.5 text-xs transition-colors ${
+                              pct === n ? 'bg-accent font-semibold text-canvas' : 'bg-surface text-muted hover:text-ink'
+                            }`}
+                          >
+                            Cut {n}%
+                          </button>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="mt-3 font-support text-xs text-muted">Counts removing it entirely.</p>
+                    )}
                   </div>
-                  <div className="text-right">
-                    <p className="text-base font-semibold tabular-nums">{approx(monthly)} / month</p>
-                    <p className="mt-1 font-support text-xs text-muted tabular-nums">{approx(monthly * 12)} / year</p>
-                  </div>
-                </div>
-              );
-            })}
+                );
+              })}
+            </div>
             <p className="mt-4 flex items-baseline justify-between font-support text-sm text-muted">
               <span>All of the above together</span>
               <span className="text-base font-semibold text-ink tabular-nums">
