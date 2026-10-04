@@ -96,3 +96,20 @@ export function ListIcon({ className }: IconProps) {
     </svg>
   );
 }
+
+// Schedule: a calendar page whose header band is the teal piece.
+export function CalendarIcon({ className }: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} aria-hidden="true">
+      <rect x="3.2" y="4.6" width="17.6" height="16.2" rx="2.6" fill={GRAY} />
+      <path d="M3.2 7.2a2.6 2.6 0 0 1 2.6-2.6h12.4a2.6 2.6 0 0 1 2.6 2.6v2.6H3.2Z" fill={TEAL} />
+      <rect x="7.4" y="2.4" width="2.2" height="4.4" rx="1.1" fill={GRAY_DARK} />
+      <rect x="14.4" y="2.4" width="2.2" height="4.4" rx="1.1" fill={GRAY_DARK} />
+      <rect x="6.6" y="12.2" width="3" height="2.6" rx=".8" fill={GRAY_DARK} />
+      <rect x="10.5" y="12.2" width="3" height="2.6" rx=".8" fill={GRAY_DARK} />
+      <rect x="14.4" y="12.2" width="3" height="2.6" rx=".8" fill={GRAY_DARK} />
+      <rect x="6.6" y="16.2" width="3" height="2.6" rx=".8" fill={GRAY_DARK} />
+      <rect x="10.5" y="16.2" width="3" height="2.6" rx=".8" fill={GRAY_DARK} />
+    </svg>
+  );
+}

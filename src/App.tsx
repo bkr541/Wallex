@@ -3,12 +3,14 @@ import { motion, AnimatePresence } from 'motion/react';
 import SetupTab from './pages/SetupTab';
 import CheckingTab from './pages/CheckingTab';
 import PatternsTab from './pages/PatternsTab';
+import ScheduleTab from './pages/ScheduleTab';
 import RecurringTab from './pages/RecurringTab';
 import UiComponentsTab from './pages/UiComponentsTab';
 import ComponentsTab from './pages/ComponentsTab';
 import ChaseLogo from './components/ChaseLogo';
 import { accountLabel, useTransactions } from './lib/useTransactions';
 import { NAV, TABS } from './lib/pages';
+import { ListIcon } from './components/NavIcons';
 import AppearanceTab from './pages/AppearanceTab';
 import OnboardingTab from './pages/OnboardingTab';
 import PageHeader from './components/PageHeader';
@@ -125,7 +127,7 @@ function Shell() {
             : 'top-1/2 left-5 w-[68px] -translate-y-1/2 flex-col gap-2.5 rounded-[34px] p-[10px]'
         }`}
       >
-        {NAV.map((item) => {
+        {NAV.filter((item) => item.id !== 'scratchpad').map((item) => {
           const isActive = activeId === item.id;
           const isHovered = hoveredId === item.id;
           const Icon = item.icon;
@@ -229,6 +231,8 @@ function Shell() {
             <OverviewTab load={load} onNavigate={goTo} />
           ) : activeId === 'patterns' ? (
             <PatternsTab load={load} />
+          ) : activeId === 'schedule' ? (
+            <ScheduleTab />
           ) : activeId === 'settings' && activeTab === 'Account' ? (
             <AccountTab onConnectionChange={refresh} onRefresh={refresh} refreshing={refreshing} />
           ) : activeId === 'settings' && activeTab === 'Appearance' ? (
@@ -261,6 +265,24 @@ function Shell() {
         </div>
       </main>
     </div>
+
+      {/* Scratchpad is for trying things out, so it lives down here beside the view switch, not in the navigation. */}
+      <button
+        type="button"
+        onClick={() => {
+          setActiveId('scratchpad');
+          setTxFilter(null);
+        }}
+        aria-label="Scratchpad"
+        title="Scratchpad"
+        aria-current={activeId === 'scratchpad' ? 'page' : undefined}
+        aria-hidden={showLoader}
+        className={`fixed right-[4.5rem] bottom-5 z-50 flex h-10 w-10 cursor-pointer items-center justify-center rounded-full border shadow-[0_10px_28px_rgba(0,0,0,0.6)] transition-[opacity,colors] duration-500 ${
+          activeId === 'scratchpad' ? 'border-accent bg-surface text-ink' : 'border-line bg-card text-muted hover:bg-surface hover:text-ink'
+        } ${showLoader ? 'pointer-events-none opacity-0' : 'opacity-100'}`}
+      >
+        <ListIcon className="h-5 w-5" />
+      </button>
 
       <button
         type="button"
