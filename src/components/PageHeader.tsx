@@ -15,7 +15,10 @@ export default function PageHeader({ page, compact = false }: { page: NavItem; c
     <header
       className={`relative shrink-0 overflow-hidden border ${compact ? 'min-h-[132px] rounded-[24px]' : 'min-h-[184px] rounded-[28px]'}`}
       style={{
-        borderColor: 'color-mix(in srgb, var(--accent) 38%, transparent)',
+        // Opaque on purpose: a see-through border picks up the gradient behind it, so it looked faint on the dark left
+        // edge and bright on the teal right edge.
+        borderColor: 'color-mix(in srgb, var(--accent) 38%, var(--canvas))',
+        backgroundClip: 'padding-box',
         background:
           'linear-gradient(90deg, var(--canvas) 0%, color-mix(in srgb, var(--accent) 8%, var(--card)) 55%, color-mix(in srgb, var(--accent) 20%, var(--card)) 100%)',
       }}
