@@ -113,9 +113,13 @@ function Shell() {
         {showLoader && <LoadingLogo key="loading" balance={launchBalance} onDone={finishLaunch} />}
       </AnimatePresence>
 
+      {/* The navigation stays out of sight while the launch loader plays, and fades in once it has left. */}
       <nav
         aria-label="Sidebar navigation"
-        className={`absolute z-40 flex items-center border border-line bg-card shadow-[0_16px_40px_rgba(0,0,0,0.6)] ${
+        aria-hidden={showLoader}
+        className={`absolute z-40 flex items-center border border-line bg-card shadow-[0_16px_40px_rgba(0,0,0,0.6)] transition-opacity duration-500 ${
+          showLoader ? 'pointer-events-none opacity-0' : 'opacity-100'
+        } ${
           mobile
             ? 'inset-x-3 bottom-3 justify-around rounded-[32px] p-2'
             : 'top-1/2 left-5 w-[68px] -translate-y-1/2 flex-col gap-2.5 rounded-[34px] p-[10px]'

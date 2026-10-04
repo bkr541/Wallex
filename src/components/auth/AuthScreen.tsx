@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
-import { ArrowLeft, KeyRound, Loader2, Mail, ShieldCheck, TrendingUp, X } from 'lucide-react';
+import { ArrowLeft, Loader2, Mail, X } from 'lucide-react';
 import { asset } from '../../assets';
+import type { PlumpName } from '../PlumpIcon';
+import BrandStage from './BrandStage';
 import UnderlineField from '../UnderlineField';
 import { RevealButton } from './shared';
-import type { PlumpName } from '../PlumpIcon';
 import {
   cancelRecovery,
   clearNotice,
@@ -55,11 +56,6 @@ const FIELDS_FOR: Record<Step, Key[]> = {
   newpassword: ['password', 'confirm'],
 };
 
-const POINTS = [
-  { Icon: ShieldCheck, t: 'Read-only access to your bank' },
-  { Icon: TrendingUp, t: 'Where you stand, in one place' },
-  { Icon: KeyRound, t: 'Keys stay encrypted on your computer' },
-];
 
 export default function AuthScreen() {
   const auth = useAuth();
@@ -228,29 +224,24 @@ export default function AuthScreen() {
   return (
     <div className="@container h-screen w-screen overflow-hidden bg-canvas text-ink select-none">
       <div className="grid h-full @3xl:grid-cols-[1fr_1.1fr]">
-        {/* Brand panel */}
+        {/* Brand panel: always dark with light text, so it reads the same in the light and dark theme and with any accent. */}
         <div
-          className="relative hidden flex-col justify-between overflow-hidden p-12 @3xl:flex"
-          style={{ background: 'linear-gradient(155deg, color-mix(in srgb, var(--accent) 80%, black), color-mix(in srgb, var(--accent) 35%, var(--canvas)))' }}
+          className="relative hidden flex-col justify-between overflow-hidden p-12 text-white @3xl:flex"
+          style={{ background: 'linear-gradient(155deg, color-mix(in srgb, var(--accent) 58%, #04100d), color-mix(in srgb, var(--accent) 20%, #04100d))' }}
         >
-          <span aria-hidden="true" className="absolute -right-24 -bottom-24 h-96 w-96 rounded-full bg-white/10" />
-          <span aria-hidden="true" className="absolute -top-16 -right-10 h-56 w-56 rounded-full bg-white/10" />
-          <div className="relative flex items-center gap-3 text-canvas">
+          <span aria-hidden="true" className="absolute -right-28 -bottom-28 h-[26rem] w-[26rem] rounded-full bg-white/[0.06]" />
+          <span aria-hidden="true" className="absolute -top-20 -right-12 h-60 w-60 rounded-full bg-white/[0.06]" />
+          <div className="relative flex items-center gap-3">
             {logo && <img src={logo} alt="" className="h-10 w-10 object-contain" draggable={false} />}
             <span className="text-lg font-semibold tracking-tight">Wallex</span>
           </div>
-          <div className="relative text-canvas">
-            <h1 className="text-5xl leading-tight font-semibold tracking-tight">Your money, in one calm place.</h1>
-            <ul className="mt-8 space-y-4">
-              {POINTS.map(({ Icon, t }) => (
-                <li key={t} className="flex items-center gap-3 font-support text-base">
-                  <span className="flex h-9 w-9 items-center justify-center rounded-full bg-canvas/20">
-                    <Icon className="h-4 w-4" />
-                  </span>
-                  {t}
-                </li>
-              ))}
-            </ul>
+          <div className="relative">
+            <h1 className="text-[2.9rem] leading-[1.1] font-semibold tracking-[-0.02em]">
+              It&rsquo;s your money.{' '}
+              <span style={{ color: 'color-mix(in srgb, var(--accent) 40%, white)' }}>You should know what&rsquo;s happening with it.</span>
+            </h1>
+            <span aria-hidden="true" className="mt-8 block h-1 w-14 rounded-full" style={{ background: 'color-mix(in srgb, var(--accent) 40%, white)' }} />
+            <div className="mt-8"><BrandStage /></div>
           </div>
         </div>
 

@@ -125,7 +125,7 @@ function FlowBar({ moneyIn, moneyOut }: { moneyIn: number; moneyOut: number }) {
   const at = `${share * 100}%`;
   const grow = 'width 0.7s cubic-bezier(0.22, 1, 0.36, 1), left 0.7s cubic-bezier(0.22, 1, 0.36, 1)';
   return (
-    <div className="mt-6 @3xl:mt-8">
+    <div className="mt-5 @3xl:mt-6">
       <div className="relative h-3.5 rounded-full bg-line">
         <span
           className="absolute inset-y-0 left-0 rounded-full shadow-[0_0_16px_color-mix(in_srgb,var(--accent)_45%,transparent)]"
@@ -146,14 +146,14 @@ function FlowBar({ moneyIn, moneyOut }: { moneyIn: number; moneyOut: number }) {
         <span>{money(moneyIn)}</span>
         <span>{money(moneyOut)}</span>
       </div>
-      <div className="relative mt-1 h-[3.75rem] @3xl:h-16">
+      <div className="relative mt-1 h-8">
         <span
-          className="absolute top-0 h-[3.1rem] -translate-x-1/2 border-l border-dashed border-accent/70 @3xl:h-14"
+          className="absolute top-0 h-[1.65rem] -translate-x-1/2 border-l border-dashed border-accent/70"
           style={{ left: at, transition: grow }}
         />
         <span
           className="absolute h-2 w-2 -translate-x-1/2 rounded-full bg-accent"
-          style={{ left: at, top: 'calc(3.1rem - 2px)', transition: grow }}
+          style={{ left: at, top: 'calc(1.65rem - 2px)', transition: grow }}
         />
       </div>
     </div>
@@ -376,7 +376,7 @@ export default function OverviewTab({
 
       {/* Financial position: money in against money out, then the cash on hand */}
       <section
-        className="mx-3 rounded-[28px] border p-5 @3xl:p-8"
+        className="mx-3 rounded-[28px] border p-4 @3xl:p-6"
         style={{
           borderColor: 'color-mix(in srgb, var(--accent) 22%, var(--line))',
           background: 'linear-gradient(140deg, color-mix(in srgb, var(--accent) 9%, var(--card)), var(--card) 70%)',
@@ -385,19 +385,19 @@ export default function OverviewTab({
         <div className="grid grid-cols-3">
           <div className="min-w-0 pr-3 @3xl:pr-8">
             <p className="font-support text-xs text-ink/80 @3xl:text-sm">Money in</p>
-            <p className="mt-2 text-[1.55rem] leading-none font-semibold tracking-tight @3xl:text-5xl">
+            <p className="mt-2 text-[1.55rem] leading-none font-semibold tracking-tight @3xl:text-4xl">
               <SlotNumber text={money(flow.moneyIn)} />
             </p>
           </div>
           <div className="min-w-0 border-l border-line px-3 @3xl:px-8">
             <p className="font-support text-xs text-ink/80 @3xl:text-sm">Money out</p>
-            <p className="mt-2 text-[1.55rem] leading-none font-semibold tracking-tight @3xl:text-5xl">
+            <p className="mt-2 text-[1.55rem] leading-none font-semibold tracking-tight @3xl:text-4xl">
               <SlotNumber text={money(flow.moneyOut)} />
             </p>
           </div>
           <div className="min-w-0 border-l border-line pl-3 @3xl:pl-8">
             <p className="font-support text-xs whitespace-nowrap text-ink/80 @3xl:text-sm">Net cash flow</p>
-            <p className={`mt-2 text-[1.55rem] leading-none font-semibold tracking-tight @3xl:text-5xl ${netTone}`}>
+            <p className={`mt-2 text-[1.55rem] leading-none font-semibold tracking-tight @3xl:text-4xl ${netTone}`}>
               <SlotNumber text={flow.count === 0 ? '—' : signed(flow.net)} />
             </p>
           </div>
@@ -407,7 +407,7 @@ export default function OverviewTab({
 
         <div className="text-center">
           <p className="font-support text-xs font-semibold tracking-[0.2em] text-ink/80 uppercase">Cash available</p>
-          <p data-cash-balance className="mx-auto mt-2 w-fit text-5xl leading-none font-semibold tracking-tight @3xl:text-6xl">
+          <p data-cash-balance className="mx-auto mt-1.5 w-fit text-4xl leading-none font-semibold tracking-tight @3xl:text-5xl">
             {position.cash === null ? (
               '—'
             ) : (
@@ -418,10 +418,10 @@ export default function OverviewTab({
               </>
             )}
           </p>
-          <p className="mt-3 font-support text-sm text-ink/80">
+          <p className="mt-2 font-support text-sm text-ink/80">
             {position.cash === null
               ? 'No checking or savings balance reported.'
-              : `In ${plural(position.cashAccounts.length, 'checking or savings account')}`}
+              : `In ${load.bank}`}
             {position.cardsOwed !== null && position.cardsOwed > 0 && ` · ${money(position.cardsOwed)} owed on cards`}
           </p>
         </div>

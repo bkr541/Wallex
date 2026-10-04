@@ -2,8 +2,8 @@ import { AnimatePresence, motion } from 'motion/react';
 import { Minus, Plus } from 'lucide-react';
 import PlumpIcon, { type PlumpName } from '../PlumpIcon';
 
-// A section of the Overview that can be folded away. Closed it is a single row: a plus box, the title and a
-// rule running out to "Show"; open the box becomes a minus and it shows an optional description and controls
+// A section of the Overview that can be folded away. Closed it is a single row: the group's icon with a plus box over its
+// corner, the title and a rule running out to the right; open the box becomes a minus and it shows an optional description and controls
 // (a range picker, a link), then the content.
 export default function Collapsible({
   title,
@@ -30,18 +30,21 @@ export default function Collapsible({
         type="button"
         onClick={onToggle}
         aria-expanded={open}
-        className="group flex w-full cursor-pointer items-center gap-3 py-3 text-left"
+        className="group flex w-full cursor-pointer items-center gap-4 py-3 text-left"
       >
-        <motion.span
-          animate={{ rotate: open ? 180 : 0 }}
-          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-ink/40 text-ink transition-colors group-hover:border-ink"
-        >
-          {open ? <Minus className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
-        </motion.span>
-        <PlumpIcon name={icon} className="h-6 w-6 shrink-0 text-muted" />
-        <span className="text-lg font-semibold tracking-tight">{title}</span>
+        {/* The group's icon, with the plus / minus tucked over its bottom-right corner on a solid patch so the icon's lines
+            do not run through it. */}
+        <span className="relative shrink-0">
+          <PlumpIcon name={icon} className="h-6 w-6 text-accent" />
+          <motion.span
+            animate={{ rotate: open ? 180 : 0 }}
+            className="absolute -right-1.5 -bottom-1.5 flex h-3.5 w-3.5 items-center justify-center rounded-[4px] border border-ink/50 bg-canvas text-ink transition-colors group-hover:border-ink"
+          >
+            {open ? <Minus className="h-2.5 w-2.5" strokeWidth={3} /> : <Plus className="h-2.5 w-2.5" strokeWidth={3} />}
+          </motion.span>
+        </span>
+        <span className="text-lg font-semibold tracking-tight capitalize">{title}</span>
         <span className="h-px min-w-3 flex-1 bg-line" />
-        <span className="font-support text-xs text-muted transition-colors group-hover:text-ink">{open ? 'Hide' : 'Show'}</span>
       </button>
 
       <AnimatePresence initial={false}>
