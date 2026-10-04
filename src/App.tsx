@@ -16,7 +16,7 @@ import OnboardingTab from './pages/OnboardingTab';
 import PageHeader from './components/PageHeader';
 import CardsTab from './pages/CardsTab';
 import LoginTab from './pages/LoginTab';
-import ProfileTab from './pages/ProfileTab';
+import AccountTab from './pages/AccountTab';
 import CalendarTab from './pages/CalendarTab';
 import OverviewTab from './pages/OverviewTab';
 import LoadingLogo from './components/LoadingLogo';
@@ -225,8 +225,8 @@ export default function App() {
             <OverviewTab load={load} onNavigate={goTo} />
           ) : activeId === 'patterns' ? (
             <PatternsTab load={load} />
-          ) : activeId === 'settings' && activeTab === 'Profile' ? (
-            <ProfileTab />
+          ) : activeId === 'settings' && activeTab === 'Account' ? (
+            <AccountTab onConnectionChange={refresh} onRefresh={refresh} refreshing={refreshing} />
           ) : activeId === 'settings' && activeTab === 'Appearance' ? (
             <AppearanceTab />
           ) : activeId === 'settings' && activeTab === 'Setup' ? (

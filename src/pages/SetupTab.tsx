@@ -137,7 +137,6 @@ export default function SetupTab({ onConnectionChange }: { onConnectionChange?: 
 
   const [connectedTo, setConnectedTo] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const [confirmingUnlink, setConfirmingUnlink] = useState(false);
   const [message, setMessage] = useState<{ kind: 'error' | 'info'; text: string } | null>(null);
 
   // Load whatever is already saved (including credentials from .env.local) into the form.
@@ -185,17 +184,6 @@ export default function SetupTab({ onConnectionChange }: { onConnectionChange?: 
     setSecret('');
     setConnectedTo(res.data.institutionName ?? bank.name);
     setMessage({ kind: 'info', text: 'Connected. Open Transactions to see your activity.' });
-    onConnectionChange?.();
-  }
-
-  async function handleUnlink() {
-    setConfirmingUnlink(false);
-    setBusy(true);
-    const res = await wallex.disconnect();
-    setBusy(false);
-    if (!res.ok) return setMessage({ kind: 'error', text: res.error });
-    setConnectedTo(null);
-    setMessage({ kind: 'info', text: 'Unlinked. Your saved credentials were kept, so you can connect again.' });
     onConnectionChange?.();
   }
 
@@ -334,37 +322,7 @@ export default function SetupTab({ onConnectionChange }: { onConnectionChange?: 
           {busy ? 'Connecting…' : connectedTo ? `Reconnect ${bank.name}` : `Connect ${bank.name}`}
         </button>
         {connectedTo && (
-          <>
-            <span className="font-support text-sm text-accent">Connected to {connectedTo}</span>
-            {confirmingUnlink ? (
-              <span className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={handleUnlink}
-                  disabled={busy}
-                  className="cursor-pointer rounded-lg bg-red-500/90 px-4 py-2 text-sm font-semibold text-white disabled:opacity-40"
-                >
-                  Yes, unlink {connectedTo}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setConfirmingUnlink(false)}
-                  className="cursor-pointer rounded-lg border border-line px-4 py-2 text-sm text-muted hover:text-ink"
-                >
-                  Cancel
-                </button>
-              </span>
-            ) : (
-              <button
-                type="button"
-                onClick={() => setConfirmingUnlink(true)}
-                disabled={busy}
-                className="cursor-pointer rounded-lg border border-line px-4 py-2.5 text-sm font-semibold text-ink transition-colors hover:border-red-400/60 hover:text-red-300 disabled:opacity-40"
-              >
-                Unlink {connectedTo}
-              </button>
-            )}
-          </>
+          <span className="font-support text-sm text-accent">Connected to {connectedTo}. Unlink it in Account.</span>
         )}
         {message && (
           <span className={`font-support text-sm ${message.kind === 'error' ? 'text-red-400' : 'text-muted'}`}>
