@@ -5,6 +5,7 @@ import DestructiveAction from '../components/DestructiveAction';
 import PhotoDropZone from '../components/PhotoDropZone';
 import SectionTitle from '../components/SectionTitle';
 import UnderlineField from '../components/UnderlineField';
+import { changeEmail, changePassword, signOut } from '../lib/auth';
 import { fullName, photoFromFile, saveProfile, useProfile, type Profile } from '../lib/profile';
 import { wallex } from '../lib/wallex';
 
@@ -13,8 +14,9 @@ const PHONE = /^[+()\-.\s\d]{7,20}$/;
 
 const outlineBtn =
   'flex cursor-pointer items-center gap-2 rounded-lg border border-line px-4 py-2.5 text-sm font-semibold transition-colors hover:border-muted disabled:cursor-not-allowed disabled:opacity-40';
-// Sign-in isn't connected yet, so the buttons that need it say so instead of pretending to work.
-const NOT_CONNECTED = "Sign-in isn't connected yet, so nothing was changed.";
+// Deleting an account has to remove the person's sign-in on the server, which needs a step that is not built yet. Until
+// then the button says so instead of pretending to work.
+const DELETE_UNAVAILABLE = "Deleting an account isn't available yet, so nothing was changed.";
 
 function useNotice() {
   const [text, setText] = useState<string | null>(null);
@@ -67,7 +69,14 @@ function LogOutButton() {
   const [notice, flash] = useNotice();
   return (
     <div className="flex flex-col items-start gap-2 @3xl:items-end">
-      <button type="button" onClick={() => flash(NOT_CONNECTED)} className={outlineBtn}>
+      <button
+        type="button"
+        onClick={async () => {
+          const r = await signOut();
+          if (!r.ok) flash(r.error);
+        }}
+        className={outlineBtn}
+      >
         <LogOut className="h-4 w-4" />
         Log out
       </button>
@@ -83,10 +92,13 @@ function SignIn() {
   const [newEmail, setNewEmail] = useState('');
   const [pw, setPw] = useState({ current: '', next: '', again: '' });
   const [tried, setTried] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [notice, flash] = useNotice();
 
   const open = (which: 'email' | 'password') => {
     setTried(false);
+    setError(null);
     setNewEmail('');
     setPw({ current: '', next: '', again: '' });
     setEditing(editing === which ? null : which);
@@ -101,21 +113,29 @@ function SignIn() {
         ? "The two passwords don't match"
         : null;
 
-  const saveEmail = (e: React.FormEvent) => {
+  const saveEmail = async (e: React.FormEvent) => {
     e.preventDefault();
     setTried(true);
-    if (emailError) return;
-    // The address is kept on this device for now; it becomes the sign-in email once sign-in is connected.
-    saveProfile({ ...profile, email: newEmail.trim() });
+    setError(null);
+    if (emailError || busy) return;
+    setBusy(true);
+    const r = await changeEmail(newEmail);
+    setBusy(false);
+    if (!r.ok) return setError(r.error);
     setEditing(null);
-    flash('Email saved on this device.');
+    flash(`We sent a link to your current address and to ${newEmail.trim()}. Open both to finish the change.`);
   };
-  const savePassword = (e: React.FormEvent) => {
+  const savePassword = async (e: React.FormEvent) => {
     e.preventDefault();
     setTried(true);
-    if (pwError) return;
+    setError(null);
+    if (pwError || busy) return;
+    setBusy(true);
+    const r = await changePassword(pw.current, pw.next);
+    setBusy(false);
+    if (!r.ok) return setError(r.error);
     setEditing(null);
-    flash(NOT_CONNECTED);
+    flash('Password updated.');
   };
 
   return (
@@ -135,9 +155,9 @@ function SignIn() {
           <Fold open={editing === 'email'}>
             <form onSubmit={saveEmail} noValidate className="flex flex-wrap items-start gap-3">
               <div className="min-w-[16rem] flex-1">
-                <UnderlineField label="New email address" icon="mail-send" type="email" value={newEmail} autoComplete="email" onChange={(e) => setNewEmail(e.target.value)} placeholder="you@example.com" error={tried ? emailError : null} />
+                <UnderlineField label="New email address" icon="mail-send" type="email" value={newEmail} autoComplete="email" onChange={(e) => setNewEmail(e.target.value)} placeholder="you@example.com" error={error ?? (tried ? emailError : null)} />
               </div>
-              <button type="submit" className="cursor-pointer rounded-lg bg-accent px-5 py-2.5 text-sm font-semibold text-canvas transition-opacity hover:opacity-90">Save email</button>
+              <button type="submit" disabled={busy} className="cursor-pointer rounded-lg bg-accent px-5 py-2.5 text-sm font-semibold text-canvas transition-opacity hover:opacity-90 disabled:cursor-default disabled:opacity-60">{busy ? 'Sending…' : 'Save email'}</button>
             </form>
           </Fold>
         </div>
@@ -156,15 +176,15 @@ function SignIn() {
                 <UnderlineField label="Confirm new password" icon="padlock-key" type="password" value={pw.again} autoComplete="new-password" onChange={(e) => setPw({ ...pw, again: e.target.value })} placeholder="Repeat it" />
               </div>
               <div className="flex flex-wrap items-center gap-3">
-                <button type="submit" className="cursor-pointer rounded-lg bg-accent px-5 py-2.5 text-sm font-semibold text-canvas transition-opacity hover:opacity-90">Update password</button>
-                {tried && pwError && <span className="font-support text-xs text-red-300">{pwError}</span>}
+                <button type="submit" disabled={busy} className="cursor-pointer rounded-lg bg-accent px-5 py-2.5 text-sm font-semibold text-canvas transition-opacity hover:opacity-90 disabled:cursor-default disabled:opacity-60">{busy ? 'Updating…' : 'Update password'}</button>
+                {(error || (tried && pwError)) && <span role="alert" className="font-support text-xs text-red-300">{error ?? pwError}</span>}
               </div>
             </form>
           </Fold>
         </div>
 
         <InfoRow title="Devices" value="Signs you out everywhere you're logged in, including this one.">
-          <button type="button" onClick={() => flash(NOT_CONNECTED)} className={outlineBtn}>Sign out of all devices</button>
+          <button type="button" onClick={async () => { const r = await signOut('global'); if (!r.ok) flash(r.error); }} className={outlineBtn}>Sign out of all devices</button>
         </InfoRow>
         <Notice text={notice} />
       </div>
@@ -311,7 +331,7 @@ function DangerZone() {
         body="Your sign-in, saved settings and linked banks are removed for good."
         confirm="Delete account"
         confirmDisabled={!ready}
-        onConfirm={() => flash(NOT_CONNECTED)}
+        onConfirm={() => flash(DELETE_UNAVAILABLE)}
         onClose={() => setTyped('')}
       >
         <UnderlineField label="Type DELETE to confirm" icon="notification-alert" value={typed} onChange={(e) => setTyped(e.target.value)} placeholder="DELETE" autoComplete="off" autoFocus />

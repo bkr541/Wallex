@@ -9,8 +9,6 @@ import ComponentsTab from './pages/ComponentsTab';
 import ChaseLogo from './components/ChaseLogo';
 import { accountLabel, useTransactions } from './lib/useTransactions';
 import { NAV, TABS } from './lib/pages';
-import HeadersTab from './pages/HeadersTab';
-import LoadingTab from './pages/LoadingTab';
 import AppearanceTab from './pages/AppearanceTab';
 import OnboardingTab from './pages/OnboardingTab';
 import PageHeader from './components/PageHeader';
@@ -23,9 +21,11 @@ import LoadingLogo from './components/LoadingLogo';
 import { cashPosition } from './lib/overview';
 import { Monitor, Smartphone } from 'lucide-react';
 import { ViewModeProvider } from './lib/viewMode';
+import AuthScreen from './components/auth/AuthScreen';
+import { useAuth } from './lib/auth';
 import type { TxFilter } from './lib/txFilter';
 
-export default function App() {
+function Shell() {
   const [activeId, setActiveId] = useState('overview');
   const [activeTabs, setActiveTabs] = useState<Record<string, string>>({});
   const [hoveredId, setHoveredId] = useState<string | null>(null);
@@ -243,10 +243,6 @@ export default function App() {
             <CardsTab />
           ) : activeId === 'scratchpad' && activeTab === 'Logos' ? (
             <UiComponentsTab />
-          ) : activeId === 'scratchpad' && activeTab === 'Headers' ? (
-            <HeadersTab />
-          ) : activeId === 'scratchpad' && activeTab === 'Loading' ? (
-            <LoadingTab load={load} />
           ) : activeId === 'scratchpad' && activeTab === 'Onboarding' ? (
             <OnboardingTab />
           ) : activeId === 'transactions' && activeTab === 'Recurring' ? (
@@ -274,4 +270,25 @@ export default function App() {
     </div>
     </ViewModeProvider>
   );
+}
+
+// Nothing of the app loads until someone is signed in: the launch loader, the bank data and every page sit behind the
+// sign-in screen. Someone choosing a new password after a reset link is not signed in yet either.
+export default function App() {
+  const auth = useAuth();
+  if (auth.status === 'loading') return <div className="h-screen w-screen bg-canvas" />;
+  if (auth.status === 'unconfigured') {
+    return (
+      <div className="flex h-screen w-screen items-center justify-center bg-canvas p-8 text-center">
+        <div className="max-w-md">
+          <h1 className="text-2xl font-semibold tracking-tight">Wallex is not connected to its sign-in service</h1>
+          <p className="mt-3 font-support text-sm text-muted">
+            Add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY to .env.local, then rebuild the app.
+          </p>
+        </div>
+      </div>
+    );
+  }
+  if (auth.status === 'signedOut' || auth.recovering) return <AuthScreen />;
+  return <Shell />;
 }

@@ -9,6 +9,10 @@ export const money = (n: number) => {
   return `${n < 0 && Math.round(abs * 100) > 0 ? '-' : ''}$${text}`;
 };
 
+// Always two decimals, for a balance that should read exactly as the bank has it.
+export const moneyExact = (n: number) =>
+  `${n < 0 ? '-' : ''}$${Math.abs(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
 export const percentText = (share: number) => {
   const p = share * 100;
   return p > 0 && p < 1 ? '<1%' : p < 10 ? `${p.toFixed(1).replace(/\.0$/, '')}%` : `${Math.round(p)}%`;

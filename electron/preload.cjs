@@ -6,4 +6,12 @@ contextBridge.exposeInMainWorld('wallex', {
   connect: (payload) => ipcRenderer.invoke('wallex:connect', payload),
   disconnect: () => ipcRenderer.invoke('wallex:disconnect'),
   getTransactions: () => ipcRenderer.invoke('wallex:transactions'),
+  // The details from a confirmation or password-reset email link, once it has been opened in the browser.
+  onAuthCallback: (cb) => {
+    ipcRenderer.on('wallex:auth-callback', (_event, payload) => {
+      ipcRenderer.invoke('wallex:take-auth-callback');
+      cb(payload);
+    });
+    ipcRenderer.invoke('wallex:take-auth-callback').then((payload) => payload && cb(payload));
+  },
 });

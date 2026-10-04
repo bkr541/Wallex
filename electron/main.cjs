@@ -2,6 +2,7 @@ const { app, BrowserWindow, ipcMain, shell } = require('electron');
 const path = require('path');
 const config = require('./config.cjs');
 const plaid = require('./plaid.cjs');
+const authServer = require('./authServer.cjs');
 
 const RENDERER_URL = process.env.ELECTRON_RENDERER_URL;
 
@@ -55,7 +56,31 @@ handle('wallex:connect', ({ settings, bank }) => {
 handle('wallex:disconnect', () => plaid.disconnect());
 handle('wallex:transactions', () => plaid.getTransactions());
 
+// An email link was opened in the browser: hand what it carried to the app and bring the window forward. If the
+// window is not ready yet, keep it until the app asks.
+let pendingAuthCallback = null;
+function deliverAuthCallback(payload) {
+  const wins = BrowserWindow.getAllWindows();
+  if (wins.length === 0) {
+    pendingAuthCallback = payload;
+    return;
+  }
+  pendingAuthCallback = payload;
+  for (const w of wins) {
+    w.webContents.send('wallex:auth-callback', payload);
+    if (w.isMinimized()) w.restore();
+    w.show();
+    w.focus();
+  }
+}
+ipcMain.handle('wallex:take-auth-callback', () => {
+  const p = pendingAuthCallback;
+  pendingAuthCallback = null;
+  return p;
+});
+
 app.whenReady().then(() => {
+  authServer.start(deliverAuthCallback);
   createWindow();
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();

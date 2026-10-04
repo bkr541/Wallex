@@ -30,7 +30,7 @@ import {
   type OverviewDays,
   type UpcomingPayment,
 } from '../lib/overview';
-import { money, percentText } from '../lib/patternFormat';
+import { money, moneyExact, percentText } from '../lib/patternFormat';
 import { useMobile } from '../lib/viewMode';
 import type { Load } from '../lib/useTransactions';
 import type { TxFilter } from '../lib/txFilter';
@@ -408,7 +408,15 @@ export default function OverviewTab({
         <div className="text-center">
           <p className="font-support text-xs font-semibold tracking-[0.2em] text-ink/80 uppercase">Cash available</p>
           <p data-cash-balance className="mx-auto mt-2 w-fit text-5xl leading-none font-semibold tracking-tight @3xl:text-6xl">
-            {position.cash === null ? '—' : money(position.cash)}
+            {position.cash === null ? (
+              '—'
+            ) : (
+              <>
+                {position.cash < 0 && '-'}
+                <span className="text-accent">$</span>
+                {moneyExact(Math.abs(position.cash)).slice(1)}
+              </>
+            )}
           </p>
           <p className="mt-3 font-support text-sm text-ink/80">
             {position.cash === null
@@ -661,7 +669,7 @@ export default function OverviewTab({
                 <dl className="w-full max-w-md space-y-3 font-support text-sm">
                   <div className="flex items-baseline justify-between">
                     <dt className="text-muted">Cash available</dt>
-                    <dd className="tabular-nums">{money(buffer.available)}</dd>
+                    <dd className="tabular-nums">{moneyExact(buffer.available)}</dd>
                   </div>
                   <div className="flex items-baseline justify-between border-t border-line pt-3">
                     <dt className="text-muted">Expected recurring payments</dt>

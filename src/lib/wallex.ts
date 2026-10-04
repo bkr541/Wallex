@@ -68,6 +68,17 @@ interface WallexBridge {
   connect(payload: { settings: PlaidSettings; bank: Bank }): Promise<Result<ConnectResult>>;
   disconnect(): Promise<Result<void>>;
   getTransactions(): Promise<Result<TransactionsResult>>;
+  onAuthCallback(cb: (payload: AuthCallback) => void): void;
+}
+
+// What a confirmation or password-reset email link carries, handed over by the desktop app.
+export interface AuthCallback {
+  access_token?: string;
+  refresh_token?: string;
+  type?: string;
+  error?: string;
+  error_code?: string;
+  error_description?: string;
 }
 
 declare global {
@@ -89,4 +100,5 @@ export const wallex = {
     window.wallex?.disconnect?.() ?? Promise.resolve({ ok: false, error: NOT_DESKTOP }),
   getTransactions: (): Promise<Result<TransactionsResult>> =>
     window.wallex?.getTransactions?.() ?? Promise.resolve({ ok: false, error: NOT_DESKTOP }),
+  onAuthCallback: (cb: (payload: AuthCallback) => void) => window.wallex?.onAuthCallback?.(cb),
 };

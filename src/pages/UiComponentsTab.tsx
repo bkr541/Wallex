@@ -1,12 +1,7 @@
 import { asset } from '../assets';
 import SectionTitle from '../components/SectionTitle';
 
-const LOGOS = [
-  { file: 'logos/Wallex_logo1.png', label: 'Wallex_logo1' },
-  { file: 'logos/logo.png', label: 'logo' },
-  { file: 'logos/logo2.png', label: 'logo2' },
-  { file: 'logos/main_logo.png', label: 'main_logo' },
-];
+const LOGOS = [{ file: 'logos/logo2.png', label: 'logo2' }];
 
 export default function UiComponentsTab() {
   return (

@@ -39,6 +39,8 @@ function load(): Profile {
 let state = load();
 const listeners = new Set<() => void>();
 
+export const getProfile = () => state;
+
 export function saveProfile(next: Profile) {
   state = next;
   try {
