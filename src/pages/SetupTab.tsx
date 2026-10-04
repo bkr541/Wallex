@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import SectionTitle from '../components/SectionTitle';
 import { ChevronDown, Eye, EyeOff } from 'lucide-react';
 import PlumpIcon, { type PlumpName } from '../components/PlumpIcon';
 import { BANKS } from '../lib/banks';
@@ -208,7 +209,7 @@ export default function SetupTab({ onConnectionChange }: { onConnectionChange?: 
     >
       <section className="space-y-5">
         <div>
-          <h2 className="text-lg font-semibold">Plaid credentials</h2>
+          <SectionTitle icon="padlock-key">Plaid credentials</SectionTitle>
           <p className="mt-1 font-support text-sm text-muted">
             Find these in your Plaid dashboard under Developers → Keys.
           </p>
@@ -258,7 +259,7 @@ export default function SetupTab({ onConnectionChange }: { onConnectionChange?: 
 
       <section className="space-y-5 border-t border-line pt-8">
         <div>
-          <h2 className="text-lg font-semibold">Link options</h2>
+          <SectionTitle icon="link-chain">Link options</SectionTitle>
           <p className="mt-1 font-support text-sm text-muted">
             Choose what data to request and which institutions to show.
           </p>
@@ -297,7 +298,7 @@ export default function SetupTab({ onConnectionChange }: { onConnectionChange?: 
 
       <section className="space-y-5 border-t border-line pt-8">
         <div>
-          <h2 className="text-lg font-semibold">Advanced (optional)</h2>
+          <SectionTitle icon="code-monitor-2">Advanced (optional)</SectionTitle>
         </div>
 
         <div className="grid grid-cols-1 gap-x-8 gap-y-5 @3xl:grid-cols-2">

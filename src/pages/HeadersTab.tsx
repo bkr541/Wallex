@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import SectionTitle from '../components/SectionTitle';
 import { AnimatePresence, motion } from 'motion/react';
 import ArcHeader from '../components/headers/ArcHeader';
 import CropHeader from '../components/headers/CropHeader';
@@ -129,7 +130,7 @@ export default function HeadersTab() {
     <div className="space-y-10 px-1 pb-10">
       <div className="space-y-4 px-3">
         <div>
-          <h2 className="text-lg font-semibold">Header styles</h2>
+          <SectionTitle icon="layout-window-4">Header styles</SectionTitle>
           <p className="mt-1 font-support text-sm text-muted">
             Sixteen directions for the heading row at the top of every page. Switch page to see each one with that page’s
             icon, colour and wording.
@@ -162,7 +163,7 @@ export default function HeadersTab() {
         <section key={style.id}>
           {i === 10 && (
             <div className="mb-8 border-t border-line px-3 pt-8">
-              <h2 className="text-lg font-semibold">Round three: big and teal</h2>
+              <SectionTitle icon="layout-window-4">Round three: big and teal</SectionTitle>
               <p className="mt-1 font-support text-sm text-muted">
                 Built from three new references: oversized cropped icons, slanted slabs and discs, frosted glass,
                 cutouts and ghost outlines, all in the app’s teal.
@@ -171,7 +172,7 @@ export default function HeadersTab() {
           )}
           {i === 5 && (
             <div className="mb-8 border-t border-line px-3 pt-8">
-              <h2 className="text-lg font-semibold">Round two: mixed</h2>
+              <SectionTitle icon="layout-window-4">Round two: mixed</SectionTitle>
               <p className="mt-1 font-support text-sm text-muted">
                 The first five blended with the new references: the vertical rail and neon outline, the icon over
                 a gradient disc, flat fanned cards, stacked sheets and solid colour chips.

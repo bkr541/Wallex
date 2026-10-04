@@ -1,10 +1,12 @@
 import { AnimatePresence, motion } from 'motion/react';
 import { ChevronRight } from 'lucide-react';
+import PlumpIcon, { type PlumpName } from '../PlumpIcon';
 
 // A section of the Overview that can be folded away. Closed it is a single row, a title with an arrow at
 // the right; open it shows an optional description and controls (a range picker, a link), then the content.
 export default function Collapsible({
   title,
+  icon,
   subtitle,
   aside,
   open,
@@ -13,6 +15,7 @@ export default function Collapsible({
   children,
 }: {
   title: string;
+  icon: PlumpName;
   subtitle?: React.ReactNode;
   aside?: React.ReactNode;
   open: boolean;
@@ -28,7 +31,10 @@ export default function Collapsible({
         aria-expanded={open}
         className="group flex w-full cursor-pointer items-center justify-between gap-4 py-5 text-left"
       >
-        <span className="font-support text-sm font-semibold tracking-[0.2em] text-ink/90 uppercase">{title}</span>
+        <span className="flex items-center gap-4 font-support text-sm font-semibold tracking-[0.2em] text-ink/90 uppercase">
+          <PlumpIcon name={icon} className="h-7 w-7 shrink-0 text-muted" />
+          {title}
+        </span>
         <ChevronRight
           className={`h-5 w-5 shrink-0 text-muted transition-transform duration-200 group-hover:text-ink ${open ? 'rotate-90' : ''}`}
         />

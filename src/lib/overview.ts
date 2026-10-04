@@ -1,4 +1,4 @@
-import { epochDay, isIncome, isMoneyIn, isoDaysAgo, isoFromEpochDay, makeScope, DEFAULT_FILTERS, type PatternScope } from './patterns';
+import { categoryName, epochDay, isIncome, isMoneyIn, isoDaysAgo, isoFromEpochDay, makeScope, DEFAULT_FILTERS, type PatternScope } from './patterns';
 import { projectNext, stepSchedule, type Analysis, type Recurring } from './recurring';
 import type { LinkedAccount, Txn } from './wallex';
 
@@ -90,6 +90,45 @@ export function flowBetween(txns: Txn[], scope: PatternScope, from: string, to: 
 }
 
 export const periodFlow = (txns: Txn[], scope: PatternScope): Flow => flowBetween(txns, scope, scope.start);
+
+// ---------------------------------------------------------------------------------------------
+// Where the money out went
+// ---------------------------------------------------------------------------------------------
+
+export interface BreakdownSlice {
+  key: string;
+  name: string;
+  amount: number;
+  share: number; // of the total, 0 to 1
+  count: number;
+  other: boolean; // the smaller categories rolled together
+}
+
+// Money out split by the category the bank gave each transaction. It counts exactly what Money out counts,
+// so the total here always equals the Money out figure above it. The biggest categories get a slice each and
+// the rest are rolled into "Other".
+export function spendingBreakdown(txns: Txn[], scope: PatternScope, maxSlices = 5): { total: number; slices: BreakdownSlice[] } {
+  const groups = new Map<string, { name: string; amount: number; count: number }>();
+  let total = 0;
+  for (const t of txns) {
+    if (t.date < scope.start || isMoneyIn(t, scope) || !scope.isSpending(t)) continue;
+    const key = t.categoryKey || 'UNCATEGORIZED';
+    const g = groups.get(key) ?? { name: categoryName(t.category.split(' › ')[0] || 'Uncategorized'), amount: 0, count: 0 };
+    g.amount += -t.amount;
+    g.count += 1;
+    groups.set(key, g);
+    total += -t.amount;
+  }
+  const sorted = [...groups.entries()].map(([key, g]) => ({ key, ...g })).sort((a, b) => b.amount - a.amount);
+  const keep = sorted.length > maxSlices ? sorted.slice(0, maxSlices - 1) : sorted;
+  const rest = sorted.slice(keep.length);
+  const slices: BreakdownSlice[] = keep.map((g) => ({ ...g, share: total > 0 ? g.amount / total : 0, other: false }));
+  if (rest.length) {
+    const amount = rest.reduce((s, g) => s + g.amount, 0);
+    slices.push({ key: 'OTHER', name: 'Other', amount, count: rest.reduce((s, g) => s + g.count, 0), share: total > 0 ? amount / total : 0, other: true });
+  }
+  return { total, slices };
+}
 
 // ---------------------------------------------------------------------------------------------
 // Cash-flow history
@@ -307,6 +346,7 @@ export interface UpcomingPayment {
   amount: number;
   amountApprox: boolean; // the amount varies from charge to charge
   dateApprox: boolean; // the day varies from month to month
+  paidMonths: string[]; // "YYYY-MM" of every month this payment has already been made in
 }
 
 // The recurring payments expected in the next `windowDays`, soonest first. A weekly payment can
@@ -317,6 +357,7 @@ export function upcomingPayments(analysis: Analysis, today: string, windowDays =
   const cardIsPaid = analysis.items.some((r) => isCommitment(r) && r.settlement === 'card');
   for (const r of analysis.items) {
     if (!isCommitment(r) || r.kind === 'habit' || r.kind === 'aggregator') continue;
+    const paidMonths = [...new Set(r.charges.filter((c) => c.amount < 0).map((c) => c.date.slice(0, 7)))];
     // A charge on a credit card reaches your cash through the card payment, which is already in the list.
     if (r.paidOnCard && cardIsPaid) continue;
     for (const s of r.schedule) {
@@ -337,6 +378,7 @@ export function upcomingPayments(analysis: Analysis, today: string, windowDays =
           amount: s.typical,
           amountApprox: !s.fixed,
           dateApprox: s.spread >= 2,
+          paidMonths,
         });
         date = stepSchedule(date, s);
       }

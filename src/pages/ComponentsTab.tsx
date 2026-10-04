@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
+import SectionTitle from '../components/SectionTitle';
+import type { PlumpName } from '../components/PlumpIcon';
 import { AlertCircle, ArrowRight, ArrowUp, Check, ChevronDown, Eye, EyeOff, Loader2, Lock, Mail, Plus, Search, X } from 'lucide-react';
 
 // A kit of the basic pieces the app is built from, each one working and each one themed from the same variables
@@ -17,10 +19,12 @@ function Row({ index, name, note, children }: { index: string; name: string; not
   );
 }
 
-function Group({ title, children }: { title: string; children: React.ReactNode }) {
+function Group({ title, icon, children }: { title: string; icon: PlumpName; children: React.ReactNode }) {
   return (
     <div className="space-y-6">
-      <h3 className="border-b border-line px-3 pb-3 text-lg font-semibold">{title}</h3>
+      <SectionTitle as="h3" icon={icon} className="border-b border-line px-3 pb-3 text-lg font-semibold">
+        {title}
+      </SectionTitle>
       <div className="space-y-8">{children}</div>
     </div>
   );
@@ -355,7 +359,7 @@ function LabelBadges() {
 export default function ComponentsTab() {
   return (
     <div className="space-y-14 px-1 pb-12">
-      <Group title="Inputs">
+      <Group title="Inputs" icon="text-box-1">
         <Row index="01" name="Field styles" note="Outline, filled and underline, each with a label and helper text.">
           <TextInputs />
         </Row>
@@ -367,7 +371,7 @@ export default function ComponentsTab() {
         </Row>
       </Group>
 
-      <Group title="Primary buttons">
+      <Group title="Primary buttons" icon="button-play-circle">
         <Row index="01" name="Solid" note="The main action, plain, with icons, and as a pill.">
           <SolidButtons />
         </Row>
@@ -379,7 +383,7 @@ export default function ComponentsTab() {
         </Row>
       </Group>
 
-      <Group title="Badges">
+      <Group title="Badges" icon="tag-alt">
         <Row index="01" name="Status" note="The same chips the Recurring tab uses to say how sure Wallex is.">
           <StatusBadges />
         </Row>

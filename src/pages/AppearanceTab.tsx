@@ -1,4 +1,5 @@
 import { Check } from 'lucide-react';
+import SectionTitle from '../components/SectionTitle';
 import PlumpIcon, { type PlumpName } from '../components/PlumpIcon';
 import {
   ACCENTS,
@@ -76,7 +77,7 @@ export default function AppearanceTab() {
     <div className="space-y-8 px-1 pb-10">
       <section className="space-y-6">
         <div>
-          <h2 className="text-lg font-semibold">Look and feel</h2>
+          <SectionTitle icon="paint-palette">Look and feel</SectionTitle>
           <p className="mt-1 font-support text-sm text-muted">Changes apply straight away and are remembered.</p>
         </div>
 
@@ -164,7 +165,7 @@ export default function AppearanceTab() {
 
       <section className="space-y-6 border-t border-line pt-8">
         <div>
-          <h2 className="text-lg font-semibold">Accessibility</h2>
+          <SectionTitle icon="eye-optic">Accessibility</SectionTitle>
         </div>
 
         <Setting icon="flash-1" label="Reduce motion">

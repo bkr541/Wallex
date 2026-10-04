@@ -14,6 +14,7 @@ import LoadingTab from './pages/LoadingTab';
 import AppearanceTab from './pages/AppearanceTab';
 import OnboardingTab from './pages/OnboardingTab';
 import PageHeader from './components/PageHeader';
+import CardsTab from './pages/CardsTab';
 import OverviewTab from './pages/OverviewTab';
 import LoadingLogo from './components/LoadingLogo';
 import { cashPosition } from './lib/overview';
@@ -221,6 +222,8 @@ export default function App() {
             <CheckingTab load={load} refreshing={refreshing} onRefresh={refresh} />
           ) : activeId === 'scratchpad' && activeTab === 'UI Components' ? (
             <ComponentsTab />
+          ) : activeId === 'scratchpad' && activeTab === 'UI Cards' ? (
+            <CardsTab />
           ) : activeId === 'scratchpad' && activeTab === 'Logos' ? (
             <UiComponentsTab />
           ) : activeId === 'scratchpad' && activeTab === 'Headers' ? (

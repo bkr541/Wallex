@@ -1,4 +1,5 @@
 import { CenteredOnboarding, NumeralOnboarding, PhoneOnboarding, RailOnboarding, SplitOnboarding } from '../components/onboarding/Variants';
+import SectionTitle from '../components/SectionTitle';
 
 const STYLES: { id: string; name: string; note: string; Component: () => React.ReactElement }[] = [
   {
@@ -40,7 +41,7 @@ export default function OnboardingTab() {
   return (
     <div className="space-y-12 px-1 pb-10">
       <div className="px-3">
-        <h2 className="text-lg font-semibold">First-run walkthrough</h2>
+        <SectionTitle icon="map-location-star-pin">First-run walkthrough</SectionTitle>
         <p className="mt-1 font-support text-sm text-muted">
           Five ways to introduce Wallex to a new person. Press Next in any of them to try it. In the app, Get started
           would close the flow; here it starts over. The figures in the drawings are samples.

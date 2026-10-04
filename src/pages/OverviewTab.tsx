@@ -23,6 +23,7 @@ import {
   savingsOver,
   scenarios,
   shortDate,
+  spendingBreakdown,
   upcomingPayments,
   weeklyBuckets,
   OVERVIEW_PERIODS,
@@ -36,10 +37,14 @@ import type { Load } from '../lib/useTransactions';
 const WINDOW_DAYS = 30; // how far ahead "upcoming" looks
 const LOW_BALANCE = 1000; // the line month-end balances are compared against
 const PERCENTS = [10, 20, 30];
+// One colour per slice of the spending breakdown, biggest first. "Other" is hatched.
+const SLICE_COLORS = ['var(--accent)', '#6cc4ff', '#b9a2ff', '#f5c542', '#ff8a9b'];
+const STRIPES = 'repeating-linear-gradient(135deg, color-mix(in srgb, var(--muted) 45%, transparent) 0 3px, transparent 3px 6px)';
 
 const signed = (n: number) => `${n >= 0 ? '+' : '-'}${money(Math.abs(n))}`;
 const approx = (n: number) => `~${money(n)}`;
 const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`;
+const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 const weekday = (iso: string) => ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][new Date(`${iso}T00:00:00Z`).getUTCDay()];
 
 function Segmented<T extends string | number>({
@@ -274,6 +279,7 @@ export default function OverviewTab({
   const position = cashPosition(accounts);
   const flow = periodFlow(txns, scope);
   const fees = bankFees(txns, scope);
+  const breakdown = spendingBreakdown(txns, scope);
   const owed = commitments(analysis);
   const upcoming = upcomingPayments(analysis, scope.today, WINDOW_DAYS);
   const pressure = pressureWindow(upcoming);
@@ -288,6 +294,13 @@ export default function OverviewTab({
   const buckets = chosen ? monthlyBuckets(txns, scope, chosen) : weeklyBuckets(txns, scope);
   const savings = savingsOver(buckets);
   const anyFlow = buckets.some((b) => b.moneyIn > 0 || b.moneyOut > 0);
+
+  // The last twelve months, ending with this one, for the "paid this month" badges.
+  const [thisYear, thisMonth] = scope.today.slice(0, 7).split('-').map(Number);
+  const monthSlots = Array.from({ length: 12 }, (_, i) => {
+    const d = new Date(Date.UTC(thisYear, thisMonth - 1 - (11 - i), 1));
+    return { key: d.toISOString().slice(0, 7), label: MONTH_NAMES[d.getUTCMonth()], year: d.getUTCFullYear() };
+  });
 
   const lowMonths = monthEnds.filter((m) => m.balance < LOW_BALANCE).length;
   const lowest = monthEnds.length ? monthEnds.reduce((lo, m) => (m.balance < lo.balance ? m : lo)) : null;
@@ -378,6 +391,7 @@ export default function OverviewTab({
       <Collapsible
         {...sectionProps('commitments')}
         title="Commitments"
+        icon="calendar-check"
         aside={
           <button
             type="button"
@@ -425,6 +439,7 @@ export default function OverviewTab({
       <Collapsible
         {...sectionProps('cashflow')}
         title="Cash flow"
+        icon="graph-bar-increase"
         subtitle={chosen ? `Month by month, last ${chosen} months.` : 'Week by week. Monthly bars appear once there are three months of history.'}
         aside={
           <>
@@ -457,10 +472,70 @@ export default function OverviewTab({
         )}
       </Collapsible>
 
-        {/* 4 · Upcoming pressure */}
+        {/* Where the money out went */}
+      <Collapsible
+        {...sectionProps('breakdown')}
+        title="Spending breakdown"
+        icon="dollar-coin"
+        subtitle={`Where your money out went in the last ${periodLabel}, by category.`}
+        aside={
+          <button
+            type="button"
+            onClick={() => onNavigate('patterns')}
+            className="cursor-pointer font-support text-xs text-muted transition-colors hover:text-ink"
+          >
+            See every category in Patterns →
+          </button>
+        }
+      >
+        {breakdown.slices.length === 0 ? (
+          <p className="font-support text-sm text-muted">No spending in this period.</p>
+        ) : (
+          <div className="rounded-3xl border border-line bg-card/60 p-5 @3xl:p-6">
+            <div className="flex items-baseline justify-between gap-4">
+              <span className="font-support text-sm text-ink/80">Total spending</span>
+              <span className="text-lg font-semibold tracking-tight tabular-nums">{money(breakdown.total)}</span>
+            </div>
+
+            <div className="mt-4 flex h-3.5 gap-0.5 overflow-hidden rounded-full" role="img" aria-label="Spending by category">
+              {breakdown.slices.map((sl, i) => (
+                <span
+                  key={sl.key}
+                  className="h-full min-w-[3px] first:rounded-l-full last:rounded-r-full"
+                  style={{
+                    width: `${sl.share * 100}%`,
+                    background: sl.other ? STRIPES : SLICE_COLORS[i % SLICE_COLORS.length],
+                    transition: 'width 0.6s cubic-bezier(0.22, 1, 0.36, 1)',
+                  }}
+                />
+              ))}
+            </div>
+
+            <ul className="mt-6 space-y-3.5">
+              {breakdown.slices.map((sl, i) => (
+                <li key={sl.key} className="flex items-center gap-3">
+                  <span
+                    className="h-[18px] w-[18px] shrink-0 rounded-md"
+                    style={{ background: sl.other ? STRIPES : SLICE_COLORS[i % SLICE_COLORS.length] }}
+                  />
+                  <span className="min-w-0 truncate font-support text-sm text-ink/90">{sl.name}</span>
+                  <span className="h-px min-w-3 flex-1 bg-line" />
+                  <span className="hidden font-support text-xs text-muted tabular-nums @xl:inline">{money(sl.amount)}</span>
+                  <span className="w-11 text-right text-sm font-semibold tabular-nums">
+                    {sl.share > 0 && sl.share < 0.005 ? '<1%' : `${Math.round(sl.share * 100)}%`}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+      </Collapsible>
+
+      {/* 4 · Upcoming payments */}
         <Collapsible
           {...sectionProps('upcoming')}
-          title="Upcoming pressure"
+          title="Upcoming payments"
+        icon="notification-alert"
           subtitle={`Recurring payments expected in the next ${WINDOW_DAYS} days.`}
         >
 
@@ -482,20 +557,33 @@ export default function OverviewTab({
                         Highest concentration · {shortDate(pressure!.start)} – {shortDate(pressure!.end)} · {approx(pressure!.total)}
                       </p>
                     )}
-                    <div
-                      className={`grid grid-cols-[4.75rem_minmax(0,1fr)_auto] items-center gap-3 border-b border-line py-3 ${
-                        inside ? 'border-l-2 border-l-accent bg-accent-soft/40 pl-3' : ''
-                      }`}
-                    >
-                      <span className="font-support text-sm text-muted tabular-nums">{shortDate(p.date)}</span>
-                      <span className="flex min-w-0 items-center gap-2.5">
-                        <MerchantLogo name={p.name} sources={p.logos} />
-                        <span className="min-w-0">
-                          <span className="block truncate text-sm font-medium">{p.name}</span>
-                          {p.dateApprox && <span className="block truncate font-support text-xs text-muted">{dateText(p)}</span>}
+                    <div className={`border-b border-line py-3 ${inside ? 'border-l-2 border-l-accent bg-accent-soft/40 pl-3' : ''}`}>
+                      <div className="grid grid-cols-[4.75rem_minmax(0,1fr)_auto] items-center gap-3">
+                        <span className="font-support text-sm text-muted tabular-nums">{shortDate(p.date)}</span>
+                        <span className="flex min-w-0 items-center gap-2.5">
+                          <MerchantLogo name={p.name} sources={p.logos} />
+                          <span className="min-w-0">
+                            <span className="block truncate text-sm font-medium">{p.name}</span>
+                            {p.dateApprox && <span className="block truncate font-support text-xs text-muted">{dateText(p)}</span>}
+                          </span>
                         </span>
-                      </span>
-                      <span className="text-sm font-medium tabular-nums">{p.amountApprox ? approx(p.amount) : money(p.amount)}</span>
+                        <span className="text-sm font-medium tabular-nums">{p.amountApprox ? approx(p.amount) : money(p.amount)}</span>
+                      </div>
+                      {/* The last twelve months, spread across the full width: green for every month a payment was made */}
+                      <div className="mt-3 flex justify-between" role="group" aria-label={`Months ${p.name} was paid`}>
+                        {monthSlots.map((m) => {
+                          const paid = p.paidMonths.includes(m.key);
+                          return (
+                            <span
+                              key={m.key}
+                              title={`${m.label} ${m.year} · ${paid ? 'paid' : 'no payment found'}`}
+                              className={`font-support text-[11px] @3xl:text-xs ${paid ? 'font-semibold text-accent' : 'text-muted'}`}
+                            >
+                              {m.label}
+                            </span>
+                          );
+                        })}
+                      </div>
                     </div>
                   </div>
                 );
@@ -521,6 +609,7 @@ export default function OverviewTab({
         <Collapsible
           {...sectionProps('buffer')}
           title="Cash buffer"
+        icon="piggy-bank"
           subtitle="What is left of your cash after the payments above."
         >
 
@@ -571,6 +660,7 @@ export default function OverviewTab({
       <Collapsible
         {...sectionProps('opportunities')}
         title="Opportunities"
+        icon="lightbulb"
         subtitle={`What-ifs based on your last ${periodLabel} of spending. They are estimates, not advice.`}
         aside={
           ideas.some((i) => i.fixedPercent === null) ? (

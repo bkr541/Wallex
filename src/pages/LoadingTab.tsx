@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import SectionTitle from '../components/SectionTitle';
 import { RotateCcw } from 'lucide-react';
 import LineLoader from '../components/loaders/LineLoader';
 import { cashPosition } from '../lib/overview';
@@ -27,7 +28,7 @@ export default function LoadingTab({ load }: { load: Load }) {
   return (
     <div className="space-y-6 px-1 pb-10">
       <div className="px-3">
-        <h2 className="text-lg font-semibold">Launch animation</h2>
+        <SectionTitle icon="loading-horizontal-2">Launch animation</SectionTitle>
         <p className="mt-1 font-support text-sm text-muted">
           Balance Line is the loading screen shown when the app starts.
         </p>

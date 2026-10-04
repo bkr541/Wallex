@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import SectionTitle from '../components/SectionTitle';
 import { AnimatePresence, motion } from 'motion/react';
 import {
   Briefcase,
@@ -422,7 +423,7 @@ export default function PatternsTab({ load }: { load: Load }) {
 
     <div className={`space-y-5 ${live ? '' : 'pointer-events-none opacity-50'}`}>
       <section>
-        <h3 className="mb-2 text-xs font-semibold tracking-wider text-muted uppercase">Period</h3>
+        <SectionTitle as="h3" icon="circle-clock" iconClass="h-4 w-4" className="mb-2 text-xs font-semibold tracking-wider text-muted uppercase !gap-2">Period</SectionTitle>
         <Segmented
             fill={mobile}
           value={filters.days}
@@ -436,7 +437,7 @@ export default function PatternsTab({ load }: { load: Load }) {
       </section>
 
       <section>
-        <h3 className="mb-2 text-xs font-semibold tracking-wider text-muted uppercase">Account</h3>
+        <SectionTitle as="h3" icon="wallet" iconClass="h-4 w-4" className="mb-2 text-xs font-semibold tracking-wider text-muted uppercase !gap-2">Account</SectionTitle>
         <Segmented
             fill={mobile}
           value={filters.account}
@@ -455,7 +456,7 @@ export default function PatternsTab({ load }: { load: Load }) {
       </section>
 
       <section>
-        <h3 className="mb-2 text-xs font-semibold tracking-wider text-muted uppercase">Minimum per month</h3>
+        <SectionTitle as="h3" icon="dollar-coin" iconClass="h-4 w-4" className="mb-2 text-xs font-semibold tracking-wider text-muted uppercase !gap-2">Minimum per month</SectionTitle>
         <Segmented
             fill={mobile}
           value={filters.minAmount}
@@ -471,7 +472,7 @@ export default function PatternsTab({ load }: { load: Load }) {
 
       {data.categoryOptions.length > 0 && (
         <section>
-          <h3 className="mb-2 text-xs font-semibold tracking-wider text-muted uppercase">Categories</h3>
+          <SectionTitle as="h3" icon="layers-1" iconClass="h-4 w-4" className="mb-2 text-xs font-semibold tracking-wider text-muted uppercase !gap-2">Categories</SectionTitle>
           <div className="flex max-h-32 flex-wrap gap-1.5 overflow-y-auto">
             {data.categoryOptions.map((c) => {
               const on = filters.categories.includes(c.key);
@@ -546,7 +547,7 @@ export default function PatternsTab({ load }: { load: Load }) {
                   transition={{ type: 'spring', stiffness: 320, damping: 34 }}
                 >
                   <div className="mx-auto h-1.5 w-10 rounded-full bg-line" />
-                  <h2 className="text-lg font-semibold">Filter</h2>
+                  <SectionTitle icon="filter-1">Filter</SectionTitle>
                   {filterContent}
                 </motion.div>
               </>

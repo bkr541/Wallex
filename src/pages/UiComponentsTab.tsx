@@ -1,4 +1,5 @@
 import { asset } from '../assets';
+import SectionTitle from '../components/SectionTitle';
 
 const LOGOS = [
   { file: 'logos/Wallex_logo1.png', label: 'Wallex_logo1' },
@@ -11,7 +12,7 @@ export default function UiComponentsTab() {
   return (
     <section className="space-y-5 px-4">
       <div>
-        <h2 className="text-lg font-semibold">Logos</h2>
+        <SectionTitle icon="painting-board">Logos</SectionTitle>
         <p className="mt-1 font-support text-sm text-muted">Shown at 100 × 100 px, kept in proportion.</p>
       </div>
 

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import SectionTitle from './SectionTitle';
 import { motion } from 'motion/react';
 import { ArrowDown, ArrowUp, ChevronUp, Minus } from 'lucide-react';
 import TransactionTable from './TransactionTable';
@@ -251,7 +252,7 @@ export default function PatternDetail({
       <motion.div variants={rise} custom={2} className="mt-8">
         <div className="mb-2 flex flex-wrap items-end justify-between gap-3 px-3">
           <div>
-            <h3 className="text-base font-semibold">Transactions</h3>
+            <SectionTitle as="h3" icon="dollar-coin" iconClass="h-5 w-5" className="text-base font-semibold">Transactions</SectionTitle>
             <p className="font-support text-sm text-muted">
               {scope === 'period'
                 ? `${m.count} ${m.count === 1 ? singular(noun) : noun} adding up to ${money(m.total)} in the ${period}.`

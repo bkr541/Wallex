@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import SectionTitle from '../components/SectionTitle';
 import { AnimatePresence, motion } from 'motion/react';
 import { ArrowDown, ArrowUp, Search } from 'lucide-react';
 import MerchantLogo from '../components/MerchantLogo';
@@ -252,12 +253,12 @@ function Detail({
       {/* Why it was recognised, and what was noticed */}
       <div className="grid gap-5 @2xl:grid-cols-2">
         <div>
-          <h4 className="text-xs font-semibold tracking-wider text-muted uppercase">Why Wallex recognised it</h4>
+          <SectionTitle as="h4" icon="magic-wand-1" iconClass="h-4 w-4" className="text-xs font-semibold tracking-wider text-muted uppercase !gap-2">Why Wallex recognised it</SectionTitle>
           <p className="mt-1.5 font-support text-sm select-text">{r.reason}</p>
         </div>
         {r.notes.length > 0 && (
           <div>
-            <h4 className="text-xs font-semibold tracking-wider text-muted uppercase">Observations</h4>
+            <SectionTitle as="h4" icon="search-visual" iconClass="h-4 w-4" className="text-xs font-semibold tracking-wider text-muted uppercase !gap-2">Observations</SectionTitle>
             <ul className="mt-1.5 space-y-1.5 font-support text-sm select-text">
               {r.notes.map((n) => (
                 <li key={n} className="flex gap-2">
@@ -280,7 +281,7 @@ function Detail({
       {/* Evidence */}
       {charges.length > 0 && (
         <div>
-          <h4 className="text-xs font-semibold tracking-wider text-muted uppercase">The charges behind this</h4>
+          <SectionTitle as="h4" icon="task-list-edit" iconClass="h-4 w-4" className="text-xs font-semibold tracking-wider text-muted uppercase !gap-2">The charges behind this</SectionTitle>
           <div className="mt-2 divide-y divide-line font-support text-sm">
             {charges.map((t: Txn) => {
               const acct = accounts.get(t.accountId);
