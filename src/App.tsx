@@ -16,6 +16,7 @@ import OnboardingTab from './pages/OnboardingTab';
 import PageHeader from './components/PageHeader';
 import CardsTab from './pages/CardsTab';
 import LoginTab from './pages/LoginTab';
+import LoginHeroTab from './pages/LoginHeroTab';
 import AccountTab from './pages/AccountTab';
 import CalendarTab from './pages/CalendarTab';
 import OverviewTab from './pages/OverviewTab';
@@ -235,6 +236,8 @@ function Shell() {
             <CalendarTab load={load} />
           ) : activeId === 'scratchpad' && activeTab === 'Login' ? (
             <LoginTab />
+          ) : activeId === 'scratchpad' && activeTab === 'Login Hero' ? (
+            <LoginHeroTab />
           ) : activeId === 'scratchpad' && activeTab === 'UI Cards' ? (
             <CardsTab />
           ) : activeId === 'scratchpad' && activeTab === 'Logos' ? (
