@@ -21,7 +21,8 @@ import CalendarTab from './pages/CalendarTab';
 import OverviewTab from './pages/OverviewTab';
 import LoadingLogo from './components/LoadingLogo';
 import { cashPosition } from './lib/overview';
-import { Monitor, Smartphone } from 'lucide-react';
+import ViewToggle from './components/ViewToggle';
+import { useMobileView } from './lib/viewState';
 import { ViewModeProvider } from './lib/viewMode';
 import AuthScreen from './components/auth/AuthScreen';
 import { useAuth } from './lib/auth';
@@ -60,20 +61,7 @@ function Shell() {
 
   // Desktop layout, or a phone-sized frame. Remembered between launches.
   const [frameEl, setFrameEl] = useState<HTMLDivElement | null>(null);
-  const [mobile, setMobile] = useState(() => {
-    try {
-      return localStorage.getItem('wallex-view') === 'mobile';
-    } catch {
-      return false;
-    }
-  });
-  useEffect(() => {
-    try {
-      localStorage.setItem('wallex-view', mobile ? 'mobile' : 'desktop');
-    } catch {
-      // Not remembering the choice is fine.
-    }
-  }, [mobile]);
+  const mobile = useMobileView();
 
   const activePage = NAV.find((item) => item.id === activeId)!;
   const tabs = activePage.tabs ?? TABS;
@@ -284,15 +272,7 @@ function Shell() {
         <ListIcon className="h-5 w-5" />
       </button>
 
-      <button
-        type="button"
-        onClick={() => setMobile((m) => !m)}
-        aria-label={mobile ? 'Switch to desktop view' : 'Switch to mobile view'}
-        title={mobile ? 'Switch to desktop view' : 'Switch to mobile view'}
-        className="fixed right-5 bottom-5 z-50 flex h-10 w-10 cursor-pointer items-center justify-center rounded-full border border-line bg-card text-muted shadow-[0_10px_28px_rgba(0,0,0,0.6)] transition-colors hover:bg-surface hover:text-ink"
-      >
-        {mobile ? <Monitor className="h-[18px] w-[18px]" /> : <Smartphone className="h-[18px] w-[18px]" />}
-      </button>
+      <ViewToggle />
     </div>
     </ViewModeProvider>
   );
