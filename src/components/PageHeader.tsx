@@ -13,7 +13,8 @@ export default function PageHeader({ page, compact = false }: { page: NavItem; c
   const description = page.id === 'overview' && name ? `${greeting}, ${name}. ${page.description}` : page.description;
   return (
     <header
-      className={`relative shrink-0 overflow-hidden border ${compact ? 'min-h-[132px] rounded-[24px]' : 'min-h-[184px] rounded-[28px]'}`}
+      // On a phone the header runs edge to edge from the very top of the screen, so only its bottom corners are rounded.
+      className={`relative shrink-0 overflow-hidden ${compact ? 'min-h-[128px] rounded-b-[28px] border-b' : 'min-h-[184px] rounded-[28px] border'}`}
       style={{
         // Opaque on purpose: a see-through border picks up the gradient behind it, so it looked faint on the dark left
         // edge and bright on the teal right edge.
@@ -37,9 +38,9 @@ export default function PageHeader({ page, compact = false }: { page: NavItem; c
           filter: 'drop-shadow(0 0 30px color-mix(in srgb, var(--accent) 30%, transparent))',
         }}
       />
-      <div className={`relative flex flex-col justify-center ${compact ? 'min-h-[132px] px-5 py-4' : 'min-h-[184px] px-8 py-5'}`}>
+      <div className={`relative flex flex-col justify-center ${compact ? 'min-h-[128px] px-5 pt-10 pb-4' : 'min-h-[184px] px-8 py-5'}`}>
         <h1 className={`leading-none font-semibold tracking-tight ${compact ? 'text-3xl' : 'text-5xl'}`}>{page.name}</h1>
-        <p className={`mt-2.5 font-support text-ink/70 ${compact ? 'max-w-[11.5rem] text-sm' : 'max-w-md text-base'}`}>{description}</p>
+        <p className={`mt-2.5 font-support text-ink/70 ${compact ? 'line-clamp-2 max-w-[16.5rem] text-sm' : 'max-w-md text-base'}`}>{description}</p>
       </div>
     </header>
   );

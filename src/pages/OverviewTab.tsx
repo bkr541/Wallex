@@ -116,7 +116,7 @@ function Segmented<T extends string | number>({
 }
 
 // Money in against money out as one bar: the teal part is what came in, the coral part what went out, and
-// the marker sits where they meet, with a dotted line dropping from it toward the cash available.
+// the marker sits where they meet.
 function FlowBar({ moneyIn, moneyOut }: { moneyIn: number; moneyOut: number }) {
   const total = moneyIn + moneyOut;
   // Where the marker sits is exactly money in's share of the total: all the way left when everything went out,
@@ -145,16 +145,6 @@ function FlowBar({ moneyIn, moneyOut }: { moneyIn: number; moneyOut: number }) {
       <div className="mt-2 flex justify-between font-support text-sm text-muted tabular-nums">
         <span>{money(moneyIn)}</span>
         <span>{money(moneyOut)}</span>
-      </div>
-      <div className="relative mt-1 h-8">
-        <span
-          className="absolute top-0 h-[1.65rem] -translate-x-1/2 border-l border-dashed border-accent/70"
-          style={{ left: at, transition: grow }}
-        />
-        <span
-          className="absolute h-2 w-2 -translate-x-1/2 rounded-full bg-accent"
-          style={{ left: at, top: 'calc(1.65rem - 2px)', transition: grow }}
-        />
       </div>
     </div>
   );
@@ -342,16 +332,23 @@ export default function OverviewTab({
   const periodLabel = scope.partial ? `${scope.effectiveDays} days` : (OVERVIEW_PERIODS.find((p) => p.days === scope.days)?.phrase ?? `${scope.days} days`);
 
   const netTone = flow.count === 0 ? '' : flow.net >= 0 ? 'text-accent' : 'text-red-300';
-  // Things worth knowing about the figures above that the card itself has no room for.
-  const caveats = [
-    flow.count === 0
-      ? `No money in or out in the last ${periodLabel}.`
-      : flow.savingsRate === null
-        ? `No income detected in the last ${periodLabel}, so there is no savings rate.`
-        : `${flow.savingsRate >= 0 ? '+' : '-'}${percentText(Math.abs(flow.savingsRate))} savings rate over the last ${periodLabel}`,
-    flow.pending > 0 ? `includes ${plural(flow.pending, 'pending transaction')}` : '',
-    scope.partial ? `only ${scope.effectiveDays} days of history so far` : '',
-  ].filter(Boolean);
+  // Things worth knowing about the figures above, as badges at the bottom of the card. Only the number is styled.
+  const savingsGood = flow.savingsRate !== null && flow.savingsRate >= 0;
+  const badges: { value?: string; label: string; tone: 'good' | 'bad' | 'warn' | 'quiet'; title?: string }[] = [];
+  if (flow.count === 0) badges.push({ label: 'No activity', tone: 'quiet', title: `No money in or out in the last ${periodLabel}.` });
+  else if (flow.savingsRate === null)
+    badges.push({ label: 'No income found', tone: 'quiet', title: `No income detected in the last ${periodLabel}, so there is no savings rate.` });
+  else
+    badges.push({
+      value: `${savingsGood ? '+' : '-'}${percentText(Math.abs(flow.savingsRate))}`,
+      label: 'Savings Rate',
+      tone: savingsGood ? 'good' : 'bad',
+      title: `Savings rate over the last ${periodLabel}`,
+    });
+  if (flow.pending > 0) badges.push({ value: String(flow.pending), label: `Pending ${flow.pending === 1 ? 'Transaction' : 'Transactions'}`, tone: 'warn', title: 'Included in the figures above' });
+  if (scope.partial) badges.push({ value: String(scope.effectiveDays), label: 'Days of History', tone: 'quiet', title: 'There is not a full period of history yet' });
+  const VALUE_TONE = { good: 'text-accent', bad: 'text-red-300', warn: 'text-amber-300', quiet: 'text-ink' };
+
 
   return (
     <div className="flex flex-col gap-5 px-1 pb-10">
@@ -385,19 +382,19 @@ export default function OverviewTab({
         <div className="grid grid-cols-3">
           <div className="min-w-0 pr-3 @3xl:pr-8">
             <p className="font-support text-xs text-ink/80 @3xl:text-sm">Money in</p>
-            <p className="mt-2 text-[1.55rem] leading-none font-semibold tracking-tight @3xl:text-4xl">
+            <p className="mt-0.5 text-[1.55rem] leading-none font-semibold tracking-tight @3xl:text-4xl">
               <SlotNumber text={money(flow.moneyIn)} />
             </p>
           </div>
           <div className="min-w-0 border-l border-line px-3 @3xl:px-8">
             <p className="font-support text-xs text-ink/80 @3xl:text-sm">Money out</p>
-            <p className="mt-2 text-[1.55rem] leading-none font-semibold tracking-tight @3xl:text-4xl">
+            <p className="mt-0.5 text-[1.55rem] leading-none font-semibold tracking-tight @3xl:text-4xl">
               <SlotNumber text={money(flow.moneyOut)} />
             </p>
           </div>
           <div className="min-w-0 border-l border-line pl-3 @3xl:pl-8">
             <p className="font-support text-xs whitespace-nowrap text-ink/80 @3xl:text-sm">Net cash flow</p>
-            <p className={`mt-2 text-[1.55rem] leading-none font-semibold tracking-tight @3xl:text-4xl ${netTone}`}>
+            <p className={`mt-0.5 text-[1.55rem] leading-none font-semibold tracking-tight @3xl:text-4xl ${netTone}`}>
               <SlotNumber text={flow.count === 0 ? '—' : signed(flow.net)} />
             </p>
           </div>
@@ -405,9 +402,9 @@ export default function OverviewTab({
 
         <FlowBar moneyIn={flow.moneyIn} moneyOut={flow.moneyOut} />
 
-        <div className="text-center">
+        <div className="mt-3 text-center">
           <p className="font-support text-xs font-semibold tracking-[0.2em] text-ink/80 uppercase">Cash available</p>
-          <p data-cash-balance className="mx-auto mt-1.5 w-fit text-4xl leading-none font-semibold tracking-tight @3xl:text-5xl">
+          <p data-cash-balance className="mx-auto mt-0.5 w-fit text-4xl leading-none font-semibold tracking-tight @3xl:text-5xl">
             {position.cash === null ? (
               '—'
             ) : (
@@ -425,8 +422,20 @@ export default function OverviewTab({
             {position.cardsOwed !== null && position.cardsOwed > 0 && ` · ${money(position.cardsOwed)} owed on cards`}
           </p>
         </div>
+
+        <div className="mt-4 flex items-center justify-center gap-2 @3xl:gap-3">
+          {badges.map((b) => (
+            <span
+              key={b.label}
+              title={b.title}
+              className="rounded-full border border-line bg-surface px-3 py-1.5 font-support text-xs whitespace-nowrap text-ink/80 @3xl:px-5 @3xl:py-2 @3xl:text-base"
+            >
+              {b.value && <span className={`font-semibold ${VALUE_TONE[b.tone]}`}>{b.value} </span>}
+              {b.label}
+            </span>
+          ))}
+        </div>
       </section>
-      <p className="-mt-1 px-6 font-support text-xs text-muted">{caveats.join(' · ')}</p>
 
       <div className="mx-3 mt-1">
       {/* 2 · Recurring commitments */}

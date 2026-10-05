@@ -186,7 +186,7 @@ function Shell() {
 
       <main
         className={`absolute z-20 flex flex-col ${
-          mobile ? 'inset-x-4 top-0 bottom-24 pt-10' : 'inset-y-0 right-8 left-32 pt-6 pb-8'
+          mobile ? 'inset-x-0 top-0 bottom-24' : 'inset-y-0 right-8 left-32 pt-6 pb-8'
         }`}
       >
         <PageHeader page={activePage} compact={mobile} />
@@ -194,8 +194,8 @@ function Shell() {
         {tabs.length > 0 && (
         <div
           role="tablist"
-          className={`flex w-full items-center justify-start gap-3 border-b border-line ${
-            mobile ? 'mt-4 overflow-x-auto' : 'mt-6'
+          className={`flex items-center justify-start gap-3 border-b border-line ${
+            mobile ? 'mx-4 mt-4 overflow-x-auto' : 'mt-6 w-full'
           }`}
         >
           {tabs.map((tab) => {
@@ -225,7 +225,7 @@ function Shell() {
 
         <div
           role="tabpanel"
-          className={`@container ${tabs.length > 0 ? (mobile ? 'mt-4' : 'mt-6') : mobile ? 'mt-5' : 'mt-12'} min-h-0 flex-1 overflow-y-auto`}
+          className={`@container ${tabs.length > 0 ? (mobile ? 'mt-4' : 'mt-6') : mobile ? 'mt-5' : 'mt-12'} min-h-0 flex-1 overflow-y-auto ${mobile ? 'mx-4' : ''}`}
         >
           {activeId === 'overview' ? (
             <OverviewTab load={load} onNavigate={goTo} />
