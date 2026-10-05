@@ -5,6 +5,7 @@ import CheckingTab from './pages/CheckingTab';
 import PatternsTab from './pages/PatternsTab';
 import ScheduleTab from './pages/ScheduleTab';
 import RecurringTab from './pages/RecurringTab';
+import LoansTab from './pages/LoansTab';
 import UiComponentsTab from './pages/UiComponentsTab';
 import ComponentsTab from './pages/ComponentsTab';
 import ChaseLogo from './components/ChaseLogo';
@@ -244,6 +245,8 @@ function Shell() {
             <UiComponentsTab />
           ) : activeId === 'scratchpad' && activeTab === 'Onboarding' ? (
             <OnboardingTab />
+          ) : activeId === 'transactions' && activeTab === 'Loans' ? (
+            <LoansTab load={load} />
           ) : activeId === 'transactions' && activeTab === 'Recurring' ? (
             <RecurringTab key={recurringStart.nonce} load={load} initialFilter={recurringStart.filter} />
           ) : (
