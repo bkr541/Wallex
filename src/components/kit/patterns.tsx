@@ -161,7 +161,7 @@ function SheetPanel() {
       <span className="mx-auto mb-3 block h-1.5 w-10 rounded-full bg-line" />
       <p className="text-lg font-semibold">Filter</p>
       <div className="mt-3 flex flex-wrap gap-1.5">{FIELDS.map((f) => <span key={f} className="rounded-full border border-line bg-surface px-3 py-1 text-xs">{f}</span>)}</div>
-      <button type="button" className="mt-4 w-full cursor-pointer rounded-xl bg-accent py-2.5 text-sm font-bold text-canvas">Show results</button>
+      <button type="button" className="mt-4 w-full cursor-pointer rounded-xl bg-accent py-2.5 text-sm font-bold text-canvas capitalize">Show results</button>
     </div>
   );
 }

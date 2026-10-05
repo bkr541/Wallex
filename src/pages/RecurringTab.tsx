@@ -362,7 +362,7 @@ function Detail({
                           placeholder="What is this charge for?"
                           className="w-64 max-w-full rounded-lg border border-line bg-surface px-3 py-2 text-sm outline-none select-text focus:border-accent"
                         />
-                        <button type="submit" className="cursor-pointer rounded-lg bg-accent px-3 py-2 text-sm font-semibold text-canvas">
+                        <button type="submit" className="cursor-pointer rounded-lg bg-accent px-3 py-2 text-sm font-semibold text-canvas capitalize">
                           Save
                         </button>
                       </form>

@@ -287,7 +287,7 @@ export default function OverviewTab({
         <button
           type="button"
           onClick={() => onNavigate('settings', 'Setup')}
-          className="mt-6 cursor-pointer rounded-lg bg-accent px-5 py-2.5 text-sm font-semibold text-canvas"
+          className="mt-6 cursor-pointer rounded-lg bg-accent px-5 py-2.5 text-sm font-semibold text-canvas capitalize"
         >
           Open Setup
         </button>

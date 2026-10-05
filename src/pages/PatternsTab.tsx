@@ -512,7 +512,7 @@ export default function PatternsTab({ load }: { load: Load }) {
       <button
         type="button"
         onClick={() => setFilterOpen(false)}
-        className="cursor-pointer rounded-lg bg-accent px-4 py-1.5 text-sm font-semibold text-canvas"
+        className="cursor-pointer rounded-lg bg-accent px-4 py-1.5 text-sm font-semibold text-canvas capitalize"
       >
         Done
       </button>

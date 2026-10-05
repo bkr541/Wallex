@@ -320,7 +320,7 @@ export default function SetupTab({ onConnectionChange }: { onConnectionChange?: 
         <button
           type="submit"
           disabled={!canConnect}
-          className="cursor-pointer rounded-lg bg-accent px-5 py-2.5 text-sm font-semibold text-canvas transition-opacity disabled:cursor-not-allowed disabled:opacity-40"
+          className="cursor-pointer rounded-lg bg-accent px-5 py-2.5 text-sm font-semibold text-canvas capitalize transition-opacity disabled:cursor-not-allowed disabled:opacity-40"
         >
           {busy ? 'Connecting…' : connectedTo ? `Reconnect ${bank.name}` : `Connect ${bank.name}`}
         </button>

@@ -157,7 +157,7 @@ function SignIn() {
               <div className="min-w-[16rem] flex-1">
                 <UnderlineField label="New email address" icon="mail-send" type="email" value={newEmail} autoComplete="email" onChange={(e) => setNewEmail(e.target.value)} placeholder="you@example.com" error={error ?? (tried ? emailError : null)} />
               </div>
-              <button type="submit" disabled={busy} className="cursor-pointer rounded-lg bg-accent px-5 py-2.5 text-sm font-semibold text-canvas transition-opacity hover:opacity-90 disabled:cursor-default disabled:opacity-60">{busy ? 'Sending…' : 'Save email'}</button>
+              <button type="submit" disabled={busy} className="cursor-pointer rounded-lg bg-accent px-5 py-2.5 text-sm font-semibold text-canvas capitalize transition-opacity hover:opacity-90 disabled:cursor-default disabled:opacity-60">{busy ? 'Sending…' : 'Save email'}</button>
             </form>
           </Fold>
         </div>
@@ -176,7 +176,7 @@ function SignIn() {
                 <UnderlineField label="Confirm new password" icon="padlock-key" type="password" value={pw.again} autoComplete="new-password" onChange={(e) => setPw({ ...pw, again: e.target.value })} placeholder="Repeat it" />
               </div>
               <div className="flex flex-wrap items-center gap-3">
-                <button type="submit" disabled={busy} className="cursor-pointer rounded-lg bg-accent px-5 py-2.5 text-sm font-semibold text-canvas transition-opacity hover:opacity-90 disabled:cursor-default disabled:opacity-60">{busy ? 'Updating…' : 'Update password'}</button>
+                <button type="submit" disabled={busy} className="cursor-pointer rounded-lg bg-accent px-5 py-2.5 text-sm font-semibold text-canvas capitalize transition-opacity hover:opacity-90 disabled:cursor-default disabled:opacity-60">{busy ? 'Updating…' : 'Update password'}</button>
                 {(error || (tried && pwError)) && <span role="alert" className="font-support text-xs text-red-300">{error ?? pwError}</span>}
               </div>
             </form>
@@ -424,7 +424,7 @@ export default function AccountTab({
       </section>
 
       <div className="flex flex-wrap items-center gap-3 border-t border-line pt-8">
-        <button type="submit" disabled={!dirty && !justSaved} className={`flex cursor-pointer items-center gap-2 rounded-lg px-5 py-2.5 text-sm font-semibold text-canvas transition-all disabled:cursor-not-allowed disabled:opacity-40 ${justSaved ? 'bg-green-400' : 'bg-accent hover:opacity-90'}`}>
+        <button type="submit" disabled={!dirty && !justSaved} className={`flex cursor-pointer items-center gap-2 rounded-lg px-5 py-2.5 text-sm font-semibold text-canvas capitalize transition-all disabled:cursor-not-allowed disabled:opacity-40 ${justSaved ? 'bg-green-400' : 'bg-accent hover:opacity-90'}`}>
           {justSaved && <Check className="h-4 w-4" strokeWidth={3} />}
           {justSaved ? 'Saved' : 'Save changes'}
         </button>

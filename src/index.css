@@ -1,5 +1,16 @@
 @import "tailwindcss";
 
+/* Every heading in the app has each word capitalized. A heading that holds something else, such as a merchant's
+   name or a sentence, opts out with Tailwind's normal-case. */
+@layer base {
+  h1,
+  h2,
+  h3,
+  h4 {
+    text-transform: capitalize;
+  }
+}
+
 :root {
   --canvas: #0a0a0a;
   --card: #1a1a1a;

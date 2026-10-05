@@ -149,7 +149,7 @@ export default function PatternDetail({
           <div className="flex min-w-0 items-center gap-4">
             {icon}
             <div className="min-w-0">
-              <h2 className="truncate text-2xl font-semibold tracking-tight @xl:text-3xl">{bubble.name}</h2>
+              <h2 className="truncate text-2xl font-semibold tracking-tight normal-case @xl:text-3xl">{bubble.name}</h2>
               <p className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 font-support text-sm text-muted">
                 <span>{KIND_LABEL[bubble.kind]}</span>
                 {bubble.classLabel && (

@@ -127,7 +127,7 @@ export function SplitLogin() {
             ))}
           </div>
         </Swap>
-        <button type="submit" className={`mt-6 flex cursor-pointer items-center justify-center gap-2 rounded-xl py-3 text-sm font-semibold text-canvas transition-colors ${auth.done ? 'bg-green-400' : 'bg-accent hover:opacity-90'}`}>
+        <button type="submit" className={`mt-6 flex cursor-pointer items-center justify-center gap-2 rounded-xl py-3 text-sm font-semibold text-canvas capitalize transition-colors ${auth.done ? 'bg-green-400' : 'bg-accent hover:opacity-90'}`}>
           <DoneLabel auth={auth} />
         </button>
         {auth.mode === 'login' && <button type="button" className="mt-4 cursor-pointer self-center font-support text-xs text-muted underline-offset-2 hover:text-ink hover:underline">Forgot your password?</button>}
@@ -311,7 +311,7 @@ export function StepsLogin() {
           {signup && step === 1 && (
             <button type="button" onClick={() => go(0)} className="cursor-pointer rounded-lg px-4 py-3 text-sm text-muted hover:text-ink">Back</button>
           )}
-          <button type="submit" className={`ml-auto flex cursor-pointer items-center gap-2 rounded-lg px-6 py-3 text-sm font-semibold text-canvas ${auth.done ? 'bg-green-400' : 'bg-accent hover:opacity-90'}`}>
+          <button type="submit" className={`ml-auto flex cursor-pointer items-center gap-2 rounded-lg px-6 py-3 text-sm font-semibold text-canvas capitalize ${auth.done ? 'bg-green-400' : 'bg-accent hover:opacity-90'}`}>
             {last ? <DoneLabel auth={auth} /> : (<>Continue <ArrowRight className="h-4 w-4" /></>)}
           </button>
         </div>
@@ -456,7 +456,7 @@ export function PhoneLogin() {
               </div>
             ))}
           </Swap>
-          <button type="submit" className={`mt-4 flex w-full cursor-pointer items-center justify-center gap-2 rounded-2xl py-3.5 text-sm font-semibold text-canvas ${auth.done ? 'bg-green-400' : 'bg-accent'}`}>
+          <button type="submit" className={`mt-4 flex w-full cursor-pointer items-center justify-center gap-2 rounded-2xl py-3.5 text-sm font-semibold text-canvas capitalize ${auth.done ? 'bg-green-400' : 'bg-accent'}`}>
             <DoneLabel auth={auth} />
           </button>
           {auth.mode === 'login' && <button type="button" className="mt-3 block w-full cursor-pointer text-center font-support text-xs text-muted hover:text-ink">Forgot password?</button>}

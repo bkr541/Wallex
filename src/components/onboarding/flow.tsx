@@ -138,7 +138,7 @@ export function Controls({ flow, stretch = false, className = '' }: { flow: Flow
       <button
         type="button"
         onClick={flow.next}
-        className={`flex cursor-pointer items-center justify-center gap-2 rounded-xl bg-accent px-6 py-3 text-sm font-semibold text-canvas transition-opacity hover:opacity-90 ${stretch ? 'w-full' : 'ml-auto'}`}
+        className={`flex cursor-pointer items-center justify-center gap-2 rounded-xl bg-accent px-6 py-3 text-sm font-semibold text-canvas capitalize transition-opacity hover:opacity-90 ${stretch ? 'w-full' : 'ml-auto'}`}
       >
         {flow.last ? 'Get started' : 'Next'}
         {flow.last ? <Check className="h-4 w-4" strokeWidth={2.5} /> : <ArrowRight className="h-4 w-4" />}

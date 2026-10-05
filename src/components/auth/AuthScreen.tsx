@@ -246,7 +246,7 @@ export default function AuthScreen() {
             <span className="text-lg font-semibold tracking-tight">Wallex</span>
           </div>
           <div className="relative">
-            <h1 className="text-[2.9rem] leading-[1.1] font-semibold tracking-[-0.02em]">
+            <h1 className="text-[2.9rem] leading-[1.1] font-semibold tracking-[-0.02em] normal-case">
               It&rsquo;s your money.{' '}
               <span style={{ color: 'color-mix(in srgb, var(--accent) 40%, white)' }}>You should know what&rsquo;s happening with it.</span>
             </h1>
@@ -272,7 +272,7 @@ export default function AuthScreen() {
                     role="tab"
                     aria-selected={step === m}
                     {...keepFocus} onClick={() => go(m)}
-                    className={`relative z-10 flex-1 cursor-pointer rounded-full py-2 text-sm transition-colors ${step === m ? 'font-semibold text-ink' : 'text-muted'}`}
+                    className={`relative z-10 flex-1 cursor-pointer rounded-full py-2 text-sm capitalize transition-colors ${step === m ? 'font-semibold text-ink' : 'text-muted'}`}
                   >
                     {step === m && <motion.span layoutId="auth-pill" className="absolute inset-0 -z-10 rounded-full bg-card shadow" transition={{ type: 'spring', stiffness: 420, damping: 34 }} />}
                     {m === 'login' ? 'Log in' : 'Sign up'}
@@ -281,6 +281,8 @@ export default function AuthScreen() {
               </div>
             )}
 
+            {/* As tall as the sign-up form, so switching between Log in and Sign up does not resize the group or move the switch. */}
+            <div className="min-h-[28.5rem]">
             <AnimatePresence mode="wait" initial={false}>
               <motion.div
                 key={step}
@@ -310,7 +312,7 @@ export default function AuthScreen() {
                     <Mail className="h-7 w-7" />
                   </span>
                 )}
-                <h2 className="text-3xl font-semibold tracking-tight">{COPY[step].title}</h2>
+                <h2 className="text-3xl font-semibold tracking-tight capitalize">{COPY[step].title}</h2>
 
                 {step === 'verify' && (
                   <p className="mt-2 mb-6 font-support text-sm leading-relaxed text-muted">
@@ -351,7 +353,7 @@ export default function AuthScreen() {
                       </p>
                     )}
 
-                    <button type="submit" disabled={busy} className="mt-2 flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl bg-accent py-3 text-sm font-semibold text-canvas transition-opacity hover:opacity-90 disabled:cursor-default disabled:opacity-60">
+                    <button type="submit" disabled={busy} className="mt-2 flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl bg-accent py-3 text-sm font-semibold text-canvas capitalize transition-opacity hover:opacity-90 disabled:cursor-default disabled:opacity-60">
                       {busy && <Loader2 className="h-4 w-4 animate-spin" />}
                       {busy ? busyText[step] : cta[step]}
                     </button>
@@ -373,7 +375,7 @@ export default function AuthScreen() {
                   <div className="space-y-3">
                     {error && <p role="alert" className="font-support text-sm text-red-300">{error}</p>}
                     {info && <p role="status" className="font-support text-sm text-muted">{info}</p>}
-                    <button type="button" onClick={continueAfterVerify} disabled={busy || !values.password} className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl bg-accent py-3 text-sm font-semibold text-canvas transition-opacity hover:opacity-90 disabled:cursor-default disabled:opacity-60">
+                    <button type="button" onClick={continueAfterVerify} disabled={busy || !values.password} className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl bg-accent py-3 text-sm font-semibold text-canvas capitalize transition-opacity hover:opacity-90 disabled:cursor-default disabled:opacity-60">
                       {busy && <Loader2 className="h-4 w-4 animate-spin" />}
                       I have verified my email
                     </button>
@@ -399,6 +401,7 @@ export default function AuthScreen() {
                 )}
               </motion.div>
             </AnimatePresence>
+            </div>
           </div>
         </div>
       </div>

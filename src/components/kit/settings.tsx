@@ -204,13 +204,13 @@ function CardConfirm() {
 /* ------------------------------------------------------------------------------- save bar */
 function ButtonSave() {
   const [done, setDone] = useState(false);
-  return <div className="flex gap-2"><button type="button" onClick={() => { setDone(true); setTimeout(() => setDone(false), 1500); }} className={`flex cursor-pointer items-center gap-2 rounded-lg px-5 py-2.5 text-sm font-semibold text-canvas ${done ? 'bg-green-400' : 'bg-accent'}`}>{done && <Check className="h-4 w-4" strokeWidth={3} />}{done ? 'Saved' : 'Save changes'}</button><button type="button" className="cursor-pointer rounded-lg border border-line px-4 py-2.5 text-sm font-semibold">Discard</button></div>;
+  return <div className="flex gap-2"><button type="button" onClick={() => { setDone(true); setTimeout(() => setDone(false), 1500); }} className={`flex cursor-pointer items-center gap-2 rounded-lg px-5 py-2.5 text-sm font-semibold text-canvas capitalize ${done ? 'bg-green-400' : 'bg-accent'}`}>{done && <Check className="h-4 w-4" strokeWidth={3} />}{done ? 'Saved' : 'Save changes'}</button><button type="button" className="cursor-pointer rounded-lg border border-line px-4 py-2.5 text-sm font-semibold">Discard</button></div>;
 }
 function UnsavedBar() {
   return <div className="flex w-full items-center justify-between gap-3 rounded-xl bg-ink px-4 py-2.5 text-canvas"><span className="flex items-center gap-2 font-support text-sm"><span className="h-2 w-2 animate-pulse rounded-full bg-amber-400" />You have unsaved changes</span><span className="flex gap-1"><button type="button" className="cursor-pointer rounded-md px-2.5 py-1 text-sm opacity-70 hover:opacity-100">Discard</button><button type="button" className="cursor-pointer rounded-md bg-accent px-3 py-1 text-sm font-bold text-canvas">Save</button></span></div>;
 }
 function FloatSave() {
-  return <button type="button" className="flex cursor-pointer items-center gap-2 rounded-full bg-accent py-2.5 pr-5 pl-3 text-sm font-bold text-canvas shadow-[0_10px_28px_color-mix(in_srgb,var(--accent)_45%,transparent)]"><span className="flex h-7 w-7 items-center justify-center rounded-full bg-canvas/25"><Check className="h-4 w-4" strokeWidth={3} /></span>Save</button>;
+  return <button type="button" className="flex cursor-pointer items-center gap-2 rounded-full bg-accent py-2.5 pr-5 pl-3 text-sm font-bold text-canvas capitalize shadow-[0_10px_28px_color-mix(in_srgb,var(--accent)_45%,transparent)]"><span className="flex h-7 w-7 items-center justify-center rounded-full bg-canvas/25"><Check className="h-4 w-4" strokeWidth={3} /></span>Save</button>;
 }
 
 /* ------------------------------------------------------------------------------- secret field */
