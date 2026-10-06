@@ -158,30 +158,111 @@ function BarStat() {
 }
 
 /* ------------------------------------------------------------------------------- commitment tile */
-function PlainCommit() {
+const SUBS = [
+  { name: 'Spotify', cost: 11.99 },
+  { name: 'Netflix', cost: 15.49 },
+  { name: 'iCloud', cost: 2.99 },
+];
+
+// A ticket stub: the count is the stub, torn from the rest along a perforation, and the logos on the other side fan apart
+// when you point at it. The dotted circle is the subscription Wallex has not identified yet.
+function StubCommit() {
+  const notch = (y: string) => `radial-gradient(circle 9px at 92px ${y}, #0000 98%, #000)`;
+  const mask = `${notch('0')} top / 100% 51% no-repeat, ${notch('100%')} bottom / 100% 51% no-repeat`;
   return (
-    <button type="button" className="group w-full cursor-pointer text-left">
-      <span className="flex items-center justify-between font-support text-xs text-muted">Subscriptions<ChevronRight className="h-4 w-4 opacity-60 transition-transform group-hover:translate-x-0.5" /></span>
-      <span className="mt-2 block text-2xl leading-none font-semibold tracking-tight">3 active</span>
-      <span className="mt-1.5 block font-support text-sm text-muted">1 more unidentified</span>
+    <motion.button type="button" whileHover="hover" initial="rest" animate="rest" className="relative block h-[96px] w-full cursor-pointer text-left drop-shadow-[0_10px_18px_rgba(0,0,0,0.28)]">
+      <span className="absolute inset-0 flex overflow-hidden rounded-2xl" style={{ WebkitMask: mask, mask }}>
+        <span className="flex w-[92px] shrink-0 flex-col items-center justify-center" style={{ background: 'linear-gradient(160deg, color-mix(in srgb, var(--accent) 34%, var(--card)), color-mix(in srgb, var(--accent) 12%, var(--card)))' }}>
+          <motion.span variants={{ rest: { y: 0 }, hover: { y: -2 } }} className="text-[44px] leading-none font-semibold tracking-tight tabular-nums">3</motion.span>
+          <span className="mt-1 font-support text-[9px] font-bold tracking-[0.26em] text-accent uppercase">Active</span>
+        </span>
+        <span className="relative flex flex-1 flex-col justify-center bg-card pr-4 pl-6">
+          <span className="font-support text-[10px] font-semibold tracking-[0.2em] text-muted uppercase">Subscriptions</span>
+          <span className="mt-2 flex items-center">
+            {SUBS.map((x, i) => (
+              <motion.span key={x.name} variants={{ rest: { x: 0 }, hover: { x: i * 5 } }} transition={{ type: 'spring', stiffness: 380, damping: 22 }} className={i ? '-ml-2' : ''}>
+                <MerchantLogo name={x.name} sources={[]} className="h-8 w-8 text-[10px] ring-2 ring-[var(--card)]" />
+              </motion.span>
+            ))}
+            <motion.span variants={{ rest: { x: 0 }, hover: { x: 15 } }} transition={{ type: 'spring', stiffness: 380, damping: 22 }} className="-ml-2 flex h-8 w-8 items-center justify-center rounded-full border border-dashed border-muted font-support text-xs text-muted ring-2 ring-[var(--card)]">?</motion.span>
+          </span>
+          <span className="mt-1.5 font-support text-[11px] text-muted">1 more unidentified</span>
+        </span>
+      </span>
+      <span aria-hidden="true" className="absolute inset-y-3 left-[92px] border-l-2 border-dashed border-line" />
+    </motion.button>
+  );
+}
+
+// A ring in four arcs, one per subscription, drawn on when it appears. The three Wallex has identified are solid; the dashed amber
+// arc is the one it has not. Pointing at an arc thickens it and puts that subscription's price in the middle.
+function RingCommit() {
+  const [hot, setHot] = useState<number | null>(null);
+  const arcs = [
+    { len: 0.31, start: 0, color: 'var(--accent)' },
+    { len: 0.4, start: 0.34, color: 'color-mix(in srgb, var(--accent) 62%, white)' },
+    { len: 0.09, start: 0.77, color: 'color-mix(in srgb, var(--accent) 38%, var(--muted))' },
+    { len: 0.12, start: 0.89, color: '#f5c542', dashed: true },
+  ];
+  return (
+    <button type="button" className="group flex w-full cursor-pointer items-center gap-4 text-left" onMouseLeave={() => setHot(null)}>
+      <span className="relative h-[104px] w-[104px] shrink-0">
+        <svg viewBox="0 0 104 104" className="h-full w-full" fill="none" aria-hidden="true">
+          <circle cx="52" cy="52" r="40" stroke="var(--line)" strokeWidth="2" strokeDasharray="1 5" />
+          {arcs.map((a, i) => (
+            <g key={i} transform={`rotate(${-90 + a.start * 360} 52 52)`} onMouseEnter={() => setHot(i)}>
+              <motion.circle cx="52" cy="52" r="40" stroke={a.color} strokeLinecap="round" strokeDasharray={a.dashed ? '0.01 7' : undefined} initial={{ pathLength: 0 }} animate={{ pathLength: a.len, strokeWidth: hot === i ? 12 : 8 }} transition={{ pathLength: { delay: 0.1 + i * 0.18, duration: 0.7, ease: [0.22, 1, 0.36, 1] }, strokeWidth: { duration: 0.15 } }} style={{ pointerEvents: 'stroke' }} />
+            </g>
+          ))}
+        </svg>
+        <span className="absolute inset-0 flex flex-col items-center justify-center">
+          <span className="text-[26px] leading-none font-semibold tabular-nums">{hot !== null && hot < 3 ? `$${SUBS[hot].cost}` : hot === 3 ? '?' : '3'}</span>
+          <span className="mt-0.5 font-support text-[9px] font-bold tracking-[0.22em] text-muted uppercase">{hot !== null && hot < 3 ? SUBS[hot].name : hot === 3 ? 'Unknown' : 'Active'}</span>
+        </span>
+      </span>
+      <span className="min-w-0">
+        <span className="block font-support text-[10px] font-semibold tracking-[0.2em] text-muted uppercase">Subscriptions</span>
+        <span className="mt-1 block text-xl leading-tight font-semibold tracking-tight">$30.47<span className="font-support text-sm font-normal text-muted"> / mo</span></span>
+        <span className="mt-1.5 inline-flex items-center gap-1.5 rounded-full border border-amber-300/30 bg-amber-300/10 px-2 py-0.5 font-support text-[11px] text-amber-300"><span className="h-1.5 w-1.5 rounded-full bg-amber-300" />1 unidentified</span>
+      </span>
     </button>
   );
 }
-function BoxCommit() {
+
+// A stack of paper cards. Click and the stack fans down into the list of what is in it, each card carrying one subscription.
+function StackCommit() {
+  const [open, setOpen] = useState(false);
+  const cards = [{ name: 'Spotify', cost: 11.99 }, { name: 'Netflix', cost: 15.49 }, { name: 'iCloud', cost: 2.99 }];
+  const H = 62;
   return (
-    <button type="button" className="flex w-full cursor-pointer items-center gap-3 rounded-2xl border border-line bg-card p-4 text-left transition-colors hover:border-accent">
-      <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-accent-soft text-accent"><PlumpIcon name="tag-alt" className="h-6 w-6" /></span>
-      <span className="min-w-0 flex-1"><span className="block font-support text-xs text-muted">Subscriptions</span><span className="block text-lg font-semibold">3 active</span></span>
-      <ChevronRight className="h-4 w-4 text-muted" />
-    </button>
-  );
-}
-function PillCommit() {
-  return (
-    <button type="button" className="flex w-full cursor-pointer items-center justify-between rounded-full border border-line bg-surface py-2 pr-2 pl-5 text-left transition-colors hover:bg-card">
-      <span><span className="font-support text-xs text-muted">Subscriptions </span><span className="text-sm font-semibold">3 active</span></span>
-      <span className="flex h-8 w-8 items-center justify-center rounded-full bg-ink text-canvas"><ChevronRight className="h-4 w-4" /></span>
-    </button>
+    <div className="w-full">
+      <motion.div className="relative" animate={{ height: open ? 76 + cards.length * (H + 6) : 104 }} transition={{ type: 'spring', stiffness: 300, damping: 30 }}>
+        {[...cards].reverse().map((c, r) => {
+          const i = cards.length - 1 - r; // 0 is the first behind the top card
+          return (
+            <motion.div
+              key={c.name}
+              className="absolute inset-x-0 flex items-center gap-3 rounded-2xl border border-line px-4"
+              style={{ top: 0, height: H, zIndex: 10 - i, background: `color-mix(in srgb, var(--accent) ${6 + i * 3}%, var(--card))` }}
+              animate={{ y: open ? 76 + i * (H + 6) : 6 + (cards.length - i) * 9, scale: open ? 1 : 1 - (i + 1) * 0.035, opacity: open ? 1 : 0.85 - i * 0.12 }}
+              transition={{ type: 'spring', stiffness: 300, damping: 28, delay: open ? i * 0.04 : 0 }}
+            >
+              <MerchantLogo name={c.name} sources={[]} className="h-8 w-8 text-[10px]" />
+              <span className="flex-1 text-sm font-medium">{c.name}</span>
+              <span className="text-sm font-semibold tabular-nums">${c.cost}</span>
+            </motion.div>
+          );
+        })}
+        <button type="button" onClick={() => setOpen(!open)} aria-expanded={open} className="absolute inset-x-0 top-0 z-20 flex h-[68px] cursor-pointer items-center gap-4 rounded-2xl border border-line bg-card px-4 text-left shadow-[0_8px_20px_rgba(0,0,0,0.3)]">
+          <span className="text-[34px] leading-none font-semibold tracking-tight tabular-nums text-accent">3</span>
+          <span className="min-w-0 flex-1">
+            <span className="block text-sm font-semibold">Subscriptions</span>
+            <span className="block font-support text-xs text-muted">1 more unidentified</span>
+          </span>
+          <motion.span animate={{ rotate: open ? 180 : 0 }} className="flex h-8 w-8 items-center justify-center rounded-full bg-surface"><ChevronDown className="h-4 w-4" /></motion.span>
+        </button>
+      </motion.div>
+    </div>
   );
 }
 
@@ -381,7 +462,7 @@ export const overviewRows: KitRow[] = [
   { name: 'Section header', used: 'Overview: Commitments, Cash flow and the other folding groups', items: [['Line with chevron', <LineHeader />], ['Card with icon tile', <CardHeader />], ['Plus and minus', <PlusHeader />]] },
   { name: 'Money flow bar', used: 'Overview position card', items: [['Gradient bar with marker', <GradientBar />], ['Two bars', <TwoBars />], ['Donut', <DonutFlow />]] },
   { name: 'Stat figure', used: 'Overview position card: Money in, Money out, Net cash flow', items: [['Label over number', <PlainStat />], ['Icon with change chip', <IconStat />], ['Number with bar', <BarStat />]] },
-  { name: 'Commitment tile', used: 'Overview: Bills, Debt, Subscriptions, Bank fees', items: [['Plain with chevron', <PlainCommit />], ['Card with icon', <BoxCommit />], ['Pill with arrow', <PillCommit />]] },
+  { name: 'Commitment tile', used: 'Overview: Bills, Debt, Subscriptions, Bank fees', items: [['Ticket stub', <StubCommit />], ['Arc ring', <RingCommit />], ['Fanning stack', <StackCommit />]] },
   { name: 'Spending breakdown', used: 'Overview: Spending breakdown', items: [['Segmented bar and legend', <SegmentedBreakdown />], ['Donut and legend', <DonutBreakdown />], ['Bar per category', <RowBreakdown />]] },
   { name: 'Upcoming payment record', used: 'Overview: Upcoming payments', items: [['Date, logo and month text', <MonthTextRecord />], ['Card with month blocks', <MonthDotRecord />], ['Compact with progress', <CompactRecord />]] },
   { name: 'Cash flow chart', used: 'Overview: Cash flow', items: [['Paired bars', <PairedBars />], ['Net up and down', <NetBars />], ['Area and line', <AreaChart />]] },

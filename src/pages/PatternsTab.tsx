@@ -229,6 +229,23 @@ const VIEWS: { id: View; label: string; dot?: string }[] = [
   { id: 'categories', label: 'Categories', dot: 'var(--accent)' },
 ];
 
+// The bubble fills with liquid up to its share of income, with two waves rolling along the surface. It sits behind the
+// logo and the figures, which stay readable on top.
+const WAVE = 'M0 8 Q 12.5 0 25 8 T 50 8 T 75 8 T 100 8 T 125 8 T 150 8 T 175 8 T 200 8 V100 H0 Z';
+function LiquidFill({ rgb, share }: { rgb: string; share: number }) {
+  const level = Math.min(0.94, Math.max(0.1, share));
+  return (
+    <span aria-hidden="true" className="pointer-events-none absolute inset-0 overflow-hidden rounded-full" style={{ zIndex: -1 }}>
+      <motion.span className="absolute left-0 h-[130%] w-[200%]" style={{ top: `${(1 - level) * 100 - 6}%` }} animate={{ x: ['0%', '-50%'] }} transition={{ duration: 6, ease: 'linear', repeat: Infinity }}>
+        <svg viewBox="0 0 200 100" preserveAspectRatio="none" className="h-full w-full"><path d={WAVE} fill={`rgba(${rgb}, 0.3)`} /></svg>
+      </motion.span>
+      <motion.span className="absolute left-0 h-[130%] w-[200%]" style={{ top: `${(1 - level) * 100 + 1}%` }} animate={{ x: ['-50%', '0%'] }} transition={{ duration: 8.5, ease: 'linear', repeat: Infinity }}>
+        <svg viewBox="0 0 200 100" preserveAspectRatio="none" className="h-full w-full"><path d={WAVE} fill={`rgba(${rgb}, 0.45)`} /></svg>
+      </motion.span>
+    </span>
+  );
+}
+
 function BubbleIcon({ bubble, size }: { bubble: Bubble; size: number }) {
   const icon = bubble.iconKey ? (ICONS[bubble.iconKey] ?? Shapes) : null;
   const box = { width: `max(26px, ${size}cqh)`, height: `max(26px, ${size}cqh)` };
@@ -566,8 +583,8 @@ export default function PatternsTab({ load }: { load: Load }) {
       exit={{ opacity: 0, scale: 0.96, transition: { duration: 0.25 } }}
       transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
     >
-      <div className="flex w-full flex-wrap items-center justify-between gap-3 px-4">
-        <div role="tablist" aria-label="Show" className={`flex gap-2 ${mobile ? 'w-full flex-nowrap gap-1.5' : 'flex-wrap'}`}>
+      <div className={`flex w-full items-center justify-between px-4 ${mobile ? 'flex-wrap gap-1' : 'flex-wrap gap-3'}`}>
+        <div role="tablist" aria-label="Show" className={`flex gap-2 ${mobile ? 'flex-nowrap gap-1' : 'flex-wrap'}`}>
           {VIEWS.map((v) => {
             const selected = v.id === view;
             const dot = v.dot ?? (mobile ? 'var(--text)' : undefined);
@@ -585,11 +602,11 @@ export default function PatternsTab({ load }: { load: Load }) {
                   aria-label={`${v.label} ${countFor(v.id)}`}
                   onClick={() => setView(v.id)}
                   transition={{ layout: { duration: 0.3, ease: [0.22, 1, 0.36, 1] } }}
-                  className={`flex cursor-pointer items-center gap-2 rounded-full border px-3.5 py-2 text-sm whitespace-nowrap transition-colors ${
+                  className={`flex h-9 cursor-pointer items-center gap-1.5 rounded-full border px-2.5 text-xs whitespace-nowrap transition-colors ${
                     selected ? 'border-accent bg-accent-soft text-ink' : 'border-line bg-card text-ink'
                   }`}
                 >
-                  <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: dot }} />
+                  <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: dot }} />
                   <AnimatePresence initial={false}>
                     {selected && (
                       <motion.span
@@ -628,9 +645,9 @@ export default function PatternsTab({ load }: { load: Load }) {
           })}
         </div>
 
-        <div className={`flex items-center gap-3 ${mobile ? 'w-full' : ''}`}>
-          <div className={mobile ? 'min-w-0 flex-1' : ''}>
-            <ExpandingSearch value={query} onChange={setQuery} placeholder={mobile ? "Search…" : "Search recurring transactions…"} width={mobile ? '100%' : 280} />
+        <div className={`flex items-center ${mobile ? 'gap-1' : 'gap-3'}`}>
+          <div>
+            <ExpandingSearch value={query} onChange={setQuery} placeholder={mobile ? "Search…" : "Search recurring transactions…"} width={mobile ? 200 : 280} size={mobile ? 36 : 46} />
           </div>
 
           <div ref={filterRef} className="relative">
@@ -639,14 +656,16 @@ export default function PatternsTab({ load }: { load: Load }) {
               aria-haspopup="dialog"
               aria-expanded={filterOpen}
               onClick={() => setFilterOpen((o) => !o)}
-              className={`flex cursor-pointer items-center gap-2 rounded-xl border px-4 py-2.5 text-sm transition-colors ${
+              className={`relative flex cursor-pointer items-center gap-2 border text-sm transition-colors ${
+                mobile ? 'h-9 w-9 justify-center rounded-full' : 'rounded-xl px-4 py-2.5'
+              } ${
                 filterOpen ? 'border-accent bg-surface' : 'border-line bg-card hover:bg-surface'
               }`}
             >
               <SlidersHorizontal className="h-4 w-4" />
-              Filter
+              {!mobile && 'Filter'}
               {activeFilters > 0 && (
-                <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-accent px-1 text-xs font-semibold text-canvas">
+                <span className={`flex items-center justify-center rounded-full bg-accent font-semibold text-canvas ${mobile ? 'absolute -top-1 -right-1 h-4 min-w-4 px-0.5 text-[10px]' : 'h-5 min-w-5 px-1 text-xs'}`}>
                   {activeFilters}
                 </span>
               )}
@@ -728,7 +747,7 @@ export default function PatternsTab({ load }: { load: Load }) {
                     setSelected(b);
                   }
                 }}
-                className="bubble bubble-move absolute flex -translate-x-1/2 -translate-y-1/2 flex-col items-center justify-center rounded-full text-center"
+                className="bubble bubble-move absolute flex -translate-x-1/2 -translate-y-1/2 flex-col items-center justify-center rounded-full text-center [text-shadow:0_1px_6px_rgba(0,0,0,0.5)]"
                 style={
                   {
                     '--rgb': b.rgb,
@@ -740,6 +759,7 @@ export default function PatternsTab({ load }: { load: Load }) {
                   } as React.CSSProperties
                 }
               >
+                {base > 0 && <LiquidFill rgb={b.rgb} share={b.amount / base} />}
                 <BubbleIcon bubble={b} size={Math.min(11, Math.max(5, d * 0.26))} />
                 {!mobile && (
                   <span className="max-w-[90%] truncate font-medium" style={{ fontSize: cq(d, 0.085, 2.1, 3.4, 11) }}>
@@ -750,7 +770,7 @@ export default function PatternsTab({ load }: { load: Load }) {
                   {money(b.amount)}
                 </span>
                 {base > 0 && (
-                  <span className="font-support leading-none text-muted" style={{ fontSize: cq(d, 0.06, 1.8, 2.6, 10) }}>
+                  <span className="font-support leading-none text-ink/80" style={{ fontSize: cq(d, 0.06, 1.8, 2.6, 10) }}>
                     {percent(b.amount, base)}
                   </span>
                 )}

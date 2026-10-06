@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { RefreshCw } from 'lucide-react';
+import { RefreshCw, X } from 'lucide-react';
 import type { Txn } from '../lib/wallex';
 import TransactionTable from '../components/TransactionTable';
 import { withBalances } from '../lib/balances';
@@ -82,19 +82,19 @@ export default function CheckingTab({
   return (
     <div className="w-full">
       {filter && (
-        <div className="mx-4 mb-3 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-line bg-accent-soft px-4 py-3">
-          <p className="font-support text-sm">
-            Showing <span className="font-semibold">{shown.length}</span> of {rows.length} transactions for{' '}
-            <span className="font-semibold">{filter.name}</span>
-            {shown.length === 0 && ' (none were found in this account)'}
-          </p>
-          <button
-            type="button"
-            onClick={onClearFilter}
-            className="cursor-pointer rounded-lg border border-line px-3 py-1.5 text-sm text-ink transition-colors hover:border-muted"
-          >
-            Show all
-          </button>
+        <div className="mx-4 mb-3 flex flex-wrap items-center gap-3">
+          <span className="inline-flex items-center gap-2 rounded-full bg-accent py-1 pr-1.5 pl-3 text-sm font-semibold text-canvas">
+            {filter.name} · {shown.length} of {rows.length}
+            <button
+              type="button"
+              aria-label="Clear filter"
+              onClick={onClearFilter}
+              className="flex h-6 w-6 cursor-pointer items-center justify-center rounded-full bg-canvas/25 hover:bg-canvas/40"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+          </span>
+          {shown.length === 0 && <span className="font-support text-sm text-muted">None were found in this account</span>}
         </div>
       )}
       <div className="flex items-center justify-between gap-4 px-4 pb-3">
@@ -102,6 +102,11 @@ export default function CheckingTab({
           className={`font-support text-sm ${load.state === 'sample' && load.isError ? 'text-red-400' : 'text-muted'}`}
         >
           {load.state === 'sample' && load.note}
+          {load.state === 'live' && load.problems.length > 0 && (
+            <span className="text-amber-300">
+              {load.problems.map((p) => `${p.name}: ${p.needsRelink ? 'its login has expired, so link it again in Settings → Setup' : p.error}`).join(' · ')}
+            </span>
+          )}
         </p>
         <button
           type="button"

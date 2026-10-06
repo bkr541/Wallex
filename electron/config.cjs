@@ -96,7 +96,10 @@ function saveSettings(next) {
     redirectUri: next.redirectUri,
     bankId: next.bankId,
   };
-  if (credentialsChanged) delete updated.connection;
+  if (credentialsChanged) {
+    delete updated.connection;
+    delete updated.connections;
+  }
   write(updated);
 }
 
@@ -108,21 +111,37 @@ function getUserId() {
   return userId;
 }
 
-function getConnection() {
-  const c = read().connection;
-  if (!c) return null;
-  return { ...c, accessToken: decrypt(c.accessToken) };
+// Every bank the person has linked, each one a Plaid "item" with its own access token. Older versions kept a single
+// `connection`; it is carried over the first time this runs.
+function readConnections(stored) {
+  if (Array.isArray(stored.connections)) return stored.connections;
+  return stored.connection ? [stored.connection] : [];
 }
 
-function setConnection(connection) {
+function getConnections() {
+  return readConnections(read()).map((c) => ({ ...c, accessToken: decrypt(c.accessToken) }));
+}
+
+// Adds a bank, or replaces the one already linked for the same institution (linking it again refreshes the login).
+// Returns the connection that was replaced, if any, so its Plaid item can be removed.
+function addConnection(connection) {
   const stored = read();
-  write({ ...stored, connection: { ...connection, accessToken: encrypt(connection.accessToken) } });
+  const list = readConnections(stored);
+  const replaced = connection.institutionId ? list.find((c) => c.institutionId === connection.institutionId) : null;
+  const next = [...list.filter((c) => c !== replaced), { ...connection, accessToken: encrypt(connection.accessToken) }];
+  const { connection: legacy, ...rest } = stored;
+  write({ ...rest, connections: next });
+  return replaced ? { ...replaced, accessToken: decrypt(replaced.accessToken) } : null;
 }
 
-function clearConnection() {
-  const stored = read();
-  delete stored.connection;
-  write(stored);
+function removeConnection(itemId) {
+  const { connection: legacy, ...rest } = read();
+  write({ ...rest, connections: readConnections({ connections: rest.connections, connection: legacy }).filter((c) => c.itemId !== itemId) });
 }
 
-module.exports = { getSettings, saveSettings, getUserId, getConnection, setConnection, clearConnection };
+function clearConnections() {
+  const { connection: legacy, connections, ...rest } = read();
+  write(rest);
+}
+
+module.exports = { getSettings, saveSettings, getUserId, getConnections, addConnection, removeConnection, clearConnections };

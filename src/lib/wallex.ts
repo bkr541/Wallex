@@ -12,7 +12,7 @@ export interface PlaidSettings {
 export interface Status extends Omit<PlaidSettings, 'secret'> {
   hasSecret: boolean;
   bankId: string;
-  connection: { institutionName: string } | null;
+  connections: { itemId: string; institutionName: string }[]; // every bank linked through Plaid
 }
 
 export interface Bank {
@@ -29,6 +29,8 @@ export interface LinkedAccount {
   subtype: string | null;
   available: number | null;
   current: number | null;
+  itemId?: string; // which linked bank it belongs to
+  institution?: string; // that bank's name
 }
 
 export interface Txn {
@@ -47,10 +49,20 @@ export interface Txn {
   details: { label: string; value: string }[]; // everything else Plaid knows, shown when a row is expanded
 }
 
+// How one linked bank fared on the last load. A bank whose login has expired is reported here without stopping the others.
+export interface InstitutionStatus {
+  itemId: string;
+  name: string;
+  notReady: boolean;
+  error: string | null;
+  needsRelink: boolean;
+}
+
 export interface TransactionsResult {
   connected: boolean;
   notReady?: boolean;
-  institutionName?: string;
+  institutionName?: string; // every linked bank's name, joined
+  institutions?: InstitutionStatus[];
   accounts?: LinkedAccount[];
   transactions?: Txn[];
 }
@@ -66,7 +78,7 @@ type Result<T> = { ok: true; data: T } | { ok: false; error: string };
 interface WallexBridge {
   getStatus(): Promise<Result<Status>>;
   connect(payload: { settings: PlaidSettings; bank: Bank }): Promise<Result<ConnectResult>>;
-  disconnect(): Promise<Result<void>>;
+  disconnect(itemId?: string): Promise<Result<void>>;
   getTransactions(): Promise<Result<TransactionsResult>>;
   onAuthCallback(cb: (payload: AuthCallback) => void): void;
 }
@@ -96,8 +108,8 @@ export const wallex = {
     window.wallex?.getStatus?.() ?? Promise.resolve({ ok: false, error: NOT_DESKTOP }),
   connect: (payload: { settings: PlaidSettings; bank: Bank }): Promise<Result<ConnectResult>> =>
     window.wallex?.connect?.(payload) ?? Promise.resolve({ ok: false, error: NOT_DESKTOP }),
-  disconnect: (): Promise<Result<void>> =>
-    window.wallex?.disconnect?.() ?? Promise.resolve({ ok: false, error: NOT_DESKTOP }),
+  disconnect: (itemId?: string): Promise<Result<void>> =>
+    window.wallex?.disconnect?.(itemId) ?? Promise.resolve({ ok: false, error: NOT_DESKTOP }),
   getTransactions: (): Promise<Result<TransactionsResult>> =>
     window.wallex?.getTransactions?.() ?? Promise.resolve({ ok: false, error: NOT_DESKTOP }),
   onAuthCallback: (cb: (payload: AuthCallback) => void) => window.wallex?.onAuthCallback?.(cb),

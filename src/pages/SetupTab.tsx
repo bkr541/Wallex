@@ -139,7 +139,7 @@ export default function SetupTab({ onConnectionChange }: { onConnectionChange?: 
   const [webhookUrl, setWebhookUrl] = useState('');
   const [redirectUri, setRedirectUri] = useState('');
 
-  const [connectedTo, setConnectedTo] = useState<string | null>(null);
+  const [linked, setLinked] = useState<string[]>([]); // names of the banks already linked
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<{ kind: 'error' | 'info'; text: string } | null>(null);
 
@@ -160,7 +160,7 @@ export default function SetupTab({ onConnectionChange }: { onConnectionChange?: 
       setLanguage(st.language);
       setWebhookUrl(st.webhookUrl);
       setRedirectUri(st.redirectUri);
-      setConnectedTo(st.connection?.institutionName ?? null);
+      setLinked(st.connections.map((c) => c.institutionName).filter(Boolean));
     });
   }, []);
 
@@ -186,8 +186,9 @@ export default function SetupTab({ onConnectionChange }: { onConnectionChange?: 
 
     if (secret.trim()) setHasSavedSecret(true);
     setSecret('');
-    setConnectedTo(res.data.institutionName ?? bank.name);
-    setMessage({ kind: 'info', text: 'Connected. Open Transactions to see your activity.' });
+    const name = res.data.institutionName ?? bank.name;
+    setLinked((l) => (l.includes(name) ? l : [...l, name]));
+    setMessage({ kind: 'info', text: `Connected ${name}. Pick another bank above to link more.` });
     onConnectionChange?.();
   }
 
@@ -207,7 +208,7 @@ export default function SetupTab({ onConnectionChange }: { onConnectionChange?: 
           </p>
         </div>
 
-        <div className="grid grid-cols-1 gap-x-8 gap-y-6 @3xl:grid-cols-2">
+        <div className="grid grid-cols-1 gap-x-8 gap-y-6 pl-12 @3xl:grid-cols-2">
 
           <Field label="Environment" icon="cloud-data-transfer">
             <Select value={environment} onChange={setEnvironment} options={ENVIRONMENTS} />
@@ -256,7 +257,7 @@ export default function SetupTab({ onConnectionChange }: { onConnectionChange?: 
           </p>
         </div>
 
-        <div className="grid grid-cols-1 gap-x-8 gap-y-6 @3xl:grid-cols-2">
+        <div className="grid grid-cols-1 gap-x-8 gap-y-6 pl-12 @3xl:grid-cols-2">
 
           <Field label="Bank" icon="government-building-1" hint="Plaid Link opens with this bank pre-selected.">
             <Select
@@ -292,7 +293,7 @@ export default function SetupTab({ onConnectionChange }: { onConnectionChange?: 
           <SectionTitle icon="code-monitor-2">Advanced (optional)</SectionTitle>
         </div>
 
-        <div className="grid grid-cols-1 gap-x-8 gap-y-6 @3xl:grid-cols-2">
+        <div className="grid grid-cols-1 gap-x-8 gap-y-6 pl-12 @3xl:grid-cols-2">
 
           <UnderlineField
             label="Webhook URL"
@@ -322,10 +323,10 @@ export default function SetupTab({ onConnectionChange }: { onConnectionChange?: 
           disabled={!canConnect}
           className="cursor-pointer rounded-lg bg-accent px-5 py-2.5 text-sm font-semibold text-canvas capitalize transition-opacity disabled:cursor-not-allowed disabled:opacity-40"
         >
-          {busy ? 'Connecting…' : connectedTo ? `Reconnect ${bank.name}` : `Connect ${bank.name}`}
+          {busy ? 'Connecting…' : linked.includes(bank.name) ? `Reconnect ${bank.name}` : linked.length > 0 ? `Add ${bank.name}` : `Connect ${bank.name}`}
         </button>
-        {connectedTo && (
-          <span className="font-support text-sm text-accent">Connected to {connectedTo}. Unlink it in Account.</span>
+        {linked.length > 0 && (
+          <span className="font-support text-sm text-accent">Linked: {linked.join(', ')}. Pick another bank to add more, or unlink one in Account.</span>
         )}
         {message && (
           <span className={`font-support text-sm ${message.kind === 'error' ? 'text-red-400' : 'text-muted'}`}>

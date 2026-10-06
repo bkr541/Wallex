@@ -53,7 +53,7 @@ handle('wallex:connect', ({ settings, bank }) => {
   config.saveSettings({ ...settings, bankId: bank.id });
   return plaid.connect(bank);
 });
-handle('wallex:disconnect', () => plaid.disconnect());
+handle('wallex:disconnect', (itemId) => plaid.disconnect(itemId));
 handle('wallex:transactions', () => plaid.getTransactions());
 
 // An email link was opened in the browser: hand what it carried to the app and bring the window forward. If the

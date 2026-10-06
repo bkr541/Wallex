@@ -11,11 +11,13 @@ export default function ExpandingSearch({
   onChange,
   placeholder,
   width = 240,
+  size = SIZE,
 }: {
   value: string;
   onChange: (v: string) => void;
   placeholder: string;
   width?: number | '100%';
+  size?: number; // the height, and the width while closed
 }) {
   // Stays open while there is something typed, so a search can never be hiding behind a closed button.
   const [open, setOpen] = useState(value !== '');
@@ -32,9 +34,9 @@ export default function ExpandingSearch({
   return (
     <motion.div
       initial={false}
-      animate={{ width: open ? width : SIZE }}
+      animate={{ width: open ? width : size }}
       transition={{ type: 'spring', stiffness: 420, damping: 32 }}
-      style={{ height: SIZE }}
+      style={{ height: size }}
       className={`flex max-w-full items-center overflow-hidden rounded-full border bg-surface transition-colors ${open ? 'border-accent' : 'border-line'}`}
     >
       <button
@@ -42,7 +44,7 @@ export default function ExpandingSearch({
         aria-label={open ? 'Clear and close search' : 'Search'}
         aria-expanded={open}
         onClick={() => (open ? close() : setOpen(true))}
-        style={{ height: SIZE, width: SIZE }}
+        style={{ height: size, width: size }}
         className="flex shrink-0 cursor-pointer items-center justify-center text-muted transition-colors hover:text-accent"
       >
         {open ? <X className="h-4 w-4" /> : <Search className="h-4 w-4" />}

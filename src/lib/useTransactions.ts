@@ -1,12 +1,14 @@
 import { useCallback, useEffect, useState } from 'react';
-import { wallex, type LinkedAccount, type Txn } from './wallex';
+import { wallex, type InstitutionStatus, type LinkedAccount, type Txn } from './wallex';
 
 export type Load =
   | { state: 'loading' }
   | { state: 'sample'; note: string; isError?: boolean }
   | {
       state: 'live';
-      bank: string;
+      bank: string; // every linked bank's name, joined
+      // Banks that could not be refreshed (a login that expired, say). The rest still load.
+      problems: InstitutionStatus[];
       // The Checking and Recurring tabs work on the checking account(s) only.
       accounts: LinkedAccount[];
       transactions: Txn[];
@@ -51,6 +53,7 @@ export function useTransactions() {
     setLoad({
       state: 'live',
       bank: data.institutionName ?? 'Bank',
+      problems: (data.institutions ?? []).filter((i) => i.error),
       accounts: shown,
       transactions: allTransactions.filter((t) => shownIds.has(t.accountId)),
       allAccounts,

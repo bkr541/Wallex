@@ -128,7 +128,7 @@ function FlowBar({ moneyIn, moneyOut }: { moneyIn: number; moneyOut: number }) {
   const grow = 'width 0.7s cubic-bezier(0.22, 1, 0.36, 1), left 0.7s cubic-bezier(0.22, 1, 0.36, 1)';
   return (
     <div className="mt-5 @3xl:mt-6">
-      <div className="relative h-3.5 rounded-full bg-line">
+      <div className="relative h-2.5 rounded-full bg-line @3xl:h-3.5">
         <span
           className="absolute inset-y-0 left-0 rounded-full shadow-[0_0_16px_color-mix(in_srgb,var(--accent)_45%,transparent)]"
           style={{ width: at, background: 'linear-gradient(90deg, color-mix(in srgb, var(--accent) 55%, transparent), var(--accent))', transition: grow }}
@@ -139,7 +139,7 @@ function FlowBar({ moneyIn, moneyOut }: { moneyIn: number; moneyOut: number }) {
         />
         <span
           aria-hidden="true"
-          className="absolute top-1/2 flex h-12 w-12 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-accent/50 bg-card p-2"
+          className="absolute top-1/2 flex h-9 w-9 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-accent/50 bg-card p-1.5 @3xl:h-12 @3xl:w-12 @3xl:p-2"
           style={{
             left: at,
             transition: grow,
@@ -153,40 +153,6 @@ function FlowBar({ moneyIn, moneyOut }: { moneyIn: number; moneyOut: number }) {
         <span className="text-accent">{money(moneyIn)}</span>
         <span className="text-red-300">{money(moneyOut)}</span>
       </div>
-    </div>
-  );
-}
-
-// What is left of the cash after the payments ahead, drawn as a half circle that empties as they take more.
-function BufferGauge({ remaining, available }: { remaining: number; available: number }) {
-  const left = available > 0 ? Math.min(1, Math.max(0, remaining / available)) : 0;
-  const arc = Math.PI * 52;
-  const over = remaining < 0;
-  const path = 'M 8 62 A 52 52 0 0 1 112 62';
-  return (
-    <div className="shrink-0 text-center" role="img" aria-label={`Remaining buffer ${signed(remaining).replace(/^\+/, '')}, ${Math.round(left * 100)}% of your cash left`}>
-      <div className="relative w-[240px]">
-      <svg viewBox="0 0 120 70" className="w-full">
-        <path d={path} fill="none" stroke="var(--line)" strokeWidth="10" strokeLinecap="round" />
-        <path
-          d={path}
-          fill="none"
-          stroke={over ? '#f87171' : 'var(--accent)'}
-          strokeWidth="10"
-          strokeLinecap="round"
-          strokeDasharray={`${arc * left} ${arc}`}
-          opacity={left > 0 ? 1 : 0}
-          style={{ transition: 'stroke-dasharray 0.7s cubic-bezier(0.22, 1, 0.36, 1)' }}
-        />
-      </svg>
-      <div className="absolute inset-x-0 bottom-0 text-center">
-        <p className={`text-3xl leading-none font-semibold tracking-tight tabular-nums ${over ? 'text-red-300' : ''}`}>
-          {signed(remaining).replace(/^\+/, '')}
-        </p>
-        <p className="mt-1 font-support text-xs text-muted">{Math.round(left * 100)}% left</p>
-      </div>
-      </div>
-      <p className="mt-3 font-support text-xs font-semibold tracking-[0.2em] text-muted uppercase">Remaining buffer</p>
     </div>
   );
 }
@@ -247,6 +213,8 @@ export default function OverviewTab({
   // Each opportunity has its own reduction, picked on its card.
   const [percents, setPercents] = useState<Record<string, number>>({});
   const percentFor = (id: string) => percents[id] ?? 20;
+  // Subscriptions the person has ticked as ones they would cancel.
+  const [cancelled, setCancelled] = useState<Record<string, boolean>>({});
   // Which sections are folded away, remembered between visits.
   const [closed, setClosed] = useState<Record<string, boolean>>(() => {
     try {
@@ -315,6 +283,7 @@ export default function OverviewTab({
   const upcoming = upcomingPayments(analysis, scope.today, WINDOW_DAYS);
   const pressure = pressureWindow(upcoming);
   const buffer = cashBuffer(position.cash, upcoming, WINDOW_DAYS);
+  const keepShare = buffer && buffer.available > 0 ? Math.min(1, Math.max(0, buffer.remaining / buffer.available)) : 0;
   const monthEnds = monthEndBalances(txns, accounts, scope);
   const ideas = scenarios(txns, scope);
   const latest = latestDate(txns);
@@ -335,7 +304,14 @@ export default function OverviewTab({
 
   const lowMonths = monthEnds.filter((m) => m.balance < LOW_BALANCE).length;
   const lowest = monthEnds.length ? monthEnds.reduce((lo, m) => (m.balance < lo.balance ? m : lo)) : null;
-  const totalSaved = ideas.reduce((s, i) => s + savingFor(i, percentFor(i.id)), 0);
+  // A cancel-a-subscription opportunity for each steady subscription, biggest first.
+  const subs = analysis.items
+    .filter((r) => r.active && r.kind === 'subscription' && ['confirmed', 'likely', 'new'].includes(r.confidence) && (r.monthly ?? 0) > 0)
+    .sort((a, b) => (b.monthly ?? 0) - (a.monthly ?? 0))
+    .slice(0, 4);
+  const subsTotal = subs.reduce((sum, r) => sum + (r.monthly ?? 0), 0);
+  const cancelSaved = subs.reduce((sum, r) => sum + (cancelled[r.id] ? (r.monthly ?? 0) : 0), 0);
+  const totalSaved = ideas.reduce((s, i) => s + savingFor(i, percentFor(i.id)), 0) + cancelSaved;
   const periodLabel = scope.partial ? `${scope.effectiveDays} days` : (OVERVIEW_PERIODS.find((p) => p.days === scope.days)?.phrase ?? `${scope.days} days`);
 
   const netTone = flow.count === 0 ? '' : flow.net >= 0 ? 'text-accent' : 'text-red-300';
@@ -350,9 +326,9 @@ export default function OverviewTab({
     { value: String(accounts.length), label: 'Account', tone: 'meta' },
     { value: latest ? shortDate(latest) : '—', label: 'Latest', tone: 'info' },
   ];
-  if (flow.count === 0) badges.push({ label: 'No activity', tone: 'quiet', title: `No money in or out in the last ${periodLabel}.` });
+  if (flow.count === 0) badges.push({ label: 'No Activity', tone: 'quiet', title: `No money in or out in the last ${periodLabel}.` });
   else if (flow.savingsRate === null)
-    badges.push({ label: 'No income found', tone: 'quiet', title: `No income detected in the last ${periodLabel}, so there is no savings rate.` });
+    badges.push({ label: 'No Income Found', tone: 'quiet', title: `No income detected in the last ${periodLabel}, so there is no savings rate.` });
   else
     badges.push({
       value: `${savingsGood ? '+' : '-'}${percentText(Math.abs(flow.savingsRate))}`,
@@ -361,7 +337,7 @@ export default function OverviewTab({
       title: `Savings rate over the last ${periodLabel}`,
     });
   if (flow.pending > 0) badges.push({ value: String(flow.pending), label: `Pending ${flow.pending === 1 ? 'Transaction' : 'Transactions'}`, tone: 'warn', title: 'Included in the figures above' });
-  if (scope.partial) badges.push({ value: String(scope.effectiveDays), label: 'Days of History', tone: 'quiet', title: 'There is not a full period of history yet' });
+  if (scope.partial) badges.push({ value: String(scope.effectiveDays), label: 'Days Of History', tone: 'quiet', title: 'There is not a full period of history yet' });
   const VALUE_TONE = {
     good: 'text-accent',
     bad: 'text-red-300',
@@ -419,7 +395,7 @@ export default function OverviewTab({
         <FlowBar moneyIn={flow.moneyIn} moneyOut={flow.moneyOut} />
 
         <div className="mt-3 text-center">
-          <p className="font-support text-xs font-semibold tracking-[0.2em] text-ink/80 uppercase">Cash available</p>
+          <p className="font-support text-xs font-semibold tracking-[0.2em] text-ink/80 uppercase">Cash Available</p>
           <p data-cash-balance className="mx-auto mt-0.5 w-fit text-4xl leading-none font-semibold tracking-tight @3xl:text-5xl">
             {position.cash === null ? (
               '—'
@@ -439,12 +415,12 @@ export default function OverviewTab({
           </p>
         </div>
 
-        <div className="mt-4 flex flex-wrap items-center justify-center gap-2 @3xl:gap-3">
+        <div className="mt-3 flex flex-wrap items-center justify-center gap-1.5 @3xl:mt-4 @3xl:gap-3">
           {badges.map((b) => (
             <span
               key={b.label}
               title={b.title}
-              className="inline-flex items-center gap-1 rounded-full border border-line bg-surface px-2.5 py-1 font-support text-[13px] whitespace-nowrap text-ink/80 @3xl:px-3 @3xl:text-sm"
+              className="inline-flex items-center gap-1 rounded-full border border-line bg-surface px-2 py-0.5 font-support text-[11px] whitespace-nowrap text-ink/80 @3xl:px-3 @3xl:py-1 @3xl:text-sm"
             >
               {b.value && <span className={`font-semibold ${VALUE_TONE[b.tone]}`}>{b.value}</span>}
               {b.label}
@@ -472,19 +448,19 @@ export default function OverviewTab({
         <div className="grid grid-cols-2 gap-x-8 gap-y-7 @3xl:grid-cols-4">
           <Commitment
             label="Bills"
-            lead={owed.bills.count ? `${owed.bills.count} active` : 'None found'}
+            lead={owed.bills.count ? `${owed.bills.count} Active` : 'None Found'}
             detail={owed.bills.count ? 'recurring bills' : 'No recurring bills yet'}
             onOpen={() => onNavigate('transactions', 'Recurring', 'bills')}
           />
           <Commitment
-            label="Debt & installments"
-            lead={owed.debt.count ? `${owed.debt.count} active` : 'None found'}
+            label="Debt & Installments"
+            lead={owed.debt.count ? `${owed.debt.count} Active` : 'None Found'}
             detail={owed.debt.count ? 'repayments and installments' : 'No repayments found'}
             onOpen={() => onNavigate('transactions', 'Recurring', 'debt')}
           />
           <Commitment
             label="Subscriptions"
-            lead={owed.subscriptions.count ? `${owed.subscriptions.count} active` : 'None found'}
+            lead={owed.subscriptions.count ? `${owed.subscriptions.count} Active` : 'None Found'}
             detail={
               owed.subscriptions.count
                 ? owed.unidentified
@@ -495,7 +471,7 @@ export default function OverviewTab({
             onOpen={() => onNavigate('transactions', 'Recurring', 'subs')}
           />
           <Commitment
-            label="Bank fees"
+            label="Bank Fees"
             lead={fees.count ? money(fees.total) : 'None'}
             detail={fees.count ? `${plural(fees.count, 'charge')} · ${fees.types.join(', ')}` : `No fees in the last ${periodLabel}`}
           />
@@ -560,7 +536,7 @@ export default function OverviewTab({
         ) : (
           <div className="rounded-3xl border border-line bg-card/60 p-5 @3xl:p-6">
             <div className="flex items-baseline justify-between gap-4">
-              <span className="font-support text-sm text-ink/80">Total spending</span>
+              <span className="font-support text-sm text-ink/80">Total Spending</span>
               <span className="text-lg font-semibold tracking-tight tabular-nums">{money(breakdown.total)}</span>
             </div>
 
@@ -614,7 +590,7 @@ export default function OverviewTab({
                   <div key={p.id}>
                     {startsGroup && (
                       <p className="mb-1 mt-2 font-support text-xs text-accent">
-                        Highest concentration · {shortDate(pressure!.start)} – {shortDate(pressure!.end)} · {approx(pressure!.total)}
+                        Highest Concentration · {shortDate(pressure!.start)} – {shortDate(pressure!.end)} · {approx(pressure!.total)}
                       </p>
                     )}
                     <div
@@ -670,7 +646,7 @@ export default function OverviewTab({
                 </p>
               )}
               <p className="mt-4 flex items-baseline justify-between font-support text-sm text-muted">
-                <span>Expected in the next {WINDOW_DAYS} days</span>
+                <span>Expected In The Next {WINDOW_DAYS} Days</span>
                 <span className="text-base font-semibold text-ink tabular-nums">{approx(buffer?.obligations ?? upcoming.reduce((s, p) => s + p.amount, 0))}</span>
               </p>
             </div>
@@ -689,18 +665,31 @@ export default function OverviewTab({
             <p className="font-support text-sm text-muted">No checking or savings balance is available to measure against.</p>
           ) : (
             <div>
-              <div className="flex flex-col items-center gap-6 @3xl:flex-row @3xl:gap-14">
-                <BufferGauge remaining={buffer.remaining} available={buffer.available} />
-                <dl className="w-full max-w-md space-y-3 font-support text-sm">
-                  <div className="flex items-baseline justify-between">
-                    <dt className="text-muted">Cash available</dt>
-                    <dd className="tabular-nums">{moneyExact(buffer.available)}</dd>
-                  </div>
-                  <div className="flex items-baseline justify-between border-t border-line pt-3">
-                    <dt className="text-muted">Expected recurring payments</dt>
-                    <dd className="tabular-nums">-{money(buffer.obligations)}</dd>
-                  </div>
-                </dl>
+              <div className="w-full">
+                <p className="font-support text-xs text-muted">Left After The Next {WINDOW_DAYS} Days</p>
+                <p className={`text-3xl font-semibold tracking-tight tabular-nums ${buffer.remaining < 0 ? 'text-red-300' : ''}`}>{signed(buffer.remaining).replace(/^\+/, '')}</p>
+                {/* One bar: the part of the cash that stays, then the part the known payments take. */}
+                <div className="mt-2 flex h-5 overflow-hidden rounded-md bg-line" role="img" aria-label={`${money(buffer.obligations)} of ${money(buffer.available)} is already spoken for`}>
+                  <motion.span
+                    className="flex items-center overflow-hidden bg-accent pl-2 font-support text-[10px] font-bold tracking-wide text-canvas uppercase"
+                    initial={{ width: 0 }}
+                    animate={{ width: `${keepShare * 100}%` }}
+                    transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
+                  >
+                    {keepShare > 0.12 && 'Keep'}
+                  </motion.span>
+                  <motion.span
+                    className="flex flex-1 items-center justify-center overflow-hidden bg-[#f87171]/80 font-support text-[10px] font-bold tracking-wide text-canvas uppercase"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ duration: 0.5, delay: 0.3 }}
+                  >
+                    {keepShare < 0.88 && 'Due'}
+                  </motion.span>
+                </div>
+                <p className="mt-1.5 font-support text-[11px] text-muted">
+                  {money(buffer.obligations)} of {moneyExact(buffer.available)} is already spoken for
+                </p>
               </div>
               <p className="mt-5 font-support text-xs text-muted">
                 {buffer.available > 0
@@ -726,11 +715,37 @@ export default function OverviewTab({
         icon="lightbulb"
         subtitle={`What-ifs based on your last ${periodLabel} of spending. They are estimates, not advice.`}
       >
-        {ideas.length === 0 ? (
+        {ideas.length === 0 && subs.length === 0 ? (
           <p className="font-support text-sm text-muted">No spending in these areas yet, so there is nothing to model.</p>
         ) : (
           <div>
             <div className="space-y-3">
+              {subs.map((r) => {
+                const on = !!cancelled[r.id];
+                const monthly = r.monthly ?? 0;
+                return (
+                  <button
+                    key={r.id}
+                    type="button"
+                    role="checkbox"
+                    aria-checked={on}
+                    onClick={() => setCancelled((c) => ({ ...c, [r.id]: !c[r.id] }))}
+                    className="flex w-full cursor-pointer items-center gap-3 rounded-xl bg-surface px-3 py-3 text-left"
+                  >
+                    <span className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-md border-2 transition-colors ${on ? 'border-accent bg-accent text-canvas' : 'border-line'}`}>
+                      {on && <span className="text-[11px] font-bold">✓</span>}
+                    </span>
+                    <MerchantLogo name={r.name} sources={r.logos} className="h-8 w-8 text-[10px]" />
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-sm font-medium">Cancel {r.name}</span>
+                      <span className="mt-1.5 block h-1.5 rounded-full bg-line">
+                        <span className="block h-full rounded-full bg-accent" style={{ width: on && subsTotal > 0 ? `${(monthly / subsTotal) * 100}%` : '0%', transition: 'width 0.4s' }} />
+                      </span>
+                    </span>
+                    <span className="text-sm font-semibold tabular-nums">{money(monthly)}/mo</span>
+                  </button>
+                );
+              })}
               {ideas.slice(0, 5).map((i) => {
                 const pct = percentFor(i.id);
                 const monthly = savingFor(i, pct);
@@ -772,7 +787,7 @@ export default function OverviewTab({
               })}
             </div>
             <p className="mt-4 flex items-baseline justify-between font-support text-sm text-muted">
-              <span>All of the above together</span>
+              <span>All Of The Above Together</span>
               <span className="text-base font-semibold text-ink tabular-nums">
                 {approx(totalSaved)} / month · {approx(totalSaved * 12)} / year
               </span>

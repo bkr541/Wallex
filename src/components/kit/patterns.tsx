@@ -51,6 +51,8 @@ function JoinedSearch() {
 
 /* ------------------------------------------------------------------------------- bubble */
 const ring = '46, 208, 138';
+const LIGHT_RING = '#7ee0c6';
+const BLUE = '#7db7ff';
 function GlassBubble() {
   return (
     <div className="relative mx-auto flex h-[132px] w-[132px] flex-col items-center justify-center rounded-full text-center transition-transform hover:-translate-y-1 hover:scale-105" style={{ background: `radial-gradient(circle at 30% 18%, rgba(${ring}, 0.3), rgba(${ring}, 0.07) 62%), var(--bubble-base)`, border: `2px solid rgba(${ring}, 0.8)`, boxShadow: `0 14px 34px rgba(0,0,0,0.4), 0 0 30px rgba(${ring}, 0.18)` }}>
@@ -90,6 +92,153 @@ function SpentOrb() {
 }
 function FlatOrb() {
   return <div className="mx-auto flex h-[132px] w-[132px] flex-col items-center justify-center rounded-full bg-ink text-center text-canvas"><span className="font-support text-[11px] opacity-70">Every month</span><span className="text-2xl leading-tight font-bold">$4,800</span><span className="font-support text-[11px] opacity-70">comes in</span></div>;
+}
+
+/* ------------------------------------------------------------------------------- bubble, three more */
+// Small charges circling the bubble they belong to, one satellite per charge, slowly turning.
+function OrbitBubble() {
+  const sats = [[0, BLUE], [120, LIGHT_RING], [240, '#ffc14d']] as const;
+  return (
+    <div className="relative mx-auto h-[156px] w-[156px]">
+      <motion.div className="absolute inset-0" animate={{ rotate: 360 }} transition={{ duration: 16, ease: 'linear', repeat: Infinity }} aria-hidden="true">
+        <span className="absolute inset-[6px] rounded-full border border-dashed border-line" />
+        {sats.map(([deg, c]) => (
+          <span key={deg} className="absolute top-1/2 left-1/2 h-3 w-3 rounded-full" style={{ background: c, boxShadow: `0 0 10px ${c}`, transform: `rotate(${deg}deg) translateY(-72px) translate(-50%, -50%)` }} />
+        ))}
+      </motion.div>
+      <div className="absolute inset-[16px] flex flex-col items-center justify-center rounded-full border border-line text-center" style={{ background: 'radial-gradient(circle at 32% 22%, color-mix(in srgb, var(--accent) 26%, var(--card)), var(--card) 72%)' }}>
+        <MerchantLogo name="Starbucks" sources={[]} className="h-9 w-9 text-xs" />
+        <span className="mt-1 text-sm font-semibold">Starbucks</span>
+        <span className="font-support text-[11px] text-muted">$64 · 3 charges</span>
+      </div>
+    </div>
+  );
+}
+
+// The bubble fills with liquid up to its share of income, with a wave rolling along the surface.
+function LiquidBubble() {
+  const share = 0.38;
+  const level = 156 * (1 - share);
+  const wave = 'M0 6 Q 19.5 -4 39 6 T 78 6 T 117 6 T 156 6 T 195 6 T 234 6 V 200 H 0 Z';
+  return (
+    <div className="relative mx-auto h-[156px] w-[156px] overflow-hidden rounded-full border-2 border-accent/70" style={{ background: 'var(--card)' }}>
+      <motion.svg viewBox="0 0 156 156" className="absolute inset-0 h-full w-full" aria-hidden="true" initial={{ y: 156 }} animate={{ y: 0 }} transition={{ duration: 1.2, ease: [0.22, 1, 0.36, 1] }}>
+        <motion.path d={wave} fill="color-mix(in srgb, var(--accent) 38%, transparent)" style={{ translateY: level - 4 }} animate={{ x: [0, -78] }} transition={{ duration: 3.4, ease: 'linear', repeat: Infinity }} />
+        <motion.path d={wave} fill="color-mix(in srgb, var(--accent) 55%, transparent)" style={{ translateY: level + 4 }} animate={{ x: [-78, 0] }} transition={{ duration: 4.6, ease: 'linear', repeat: Infinity }} />
+      </motion.svg>
+      <div className="relative flex h-full flex-col items-center justify-start pt-[30px] text-center [text-shadow:0_1px_8px_rgba(0,0,0,0.55)]">
+        <span className="font-support text-[11px] text-ink/80">Groceries</span>
+        <span className="text-2xl leading-tight font-semibold tabular-nums">$1,840</span>
+        <span className="font-support text-xs font-semibold">38% of income</span>
+      </div>
+    </div>
+  );
+}
+
+// A dial of tick marks, one lit for each slice of income the bubble takes, switching on one after another.
+function TickBubble() {
+  const total = 36;
+  const lit = Math.round(0.42 * total);
+  return (
+    <div className="relative mx-auto h-[156px] w-[156px]">
+      <svg viewBox="0 0 156 156" className="absolute inset-0 h-full w-full" aria-hidden="true">
+        {Array.from({ length: total }, (_, i) => {
+          const a = (i / total) * Math.PI * 2 - Math.PI / 2;
+          const on = i < lit;
+          return (
+            <motion.line key={i} x1={78 + Math.cos(a) * 62} y1={78 + Math.sin(a) * 62} x2={78 + Math.cos(a) * 74} y2={78 + Math.sin(a) * 74} strokeWidth={on ? 3 : 2} strokeLinecap="round" stroke={on ? 'var(--accent)' : 'var(--line)'} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: i * 0.03 }} style={on ? { filter: 'drop-shadow(0 0 3px color-mix(in srgb, var(--accent) 60%, transparent))' } : undefined} />
+          );
+        })}
+      </svg>
+      <div className="absolute inset-[18px] flex flex-col items-center justify-center rounded-full bg-card text-center">
+        <MerchantLogo name="Chase Loan" sources={[]} className="h-8 w-8 text-[11px]" />
+        <span className="mt-1 text-lg leading-tight font-semibold tabular-nums">$2,020</span>
+        <span className="font-support text-[11px] text-muted">42% · Chase Loan</span>
+      </div>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------------------- centre circle, three more */
+// Sonar: rings spread outward from the income, one after another.
+function RippleOrb() {
+  return (
+    <div className="relative mx-auto h-[156px] w-[156px]">
+      {[0, 1, 2].map((i) => (
+        <motion.span key={i} aria-hidden="true" className="absolute inset-[26px] rounded-full border border-accent" initial={{ scale: 1, opacity: 0.7 }} animate={{ scale: 1.9, opacity: 0 }} transition={{ duration: 3.6, delay: i * 1.2, ease: 'easeOut', repeat: Infinity }} />
+      ))}
+      <div className="absolute inset-[26px] flex flex-col items-center justify-center rounded-full border border-accent/60 text-center" style={{ background: 'radial-gradient(circle at 50% 30%, color-mix(in srgb, var(--accent) 30%, var(--card)), var(--card) 75%)' }}>
+        <span className="font-support text-[10px] text-muted">Monthly income</span>
+        <span className="text-xl leading-tight font-semibold tabular-nums">$4,800</span>
+        <span className="font-support text-[10px] text-muted">every month</span>
+      </div>
+    </div>
+  );
+}
+
+// The income as a ring cut into what it goes to. Point at a slice and the middle tells you what it is.
+const SLICES = [
+  { name: 'Bills', amount: '$1,820', len: 0.38, start: 0, color: '#7db7ff' },
+  { name: 'Merchants', amount: '$912', len: 0.19, start: 0.4, color: '#b9a2ff' },
+  { name: 'Habits', amount: '$576', len: 0.12, start: 0.61, color: '#ffc14d' },
+  { name: 'Left over', amount: '$1,492', len: 0.31, start: 0.75, color: 'var(--accent)' },
+];
+function SliceOrb() {
+  const [hot, setHot] = useState<number | null>(null);
+  const h = hot === null ? null : SLICES[hot];
+  return (
+    <div className="relative mx-auto h-[156px] w-[156px]" onMouseLeave={() => setHot(null)}>
+      <svg viewBox="0 0 156 156" className="h-full w-full" fill="none" aria-hidden="true">
+        {SLICES.map((sl, i) => (
+          <g key={sl.name} transform={`rotate(${-90 + sl.start * 360} 78 78)`} onMouseEnter={() => setHot(i)}>
+            <motion.circle cx="78" cy="78" r="64" stroke={sl.color} strokeLinecap="round" initial={{ pathLength: 0 }} animate={{ pathLength: sl.len - 0.015, strokeWidth: hot === i ? 16 : 10 }} transition={{ pathLength: { delay: i * 0.15, duration: 0.7, ease: [0.22, 1, 0.36, 1] }, strokeWidth: { duration: 0.15 } }} style={{ pointerEvents: 'stroke' }} />
+          </g>
+        ))}
+      </svg>
+      <div className="pointer-events-none absolute inset-[26px] flex flex-col items-center justify-center text-center">
+        <span className="font-support text-[10px] text-muted">{h ? h.name : 'Monthly income'}</span>
+        <span className="text-xl leading-tight font-semibold tabular-nums">{h ? h.amount : '$4,800'}</span>
+        <span className="font-support text-[10px]" style={{ color: h ? h.color : undefined }}>{h ? `${Math.round(h.len * 100)}% of income` : '100%'}</span>
+      </div>
+    </div>
+  );
+}
+
+// A gauge open at the bottom with a knob that rolls round to how much of the income is spent.
+function DialOrb() {
+  const spent = 0.57;
+  const R = 62;
+  const start = 135;
+  const sweep = 270;
+  const a = (deg: number) => ((deg - 90) * Math.PI) / 180;
+  const pt = (deg: number, r: number) => [78 + Math.cos(a(deg)) * r, 78 + Math.sin(a(deg)) * r];
+  const arc = (from: number, to: number) => {
+    const [x1, y1] = pt(from, R);
+    const [x2, y2] = pt(to, R);
+    return `M ${x1} ${y1} A ${R} ${R} 0 ${to - from > 180 ? 1 : 0} 1 ${x2} ${y2}`;
+  };
+  return (
+    <div className="relative mx-auto h-[156px] w-[156px]">
+      <svg viewBox="0 0 156 156" className="h-full w-full" fill="none" aria-hidden="true">
+        {Array.from({ length: 11 }, (_, i) => {
+          const d = start + (sweep / 10) * i;
+          const [x1, y1] = pt(d, R + 8);
+          const [x2, y2] = pt(d, R + (i % 5 === 0 ? 15 : 12));
+          return <line key={i} x1={x1} y1={y1} x2={x2} y2={y2} stroke="var(--muted)" strokeWidth={i % 5 === 0 ? 2 : 1} strokeLinecap="round" opacity="0.6" />;
+        })}
+        <path d={arc(start, start + sweep)} stroke="var(--line)" strokeWidth="8" strokeLinecap="round" />
+        <motion.path d={arc(start, start + sweep)} stroke="var(--accent)" strokeWidth="8" strokeLinecap="round" initial={{ pathLength: 0 }} animate={{ pathLength: spent }} transition={{ duration: 1.3, ease: [0.22, 1, 0.36, 1] }} style={{ filter: 'drop-shadow(0 0 5px color-mix(in srgb, var(--accent) 55%, transparent))' }} />
+        <motion.g style={{ originX: '78px', originY: '78px' }} initial={{ rotate: start }} animate={{ rotate: start + sweep * spent }} transition={{ duration: 1.3, ease: [0.22, 1, 0.36, 1] }}>
+          <circle cx="78" cy={78 - R} r="7" fill="var(--canvas)" stroke="var(--accent)" strokeWidth="3" />
+        </motion.g>
+      </svg>
+      <div className="absolute inset-[30px] flex flex-col items-center justify-center text-center">
+        <span className="font-support text-[10px] text-muted">Monthly income</span>
+        <span className="text-xl leading-tight font-semibold tabular-nums">$4,800</span>
+        <span className="font-support text-[11px] font-semibold text-accent">57% spent</span>
+      </div>
+    </div>
+  );
 }
 
 /* ------------------------------------------------------------------------------- metric card */
@@ -179,7 +328,9 @@ export const patternsRows: KitRow[] = [
   { name: 'View chips', used: 'Patterns: All, Bills, Merchants, Categories (and the type filters on Recurring)', items: [['Dot and count chips', <DotChips />], ['Underline tabs', <UnderChips />], ['Count blocks', <BlockChips />]] },
   { name: 'Search and filter', used: 'Patterns and Recurring: search box with a Filter button', items: [['Search and button', <SearchWithFilter />], ['Expanding search', <ExpandingSearch />], ['Joined bar with count', <JoinedSearch />]] },
   { name: 'Spending bubble', used: 'Patterns: the circles', items: [['Glass bubble', <GlassBubble />], ['Ring gauge', <RingBubble />], ['Logo with badge', <LogoBubble />]] },
+  { name: 'Spending bubble, more', used: 'Patterns: the circles', items: [['Orbiting charges', <OrbitBubble />], ['Liquid fill', <LiquidBubble />], ['Tick dial', <TickBubble />]] },
   { name: 'Centre circle', used: 'Patterns: Monthly income in the middle', items: [['Glowing orb', <GlowOrb />], ['Filling orb', <SpentOrb />], ['Flat disc', <FlatOrb />]] },
+  { name: 'Centre circle, more', used: 'Patterns: Monthly income in the middle', items: [['Sonar ripple', <RippleOrb />], ['Sliced ring', <SliceOrb />], ['Gauge dial', <DialOrb />]] },
   { name: 'Metric card', used: 'Patterns: detail view metrics', items: [['Plain card', <PlainMetric />], ['With change chip', <DeltaMetric />], ['Side bar', <SideMetric />]] },
   { name: 'Trend chart', used: 'Patterns: detail view trend', items: [['Bars', <BarTrend />], ['Line with dots', <LineTrend />], ['Soft area', <SparkArea />]] },
   { name: 'Detail header', used: 'Patterns: after you pick a circle', items: [['Back, logo and share', <BackHeader />], ['Tinted banner', <BannerHeader />], ['Compact bar', <CompactHeader />]] },

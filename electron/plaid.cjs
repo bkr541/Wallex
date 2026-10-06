@@ -183,12 +183,20 @@ function runLink(linkToken, redirectUri) {
 
 async function exchange(publicToken, institution) {
   const { access_token, item_id } = await plaid('/item/public_token/exchange', { public_token: publicToken });
-  config.setConnection({
+  const replaced = config.addConnection({
     accessToken: access_token,
     itemId: item_id,
     institutionId: institution?.institution_id || '',
     institutionName: institution?.name || '',
   });
+  // Linking the same bank again replaces the old connection, so the old one is closed at Plaid.
+  if (replaced) {
+    try {
+      await plaid('/item/remove', { access_token: replaced.accessToken });
+    } catch {
+      // Best effort.
+    }
+  }
 }
 
 // Links the chosen bank. Sandbox skips the Link UI; production runs the real Link flow.
@@ -211,16 +219,19 @@ async function connect(bank) {
   return { connected: true, institutionName: result.institution?.name || bank.name };
 }
 
-async function disconnect() {
-  const c = config.getConnection();
-  if (c) {
+// Unlinks one bank by its item id, or every bank when none is given.
+async function disconnect(itemId) {
+  const all = config.getConnections();
+  const targets = itemId ? all.filter((c) => c.itemId === itemId) : all;
+  for (const c of targets) {
     try {
       await plaid('/item/remove', { access_token: c.accessToken });
     } catch {
       // Removing the item at Plaid is best effort; always clear the local connection.
     }
+    config.removeConnection(c.itemId);
   }
-  config.clearConnection();
+  if (!itemId) config.clearConnections();
 }
 
 // "FOOD_AND_DRINK" + "FOOD_AND_DRINK_RESTAURANT" -> "Food & Drink › Restaurant"
@@ -345,12 +356,11 @@ async function syncAll(accessToken) {
   return { accounts, transactions: [...byId.values()] };
 }
 
-async function getTransactions() {
-  const c = config.getConnection();
-  if (!c) return { connected: false };
-
-  let data;
+// Loads one linked bank. A bank that cannot be reached (its login expired, say) is reported on its own and does not
+// stop the others from loading.
+async function loadItem(c) {
   try {
+    let data;
     try {
       data = await syncAll(c.accessToken);
     } catch (err) {
@@ -358,15 +368,40 @@ async function getTransactions() {
       if (err.code !== 'TRANSACTIONS_SYNC_MUTATION_DURING_PAGINATION') throw err;
       data = await syncAll(c.accessToken);
     }
+    return { c, data };
   } catch (err) {
-    if (err.code === 'PRODUCT_NOT_READY') return { connected: true, notReady: true, institutionName: c.institutionName };
-    throw err;
+    if (err.code === 'PRODUCT_NOT_READY') return { c, notReady: true };
+    return { c, error: err };
+  }
+}
+
+async function getTransactions() {
+  const connections = config.getConnections();
+  if (connections.length === 0) return { connected: false };
+
+  const results = await Promise.all(connections.map(loadItem));
+  const loaded = results.filter((r) => r.data);
+  const institutions = results.map((r) => ({
+    itemId: r.c.itemId,
+    name: r.c.institutionName,
+    notReady: Boolean(r.notReady),
+    error: r.error ? r.error.message || 'Could not reach this bank.' : null,
+    needsRelink: r.error?.code === 'ITEM_LOGIN_REQUIRED',
+  }));
+  const names = connections.map((c) => c.institutionName).filter(Boolean).join(', ');
+
+  if (loaded.length === 0) {
+    // Nothing loaded: either every bank is still preparing, or every one failed.
+    if (results.every((r) => r.notReady)) return { connected: true, notReady: true, institutionName: names, institutions };
+    throw results.find((r) => r.error)?.error ?? new PlaidError('Could not load your banks.');
   }
 
-  const accountsById = new Map(data.accounts.map((a) => [a.account_id, a]));
+  const accountsById = new Map();
+  for (const { c, data } of loaded) for (const a of data.accounts) accountsById.set(a.account_id, { ...a, itemId: c.itemId, institution: c.institutionName });
 
   // Every linked account is returned (checking, credit cards, ...). The UI decides which to show.
-  const transactions = data.transactions
+  const transactions = loaded
+    .flatMap(({ data }) => data.transactions)
     .sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0))
     .map((t) => ({
       id: t.transaction_id,
@@ -387,8 +422,9 @@ async function getTransactions() {
 
   return {
     connected: true,
-    institutionName: c.institutionName,
-    accounts: data.accounts.map((a) => ({
+    institutionName: names,
+    institutions,
+    accounts: [...accountsById.values()].map((a) => ({
       id: a.account_id,
       name: a.name,
       mask: a.mask,
@@ -396,6 +432,8 @@ async function getTransactions() {
       subtype: a.subtype,
       available: a.balances.available,
       current: a.balances.current,
+      itemId: a.itemId,
+      institution: a.institution,
     })),
     transactions,
   };
@@ -403,7 +441,7 @@ async function getTransactions() {
 
 function getStatus() {
   const s = config.getSettings();
-  const c = config.getConnection();
+  const list = config.getConnections();
   return {
     environment: s.environment,
     clientId: s.clientId,
@@ -414,7 +452,7 @@ function getStatus() {
     webhookUrl: s.webhookUrl,
     redirectUri: s.redirectUri,
     bankId: s.bankId,
-    connection: c ? { institutionName: c.institutionName } : null,
+    connections: list.map((c) => ({ itemId: c.itemId, institutionName: c.institutionName })),
   };
 }
 

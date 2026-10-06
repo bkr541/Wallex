@@ -4,7 +4,7 @@ contextBridge.exposeInMainWorld('wallex', {
   platform: process.platform,
   getStatus: () => ipcRenderer.invoke('wallex:status'),
   connect: (payload) => ipcRenderer.invoke('wallex:connect', payload),
-  disconnect: () => ipcRenderer.invoke('wallex:disconnect'),
+  disconnect: (itemId) => ipcRenderer.invoke('wallex:disconnect', itemId),
   getTransactions: () => ipcRenderer.invoke('wallex:transactions'),
   // The details from a confirmation or password-reset email link, once it has been opened in the browser.
   onAuthCallback: (cb) => {

@@ -3,7 +3,8 @@ import { AnimatePresence, motion } from 'motion/react';
 import { Check, Download, LogOut, RefreshCw } from 'lucide-react';
 import DestructiveAction from '../components/DestructiveAction';
 import PhotoDropZone from '../components/PhotoDropZone';
-import SectionTitle from '../components/SectionTitle';
+import Collapsible from '../components/overview/Collapsible';
+import type { PlumpName } from '../components/PlumpIcon';
 import UnderlineField from '../components/UnderlineField';
 import { changeEmail, changePassword, signOut } from '../lib/auth';
 import { fullName, photoFromFile, saveProfile, useProfile, type Profile } from '../lib/profile';
@@ -32,6 +33,34 @@ function useNotice() {
 
 const Notice = ({ text }: { text: string | null }) =>
   text ? <span role="status" className="font-support text-sm text-muted">{text}</span> : null;
+
+// Each group folds away the same way the Overview groups do, and which ones are folded is remembered.
+const CLOSED_KEY = 'wallex-account-closed';
+function Group({ id, title, icon, subtitle, children }: { id: string; title: string; icon: PlumpName; subtitle?: string; children: React.ReactNode }) {
+  const read = (): Record<string, boolean> => {
+    try {
+      return JSON.parse(localStorage.getItem(CLOSED_KEY) ?? '{}');
+    } catch {
+      return {};
+    }
+  };
+  const [closed, setClosed] = useState(read);
+  // Every group saves into the same record, so each one starts from what the others have saved.
+  const toggle = () => {
+    const next = { ...read(), [id]: !closed[id] };
+    setClosed(next);
+    try {
+      localStorage.setItem(CLOSED_KEY, JSON.stringify(next));
+    } catch {
+      // Not remembering is fine.
+    }
+  };
+  return (
+    <Collapsible title={title} icon={icon} subtitle={subtitle} open={!closed[id]} onToggle={toggle}>
+      <div className="space-y-5">{children}</div>
+    </Collapsible>
+  );
+}
 
 // One line of an account group: what it is and its current value at the left, the action at the right.
 function InfoRow({ title, value, children }: { title: string; value?: string; children: React.ReactNode }) {
@@ -139,12 +168,7 @@ function SignIn() {
   };
 
   return (
-    <section className="space-y-5 border-t border-line pt-8">
-      <div>
-        <SectionTitle icon="padlock-key">Sign-in</SectionTitle>
-        <p className="mt-1 font-support text-sm text-muted">How you get into Wallex.</p>
-      </div>
-
+    <Group id="signin" title="Sign-in" icon="padlock-key" subtitle="How you get into Wallex.">
       <div className="space-y-6">
         <div>
           <InfoRow title="Email address" value={email || 'No email added'}>
@@ -188,53 +212,54 @@ function SignIn() {
         </InfoRow>
         <Notice text={notice} />
       </div>
-    </section>
+    </Group>
   );
 }
 
 function Banks({ onConnectionChange }: { onConnectionChange?: () => void }) {
-  const [bank, setBank] = useState<string | null | undefined>(undefined); // undefined while loading
+  const [banks, setBanks] = useState<{ itemId: string; institutionName: string }[] | undefined>(undefined); // undefined while loading
   const [busy, setBusy] = useState(false);
   const [notice, flash] = useNotice();
 
   useEffect(() => {
-    wallex.getStatus().then((res) => setBank(res.ok ? (res.data.connection?.institutionName ?? null) : null));
+    wallex.getStatus().then((res) => setBanks(res.ok ? res.data.connections : []));
   }, []);
 
-  const unlink = async () => {
+  const unlink = async (itemId: string, name: string) => {
     setBusy(true);
-    const res = await wallex.disconnect();
+    const res = await wallex.disconnect(itemId);
     setBusy(false);
     if (!res.ok) return flash(res.error);
-    setBank(null);
-    flash('Unlinked. Your saved Plaid credentials were kept, so you can connect again in Setup.');
+    setBanks((list) => (list ?? []).filter((b) => b.itemId !== itemId));
+    flash(`Unlinked ${name}. Your other banks are unchanged.`);
     onConnectionChange?.();
   };
 
   return (
-    <section className="space-y-5 border-t border-line pt-8">
-      <div>
-        <SectionTitle icon="government-building-1">Connected banks</SectionTitle>
-        <p className="mt-1 font-support text-sm text-muted">Banks Wallex reads through Plaid. Unlinking removes the connection, not your bank account.</p>
-      </div>
-      {bank ? (
-        <DestructiveAction
-          heading={bank}
-          description="Linked through Plaid"
-          trigger="Unlink…"
-          title={`Unlink ${bank}?`}
-          body="Wallex stops reading its accounts and transactions. Your saved Plaid credentials are kept, so you can connect again in Setup."
-          confirm="Unlink"
-          onConfirm={unlink}
-          confirmDisabled={busy}
-        />
+    <Group id="banks" title="Connected banks" icon="government-building-1" subtitle="Every bank Wallex reads through Plaid. Unlinking one removes its connection, not your bank account. Add more in Settings → Setup.">
+      {banks && banks.length > 0 ? (
+        <div className="space-y-4">
+          {banks.map((b) => (
+            <DestructiveAction
+              key={b.itemId}
+              heading={b.institutionName || 'Linked bank'}
+              description="Linked through Plaid"
+              trigger="Unlink…"
+              title={`Unlink ${b.institutionName || 'this bank'}?`}
+              body="Wallex stops reading its accounts and transactions. Your saved Plaid credentials are kept, so you can connect again in Setup."
+              confirm="Unlink"
+              onConfirm={() => unlink(b.itemId, b.institutionName || 'the bank')}
+              confirmDisabled={busy}
+            />
+          ))}
+        </div>
       ) : (
         <p className="font-support text-sm text-muted">
-          {bank === undefined ? 'Checking…' : wallex.available() ? 'No bank is linked. Connect one in Settings → Setup.' : 'Open the Wallex desktop app to see linked banks.'}
+          {banks === undefined ? 'Checking…' : wallex.available() ? 'No bank is linked. Connect one in Settings → Setup.' : 'Open the Wallex desktop app to see linked banks.'}
         </p>
       )}
       <Notice text={notice} />
-    </section>
+    </Group>
   );
 }
 
@@ -271,11 +296,7 @@ function YourData({ onRefresh, refreshing }: { onRefresh?: () => void; refreshin
   };
 
   return (
-    <section className="space-y-5 border-t border-line pt-8">
-      <div>
-        <SectionTitle icon="database">Your data</SectionTitle>
-        <p className="mt-1 font-support text-sm text-muted">Wallex keeps your profile, appearance and Recurring corrections on this device. Your bank details are never saved.</p>
-      </div>
+    <Group id="data" title="Your data" icon="database" subtitle="Wallex keeps your profile, appearance and Recurring corrections on this device. Your bank details are never saved.">
       <div className="space-y-6">
         <InfoRow title="Download my data" value="A copy of everything saved on this device, as a file.">
           <button type="button" onClick={exportData} className={outlineBtn}>
@@ -299,17 +320,16 @@ function YourData({ onRefresh, refreshing }: { onRefresh?: () => void; refreshin
           onConfirm={reset}
         />
       </div>
-    </section>
+    </Group>
   );
 }
 
 function About() {
   return (
-    <section className="space-y-5 border-t border-line pt-8">
-      <SectionTitle icon="text-box-1">About</SectionTitle>
+    <Group id="about" title="About" icon="text-box-1">
       <InfoRow title="Version" value={__APP_VERSION__}>{null}</InfoRow>
       <p className="font-support text-xs text-muted">Icons: Streamline Plump, CC BY 4.0.</p>
-    </section>
+    </Group>
   );
 }
 
@@ -319,11 +339,8 @@ function DangerZone() {
   const ready = typed.trim().toUpperCase() === 'DELETE';
 
   return (
-    <section className="space-y-5 rounded-xl border border-red-400/30 p-5">
-      <div>
-        <SectionTitle icon="notification-alert" className="text-lg font-semibold text-red-300">Danger zone</SectionTitle>
-        <p className="mt-1 font-support text-sm text-muted">Deleting your account removes your sign-in, your saved settings and any linked banks. This can't be undone.</p>
-      </div>
+    <div className="rounded-xl border border-red-400/30 px-5">
+    <Group id="danger" title="Danger zone" icon="notification-alert" subtitle="Deleting your account removes your sign-in, your saved settings and any linked banks. This can't be undone.">
       <DestructiveAction
         heading="Delete account"
         trigger="Delete account…"
@@ -337,7 +354,8 @@ function DangerZone() {
         <UnderlineField label="Type DELETE to confirm" icon="notification-alert" value={typed} onChange={(e) => setTyped(e.target.value)} placeholder="DELETE" autoComplete="off" autoFocus />
       </DestructiveAction>
       <Notice text={notice} />
-    </section>
+    </Group>
+    </div>
   );
 }
 
@@ -395,11 +413,7 @@ export default function AccountTab({
   return (
     <div className="space-y-8 px-1 pb-10">
     <form onSubmit={save} noValidate className="space-y-8">
-      <section className="space-y-5">
-        <div>
-          <SectionTitle icon="user-face-male">Your profile</SectionTitle>
-          <p className="mt-1 font-support text-sm text-muted">This is how Wallex knows you. It stays on this device.</p>
-        </div>
+      <Group id="profile" title="Your profile" icon="user-face-male" subtitle="This is how Wallex knows you. It stays on this device.">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="min-w-0">
             <p className="truncate text-xl font-semibold tracking-tight">{name || 'Your name'}</p>
@@ -408,20 +422,16 @@ export default function AccountTab({
           <LogOutButton />
         </div>
         <PhotoDropZone photo={draft.photo} error={photoError} onFile={pick} onRemove={() => set('photo', null)} />
-      </section>
+      </Group>
 
-      <section className="space-y-5 border-t border-line pt-8">
-        <div>
-          <SectionTitle icon="text-box-1">Personal details</SectionTitle>
-          <p className="mt-1 font-support text-sm text-muted">Your name is used on Overview, and your phone number is for your own reference.</p>
-        </div>
+      <Group id="details" title="Personal details" icon="text-box-1" subtitle="Your name is used on Overview, and your phone number is for your own reference.">
         <div className="grid grid-cols-1 gap-x-8 gap-y-6 @3xl:grid-cols-2">
           <UnderlineField label="First name" icon="user-face-male" value={draft.firstName} autoComplete="given-name" onChange={(e) => set('firstName', e.target.value)} placeholder="Ada" error={shown('firstName')} />
           <UnderlineField label="Last name" icon="user-face-male" value={draft.lastName} autoComplete="family-name" onChange={(e) => set('lastName', e.target.value)} placeholder="Lovelace" error={shown('lastName')} />
           <UnderlineField label="Preferred name" icon="chat-bubble-text-square" value={draft.preferredName} onChange={(e) => set('preferredName', e.target.value)} placeholder="Ada" hint="What Wallex calls you. Leave blank to use your first name." />
           <UnderlineField label="Phone (optional)" icon="phone" type="tel" value={draft.phone} autoComplete="tel" onChange={(e) => set('phone', e.target.value)} placeholder="+1 555 123 4567" error={shown('phone')} />
         </div>
-      </section>
+      </Group>
 
       <div className="flex flex-wrap items-center gap-3 border-t border-line pt-8">
         <button type="submit" disabled={!dirty && !justSaved} className={`flex cursor-pointer items-center gap-2 rounded-lg px-5 py-2.5 text-sm font-semibold text-canvas capitalize transition-all disabled:cursor-not-allowed disabled:opacity-40 ${justSaved ? 'bg-green-400' : 'bg-accent hover:opacity-90'}`}>

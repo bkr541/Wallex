@@ -117,14 +117,85 @@ function CrumbNotice() {
 }
 
 /* ------------------------------------------------------------------------------- status tile */
-function ClassicTile() {
-  return <div className="w-full rounded-2xl border border-line bg-card p-4"><p className="font-support text-sm text-muted">Needs review</p><p className="mt-2 text-3xl font-semibold text-[#f5c542]">15</p></div>;
+const AMBER = '#f5c542';
+
+// A tally: one tick for every item waiting on you, drawn in one after another. Point at it and the ticks ripple.
+function TallyTile() {
+  const n = 15;
+  return (
+    <motion.button type="button" whileHover="hover" initial="rest" animate="rest" className="relative w-full cursor-pointer overflow-hidden rounded-2xl border border-line bg-card p-4 text-left">
+      <span aria-hidden="true" className="absolute inset-x-0 bottom-0 h-1.5" style={{ background: `repeating-linear-gradient(135deg, ${AMBER} 0 6px, transparent 6px 12px)`, opacity: 0.55 }} />
+      <span className="flex items-end justify-between">
+        <span>
+          <span className="block font-support text-[10px] font-semibold tracking-[0.22em] text-muted uppercase">Needs review</span>
+          <span className="mt-1 block text-5xl leading-none font-semibold tracking-tight tabular-nums" style={{ color: AMBER }}>{n}</span>
+        </span>
+        <span className="mb-1 rounded-full border border-amber-300/30 bg-amber-300/10 px-2.5 py-0.5 font-support text-[11px] font-semibold text-amber-300">Wallex wants a look</span>
+      </span>
+      <span className="mt-4 mb-2 flex h-8 items-end justify-between gap-[3px]" aria-hidden="true">
+        {Array.from({ length: n }, (_, i) => (
+          <motion.span key={i} className="h-full w-full rounded-sm" style={{ background: AMBER, originY: 1 }} initial={{ scaleY: 0 }} animate={{ scaleY: 0.45 + ((i * 37) % 55) / 100 }} variants={{ hover: { scaleY: [0.4, 1, 0.55], transition: { duration: 0.5, delay: i * 0.025 } } }} transition={{ delay: 0.05 + i * 0.03, type: 'spring', stiffness: 260, damping: 18 }} />
+        ))}
+      </span>
+    </motion.button>
+  );
 }
-function EdgeTile() {
-  return <div className="relative w-full overflow-hidden rounded-xl border border-line bg-card py-3 pr-3 pl-4"><span className="absolute inset-y-0 left-0 w-1.5 bg-[#f5c542]" /><p className="font-support text-[10px] font-semibold tracking-[0.16em] text-muted uppercase">Needs review</p><p className="mt-1 text-2xl font-semibold">15</p><p className="font-support text-xs text-muted">Wallex wants a look</p></div>;
+
+// Split-flap digits like an old departures board. Click to review one: the count drops and the changed digit flips over.
+function Flap({ ch }: { ch: string }) {
+  return (
+    <span className="relative flex h-[58px] w-[40px] items-center justify-center overflow-hidden rounded-md border border-black/50 shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_4px_10px_rgba(0,0,0,0.35)]" style={{ background: 'linear-gradient(#2c2d33 0 50%, #202127 50% 100%)', perspective: 200 }}>
+      <AnimatePresence mode="popLayout" initial={false}>
+        <motion.span key={ch} initial={{ rotateX: -90, opacity: 0 }} animate={{ rotateX: 0, opacity: 1 }} exit={{ rotateX: 90, opacity: 0 }} transition={{ duration: 0.28, ease: 'easeOut' }} className="-translate-y-[3px] text-[38px] leading-none font-semibold tabular-nums" style={{ color: AMBER, transformOrigin: '50% 50%' }}>
+          {ch}
+        </motion.span>
+      </AnimatePresence>
+      <span aria-hidden="true" className="absolute inset-x-0 top-1/2 h-px bg-black/70" />
+      <span aria-hidden="true" className="absolute top-1/2 left-0 h-2 w-[3px] -translate-y-1/2 rounded-r bg-black/70" />
+      <span aria-hidden="true" className="absolute top-1/2 right-0 h-2 w-[3px] -translate-y-1/2 rounded-l bg-black/70" />
+    </span>
+  );
 }
-function ChipTile() {
-  return <div className="flex w-full items-center gap-3 rounded-3xl border border-line bg-card p-3"><span className="flex h-10 w-10 items-center justify-center rounded-full bg-[#f5c542]/15 text-[#f5c542]"><AlertTriangle className="h-5 w-5" /></span><div><p className="text-2xl leading-none font-semibold">15</p><p className="font-support text-xs text-muted">Needs review</p></div></div>;
+function FlapTile() {
+  const [n, setN] = useState(15);
+  const text = String(n).padStart(2, '0');
+  return (
+    <button type="button" onClick={() => setN((c) => (c <= 0 ? 15 : c - 1))} className="flex w-full cursor-pointer items-center gap-4 rounded-2xl border border-line bg-card p-3 text-left" aria-label={`${n} need review. Click to review one.`}>
+      <span className="flex gap-1.5">{text.split('').map((d, i) => <Flap key={i} ch={d} />)}</span>
+      <span className="min-w-0">
+        <span className="block text-sm font-semibold">Needs review</span>
+        <span className="block font-support text-xs text-muted">{n === 0 ? 'All caught up' : 'Click to clear one'}</span>
+      </span>
+    </button>
+  );
+}
+
+// A radar: a sweep turns around the dial and each blip is something waiting for you, lighting up as the sweep passes it.
+const BLIPS = [[0.55, 20], [0.7, 75], [0.35, 140], [0.82, 200], [0.5, 250], [0.68, 320], [0.28, 300]];
+function RadarTile() {
+  const R = 52;
+  return (
+    <div className="flex w-full items-center gap-4 rounded-3xl border border-line bg-card p-3 pr-5">
+      <span className="relative h-[108px] w-[108px] shrink-0 overflow-hidden rounded-full border border-amber-300/30" style={{ background: 'radial-gradient(circle, rgba(245,197,66,0.08), rgba(245,197,66,0.02) 70%)' }} aria-hidden="true">
+        {[0.34, 0.67].map((r) => <span key={r} className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full border border-amber-300/20" style={{ width: R * 2 * r, height: R * 2 * r }} />)}
+        <span className="absolute inset-x-0 top-1/2 h-px bg-amber-300/15" />
+        <span className="absolute inset-y-0 left-1/2 w-px bg-amber-300/15" />
+        <motion.span className="absolute inset-0 rounded-full" style={{ background: 'conic-gradient(from 0deg, rgba(245,197,66,0) 0deg, rgba(245,197,66,0) 270deg, rgba(245,197,66,0.5) 360deg)' }} animate={{ rotate: 360 }} transition={{ duration: 4, ease: 'linear', repeat: Infinity }} />
+        {BLIPS.map(([d, deg], i) => {
+          const x = R + Math.sin((deg * Math.PI) / 180) * R * d;
+          const y = R - Math.cos((deg * Math.PI) / 180) * R * d;
+          return (
+            <motion.span key={i} className="absolute h-2 w-2 -translate-x-1/2 -translate-y-1/2 rounded-full" style={{ left: x + 2, top: y + 2, background: AMBER, boxShadow: `0 0 8px ${AMBER}` }} animate={{ opacity: [1, 0.15, 0.15, 1] }} transition={{ duration: 4, repeat: Infinity, times: [0, 0.35, 0.8, 1], delay: (deg / 360) * 4 - 4 * 0.0 }} />
+          );
+        })}
+      </span>
+      <span>
+        <span className="block text-4xl leading-none font-semibold tabular-nums" style={{ color: AMBER }}>15</span>
+        <span className="mt-1 block font-support text-[10px] font-semibold tracking-[0.22em] text-muted uppercase">Needs review</span>
+        <span className="mt-0.5 block font-support text-xs text-muted">Sweeping your charges</span>
+      </span>
+    </div>
+  );
 }
 
 /* ------------------------------------------------------------------------------- recurring row */
@@ -172,7 +243,7 @@ export const transactionRows: KitRow[] = [
   { name: 'Status badge', used: 'Transactions table: Posted and Pending', items: [['Tinted pills', <TintBadge />], ['Dots', <DotBadge />], ['Outlined with icons', <IconBadge />]] },
   { name: 'Transaction row', used: 'Transactions: Checking table', items: [['Table row', <TableRow />], ['Expanding card', <CardRow />], ['Dotted leader', <LeaderRow />]] },
   { name: 'Filter notice', used: 'Transactions: opened from an Upcoming payment', items: [['Banner', <BannerNotice />], ['Removable chip', <ChipNotice />], ['Breadcrumb', <CrumbNotice />]] },
-  { name: 'Status tile', used: 'Transactions: Recurring status tiles', items: [['Classic', <ClassicTile />], ['Accent edge', <EdgeTile />], ['Icon chip', <ChipTile />]] },
+  { name: 'Status tile', used: 'Transactions: Recurring status tiles', items: [['Tally ticks', <TallyTile />], ['Split-flap counter', <FlapTile />], ['Radar sweep', <RadarTile />]] },
   { name: 'Recurring row', used: 'Transactions: Recurring list', items: [['List row', <ListRecurring />], ['Card', <CardRecurring />], ['Compact bar', <CompactRecurring />]] },
   { name: 'Refresh button', used: 'Transactions: Checking', items: [['Text with icon', <TextRefresh />], ['Round icon', <OrbRefresh />], ['With last-synced note', <StatusRefresh />]] },
 ];

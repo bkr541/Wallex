@@ -14,8 +14,8 @@ export const OVERVIEW_PERIODS: { days: OverviewDays; button: string; phrase: str
   { days: 30, button: '30 Days', phrase: '30 days' },
   { days: 60, button: '60 Days', phrase: '60 days' },
   { days: 90, button: '90 Days', phrase: '90 days' },
-  { days: 180, button: '6 months', phrase: '6 months' },
-  { days: 365, button: '1 year', phrase: 'year' },
+  { days: 180, button: '6 Months', phrase: '6 months' },
+  { days: 365, button: '1 Year', phrase: 'year' },
 ];
 
 // All linked accounts, over the last `days` days.
@@ -466,15 +466,15 @@ interface Group {
 // Spending groups worth a what-if, defined by the bank's categories. Which ones show depends entirely
 // on what the user actually spent.
 const GROUPS: Group[] = [
-  { id: 'fees', label: 'Bank fees', fixedPercent: 100, test: isBankFee },
+  { id: 'fees', label: 'Bank Fees', fixedPercent: 100, test: isBankFee },
   { id: 'rideshare', label: 'Rideshare', fixedPercent: null, test: (t) => t.categoryDetailKey === 'TRANSPORTATION_TAXIS_AND_RIDE_SHARES' },
   {
     id: 'dining',
-    label: 'Restaurants, fast food & coffee',
+    label: 'Restaurants, Fast Food & Coffee',
     fixedPercent: null,
     test: (t) => ['FOOD_AND_DRINK_RESTAURANT', 'FOOD_AND_DRINK_FAST_FOOD', 'FOOD_AND_DRINK_COFFEE'].includes(t.categoryDetailKey),
   },
-  { id: 'bars', label: 'Bars & liquor', fixedPercent: null, test: (t) => t.categoryDetailKey === 'FOOD_AND_DRINK_BEER_WINE_AND_LIQUOR' },
+  { id: 'bars', label: 'Bars & Liquor', fixedPercent: null, test: (t) => t.categoryDetailKey === 'FOOD_AND_DRINK_BEER_WINE_AND_LIQUOR' },
   { id: 'shopping', label: 'Shopping', fixedPercent: null, test: (t) => t.categoryKey === 'GENERAL_MERCHANDISE' },
   { id: 'entertainment', label: 'Entertainment', fixedPercent: null, test: (t) => t.categoryKey === 'ENTERTAINMENT' },
 ];
