@@ -18,9 +18,9 @@ export interface Loan {
 }
 
 export const FREQUENCIES: { value: LoanFrequency; label: string; perYear: number }[] = [
-  { value: 'weekly', label: 'Every week', perYear: 52 },
-  { value: 'biweekly', label: 'Every 2 weeks', perYear: 26 },
-  { value: 'monthly', label: 'Every month', perYear: 12 },
+  { value: 'weekly', label: 'Weekly', perYear: 52 },
+  { value: 'biweekly', label: 'BiWeekly', perYear: 26 },
+  { value: 'monthly', label: 'Monthly', perYear: 12 },
 ];
 
 const cents = (n: number) => Math.round(n * 100) / 100;

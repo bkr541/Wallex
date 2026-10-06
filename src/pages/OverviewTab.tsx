@@ -1,6 +1,7 @@
 import { useId, useMemo, useState } from 'react';
 import { motion } from 'motion/react';
 import { ChevronRight } from 'lucide-react';
+import { asset } from '../assets';
 import CashFlowChart from '../components/overview/CashFlowChart';
 import Collapsible from '../components/overview/Collapsible';
 import SlotNumber from '../components/overview/SlotNumber';
@@ -38,6 +39,7 @@ import type { TxFilter } from '../lib/txFilter';
 const WINDOW_DAYS = 30; // how far ahead "upcoming" looks
 const LOW_BALANCE = 1000; // the line month-end balances are compared against
 const PERCENTS = [10, 20, 30];
+const WALLEX_LOGO = asset('logos/logo2.png');
 // One colour per slice of the spending breakdown, biggest first. "Other" is hatched.
 const SLICE_COLORS = ['var(--accent)', '#6cc4ff', '#b9a2ff', '#f5c542', '#ff8a9b'];
 const STRIPES = 'repeating-linear-gradient(135deg, color-mix(in srgb, var(--muted) 45%, transparent) 0 3px, transparent 3px 6px)';
@@ -136,15 +138,20 @@ function FlowBar({ moneyIn, moneyOut }: { moneyIn: number; moneyOut: number }) {
           style={{ left: at, background: 'linear-gradient(90deg, #f87171, color-mix(in srgb, #f87171 12%, transparent))', transition: grow }}
         />
         <span
-          className="absolute top-1/2 flex h-7 w-7 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border-2 border-ink/80 bg-canvas"
-          style={{ left: at, transition: grow }}
+          aria-hidden="true"
+          className="absolute top-1/2 flex h-12 w-12 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-accent/50 bg-card p-2"
+          style={{
+            left: at,
+            transition: grow,
+            boxShadow: '0 0 0 4px color-mix(in srgb, var(--card) 82%, transparent), 0 0 24px color-mix(in srgb, var(--accent) 55%, transparent)',
+          }}
         >
-          <span className="h-3 w-3 rounded-full bg-accent" />
+          <img src={WALLEX_LOGO} alt="" draggable={false} className="h-full w-full object-contain drop-shadow-[0_2px_3px_rgba(0,0,0,0.45)]" />
         </span>
       </div>
       <div className="mt-2 flex justify-between font-support text-sm text-muted tabular-nums">
-        <span>{money(moneyIn)}</span>
-        <span>{money(moneyOut)}</span>
+        <span className="text-accent">{money(moneyIn)}</span>
+        <span className="text-red-300">{money(moneyOut)}</span>
       </div>
     </div>
   );
@@ -334,7 +341,15 @@ export default function OverviewTab({
   const netTone = flow.count === 0 ? '' : flow.net >= 0 ? 'text-accent' : 'text-red-300';
   // Things worth knowing about the figures above, as badges at the bottom of the card. Only the number is styled.
   const savingsGood = flow.savingsRate !== null && flow.savingsRate >= 0;
-  const badges: { value?: string; label: string; tone: 'good' | 'bad' | 'warn' | 'quiet'; title?: string }[] = [];
+  const badges: { value?: string; label: string; tone: 'good' | 'bad' | 'warn' | 'info' | 'meta' | 'quiet'; title?: string }[] = [
+    {
+      value: `${shortDate(scope.partial && scope.historyStart ? scope.historyStart : scope.start)} – ${shortDate(scope.today)}`,
+      label: 'Range',
+      tone: 'good',
+    },
+    { value: String(accounts.length), label: 'Account', tone: 'meta' },
+    { value: latest ? shortDate(latest) : '—', label: 'Latest', tone: 'info' },
+  ];
   if (flow.count === 0) badges.push({ label: 'No activity', tone: 'quiet', title: `No money in or out in the last ${periodLabel}.` });
   else if (flow.savingsRate === null)
     badges.push({ label: 'No income found', tone: 'quiet', title: `No income detected in the last ${periodLabel}, so there is no savings rate.` });
@@ -347,20 +362,21 @@ export default function OverviewTab({
     });
   if (flow.pending > 0) badges.push({ value: String(flow.pending), label: `Pending ${flow.pending === 1 ? 'Transaction' : 'Transactions'}`, tone: 'warn', title: 'Included in the figures above' });
   if (scope.partial) badges.push({ value: String(scope.effectiveDays), label: 'Days of History', tone: 'quiet', title: 'There is not a full period of history yet' });
-  const VALUE_TONE = { good: 'text-accent', bad: 'text-red-300', warn: 'text-amber-300', quiet: 'text-ink' };
+  const VALUE_TONE = {
+    good: 'text-accent',
+    bad: 'text-red-300',
+    warn: 'text-amber-300',
+    info: 'text-sky-300',
+    meta: 'text-violet-300',
+    quiet: 'text-ink',
+  };
 
 
   return (
     <div className="flex flex-col gap-5 px-1 pb-10">
-      {/* Context: what period and which accounts, and the period switch */}
-      <div className="flex flex-col gap-4 px-3 @3xl:flex-row @3xl:items-center @3xl:justify-between @3xl:gap-x-6">
-        <p className="font-support text-sm text-ink/80">
-          {shortDate(scope.partial && scope.historyStart ? scope.historyStart : scope.start)} – {shortDate(scope.today)}
-          {' · '}
-          {plural(accounts.length, 'account')} included
-          {latest && ` · latest transaction ${shortDate(latest)}`}
-        </p>
-        {view.periods.length > 1 && (
+      {/* Period switch; its selected range and account context appear as badges in the position card. */}
+      {view.periods.length > 1 && (
+        <div className="flex justify-end px-3">
           <Segmented
             large
             label="Period"
@@ -368,12 +384,12 @@ export default function OverviewTab({
             onChange={setDays}
             options={OVERVIEW_PERIODS.map((p) => ({ value: p.days, label: p.button }))}
           />
-        )}
-      </div>
+        </div>
+      )}
 
       {/* Financial position: money in against money out, then the cash on hand */}
       <section
-        className="mx-3 rounded-[28px] border p-4 @3xl:p-6"
+        className="mx-3 -mt-2 rounded-[28px] border p-4 @3xl:p-6"
         style={{
           borderColor: 'color-mix(in srgb, var(--accent) 22%, var(--line))',
           background: 'linear-gradient(140deg, color-mix(in srgb, var(--accent) 9%, var(--card)), var(--card) 70%)',
@@ -381,21 +397,21 @@ export default function OverviewTab({
       >
         <div className="grid grid-cols-3">
           <div className="min-w-0 pr-3 @3xl:pr-8">
-            <p className="font-support text-xs text-ink/80 @3xl:text-sm">Money in</p>
+            <p className="font-support text-xs text-ink/80 @3xl:text-sm">Money In</p>
             <p className="mt-0.5 text-[1.55rem] leading-none font-semibold tracking-tight @3xl:text-4xl">
               <SlotNumber text={money(flow.moneyIn)} />
             </p>
           </div>
-          <div className="min-w-0 border-l border-line px-3 @3xl:px-8">
-            <p className="font-support text-xs text-ink/80 @3xl:text-sm">Money out</p>
-            <p className="mt-0.5 text-[1.55rem] leading-none font-semibold tracking-tight @3xl:text-4xl">
-              <SlotNumber text={money(flow.moneyOut)} />
-            </p>
-          </div>
-          <div className="min-w-0 border-l border-line pl-3 @3xl:pl-8">
-            <p className="font-support text-xs whitespace-nowrap text-ink/80 @3xl:text-sm">Net cash flow</p>
+          <div className="min-w-0 border-l border-line px-3 text-center @3xl:px-8">
+            <p className="font-support text-xs whitespace-nowrap text-ink/80 @3xl:text-sm">Cash Flow</p>
             <p className={`mt-0.5 text-[1.55rem] leading-none font-semibold tracking-tight @3xl:text-4xl ${netTone}`}>
               <SlotNumber text={flow.count === 0 ? '—' : signed(flow.net)} />
+            </p>
+          </div>
+          <div className="min-w-0 border-l border-line pl-3 text-right @3xl:pl-8">
+            <p className="font-support text-xs text-ink/80 @3xl:text-sm">Money Out</p>
+            <p className="mt-0.5 text-[1.55rem] leading-none font-semibold tracking-tight @3xl:text-4xl">
+              <SlotNumber text={money(flow.moneyOut)} />
             </p>
           </div>
         </div>
@@ -423,14 +439,14 @@ export default function OverviewTab({
           </p>
         </div>
 
-        <div className="mt-4 flex items-center justify-center gap-2 @3xl:gap-3">
+        <div className="mt-4 flex flex-wrap items-center justify-center gap-2 @3xl:gap-3">
           {badges.map((b) => (
             <span
               key={b.label}
               title={b.title}
-              className="rounded-full border border-line bg-surface px-3 py-1.5 font-support text-xs whitespace-nowrap text-ink/80 @3xl:px-5 @3xl:py-2 @3xl:text-base"
+              className="inline-flex items-center gap-1 rounded-full border border-line bg-surface px-2.5 py-1 font-support text-[13px] whitespace-nowrap text-ink/80 @3xl:px-3 @3xl:text-sm"
             >
-              {b.value && <span className={`font-semibold ${VALUE_TONE[b.tone]}`}>{b.value} </span>}
+              {b.value && <span className={`font-semibold ${VALUE_TONE[b.tone]}`}>{b.value}</span>}
               {b.label}
             </span>
           ))}

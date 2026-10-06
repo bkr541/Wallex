@@ -9,35 +9,35 @@ export const fmt = (n: number) =>
 
 export const KIND_LABEL: Record<Kind, string> = {
   bill: 'Bill',
-  debt: 'Debt payment',
+  debt: 'Debt Payment',
   installment: 'Installment',
   subscription: 'Subscription',
-  usage: 'Subscription + usage',
-  aggregator: 'Billing aggregator',
+  usage: 'Subscription + Usage',
+  aggregator: 'Billing Aggregator',
   habit: 'Habit',
 };
 
 // Installments are temporary and card payments settle spending that is counted elsewhere, so the list says so.
 export function kindText(r: Recurring): string {
-  if (r.settlement === 'card') return 'Card payment';
-  if (r.kind === 'installment') return 'Installment · temporary';
+  if (r.settlement === 'card') return 'Card Payment';
+  if (r.kind === 'installment') return 'Installment · Temporary';
   return KIND_LABEL[r.kind];
 }
 
 export const STATUS_LABEL: Record<Recurring['status'], string> = {
   active: 'Active',
   new: 'New',
-  'possibly-ended': 'Possibly ended',
-  review: 'Needs review',
+  'possibly-ended': 'Possibly Ended',
+  review: 'Needs Review',
   habit: 'Habit',
 };
 
 export const CONFIDENCE_LABEL: Record<Confidence, string> = {
-  confirmed: 'High confidence',
-  likely: 'Likely recurring',
-  new: 'New relationship',
-  review: 'Needs review',
-  habit: 'Recurring habit',
+  confirmed: 'High Confidence',
+  likely: 'Likely Recurring',
+  new: 'New Relationship',
+  review: 'Needs Review',
+  habit: 'Recurring Habit',
 };
 
 const UNIT: Partial<Record<Recurring['cadence'], string>> = {
@@ -62,6 +62,7 @@ export const monthlyText = (r: Recurring): string | null =>
 // The cadence in words, with the day it usually lands on when that is known.
 export function cadenceText(r: Recurring): string {
   const word = cadenceWord(r.cadence);
+  if (r.cadence === 'mixed') return r.cadenceLabel.replace(/\b[a-z]/g, (letter) => letter.toUpperCase());
   return r.cadence === 'monthly' && r.cadenceLabel.startsWith('~') ? `${word} · ${r.cadenceLabel}` : word;
 }
 

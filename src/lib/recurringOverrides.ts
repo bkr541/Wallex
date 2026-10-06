@@ -74,12 +74,12 @@ const monthlyFromSchedule = (r: Recurring) =>
 
 const KIND_SUMMARY: Record<Kind, string> = {
   bill: 'Bill',
-  debt: 'Debt payment',
+  debt: 'Debt Payment',
   installment: 'Installment',
   subscription: 'Subscription',
-  usage: 'Subscription + usage',
-  aggregator: 'Billing aggregator',
-  habit: 'Recurring habit',
+  usage: 'Subscription + Usage',
+  aggregator: 'Billing Aggregator',
+  habit: 'Recurring Habit',
 };
 
 // Puts the user's corrections over a fresh analysis. A confirmed type counts as certain, and a billing

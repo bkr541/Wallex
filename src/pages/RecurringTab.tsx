@@ -31,9 +31,10 @@ const BADGE: Record<Confidence, { label: string; badge: string; value: string }>
   confirmed: { label: 'Confirmed', badge: 'bg-accent-soft text-accent', value: 'text-accent' },
   likely: { label: 'Likely', badge: 'bg-sky-400/15 text-sky-300', value: 'text-sky-300' },
   new: { label: 'New', badge: 'bg-violet-400/15 text-violet-300', value: 'text-violet-300' },
-  review: { label: 'Needs review', badge: 'bg-amber-400/15 text-amber-300', value: 'text-amber-300' },
+  review: { label: 'Needs Review', badge: 'bg-amber-400/15 text-amber-300', value: 'text-amber-300' },
   habit: { label: 'Habit', badge: 'bg-surface text-muted', value: 'text-muted' },
 };
+const ENDED_BADGE = 'rounded-full bg-red-400/15 px-2.5 py-0.5 text-xs font-medium whitespace-nowrap text-red-300';
 
 const FILTERS: { id: string; label: string; test: (r: Recurring) => boolean; empty: string }[] = [
   { id: 'all', label: 'All', test: () => true, empty: 'No recurring charges detected yet.' },
@@ -45,9 +46,9 @@ const FILTERS: { id: string; label: string; test: (r: Recurring) => boolean; emp
     test: (r) => r.kind === 'subscription' || r.kind === 'usage',
     empty: 'No subscriptions detected yet. Wallex needs more transaction history to identify repeating subscriptions.',
   },
-  { id: 'review', label: 'Needs review', test: (r) => r.confidence === 'review', empty: 'Nothing needs review right now.' },
+  { id: 'review', label: 'Needs Review', test: (r) => r.confidence === 'review', empty: 'Nothing needs review right now.' },
   { id: 'habits', label: 'Habits', test: (r) => r.kind === 'habit', empty: 'No spending habits detected yet.' },
-  { id: 'ended', label: 'Possibly ended', test: (r) => r.status === 'possibly-ended', empty: 'Nothing looks like it has ended.' },
+  { id: 'ended', label: 'Possibly Ended', test: (r) => r.status === 'possibly-ended', empty: 'Nothing looks like it has ended.' },
 ];
 
 const fmtMoney = (n: number) => `$${n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -59,12 +60,14 @@ function Tile({
   label,
   value,
   tone,
+  detail,
   active,
   onClick,
 }: {
   label: string;
   value: string;
   tone: string;
+  detail?: string;
   active?: boolean;
   onClick?: () => void;
 }) {
@@ -72,6 +75,7 @@ function Tile({
     <>
       <p className="font-support text-xs text-muted">{label}</p>
       <p className={`mt-1.5 text-2xl font-semibold tracking-tight @3xl:mt-2 @3xl:text-3xl ${tone}`}>{value}</p>
+      {detail && <p className="mt-1 truncate font-support text-[11px] text-muted" title={detail}>{detail}</p>}
     </>
   );
   const cls = `rounded-2xl border bg-card p-3 text-left @3xl:p-4 ${active ? 'border-accent' : 'border-line'}`;
@@ -97,13 +101,13 @@ function Field({ label, children, hint }: { label: string; children: React.React
 const CONFIRM_AS: { kind: Kind; label: string }[] = [
   { kind: 'bill', label: 'Bill' },
   { kind: 'subscription', label: 'Subscription' },
-  { kind: 'debt', label: 'Debt payment' },
+  { kind: 'debt', label: 'Debt Payment' },
   { kind: 'installment', label: 'Installment' },
 ];
 const DISMISS_AS: { reason: HideReason; label: string }[] = [
-  { reason: 'transfer', label: 'A transfer' },
-  { reason: 'not-recurring', label: 'Not recurring' },
-  { reason: 'ignored', label: 'Just ignore it' },
+  { reason: 'transfer', label: 'A Transfer' },
+  { reason: 'not-recurring', label: 'Not Recurring' },
+  { reason: 'ignored', label: 'Just Ignore It' },
 ];
 const HIDE_TEXT: Record<HideReason, string> = { transfer: 'Marked as a transfer', 'not-recurring': 'Marked as not recurring', ignored: 'Ignored' };
 
@@ -230,7 +234,7 @@ function Detail({
             {r.status === 'possibly-ended' && <span className="text-muted"> · no recent charge, which does not prove it was cancelled</span>}
           </Field>
           <Field label="Confidence">
-            {c.userConfirmed ? 'Confirmed by you' : CONFIDENCE_LABEL[r.confidence]}
+            {c.userConfirmed ? 'Confirmed by You' : CONFIDENCE_LABEL[r.confidence]}
           </Field>
         </div>
       </dl>
@@ -306,7 +310,7 @@ function Detail({
           </div>
           {r.charges.length > 6 && (
             <button type="button" onClick={() => setShowAll((v) => !v)} className="mt-2 cursor-pointer text-sm text-muted hover:text-ink">
-              {showAll ? 'Show fewer' : `Show all ${r.charges.length}`}
+              {showAll ? 'Show Fewer' : `Show All ${r.charges.length}`}
             </button>
           )}
         </div>
@@ -319,17 +323,17 @@ function Detail({
             <div className="flex flex-wrap items-center gap-2">
               <span className="mr-1 font-support text-xs text-muted">{isReview ? 'Help Wallex understand it:' : 'Not right?'}</span>
               <Pill on={mode === 'rename'} onClick={() => setMode(mode === 'rename' ? null : 'rename')}>
-                {isReview ? 'Identify it' : 'Rename'}
+                {isReview ? 'Identify It' : 'Rename'}
               </Pill>
               <Pill on={mode === 'confirm'} onClick={() => setMode(mode === 'confirm' ? null : 'confirm')}>
-                Confirm as…
+                Confirm As…
               </Pill>
               <Pill on={mode === 'dismiss'} onClick={() => setMode(mode === 'dismiss' ? null : 'dismiss')}>
-                Mark as…
+                Mark As…
               </Pill>
               {c.corrected && (
                 <Pill tone="quiet" onClick={() => setOverride(r.id, null)}>
-                  Reset my changes
+                  Reset My Changes
                 </Pill>
               )}
             </div>
@@ -441,8 +445,17 @@ export default function RecurringTab({ load, initialFilter = 'all' }: { load: Lo
       : load.state === 'sample'
         ? load.note
         : analysis.earliest
-          ? `${load.allTransactions.length} transactions from ${dateLong(analysis.earliest)} to ${dateLong(analysis.latest!)}.`
+          ? ''
           : 'No transactions to analyze yet.';
+  const transactionCount = live ? load.allTransactions.length.toLocaleString('en-US') : '—';
+  const transactionRange =
+    live && analysis.earliest && analysis.latest
+      ? `${dateLong(analysis.earliest)} – ${dateLong(analysis.latest)}`
+      : load.state === 'loading'
+        ? 'Loading…'
+        : load.state === 'sample'
+          ? 'Sample Data'
+          : 'No Date Range';
 
   const tile = (id: Confidence, label: string) => {
     const on = id === 'review' ? filter === 'review' : status === id;
@@ -480,18 +493,23 @@ export default function RecurringTab({ load, initialFilter = 'all' }: { load: Lo
 
   return (
     <div className="w-full pb-6">
-      <p className={`px-4 pb-3 font-support text-sm ${load.state === 'sample' && load.isError ? 'text-red-400' : 'text-muted'}`}>
-        {caption}
-        {load.state === 'sample' && !load.isError && ' The list below is an example.'}
-      </p>
+      {caption && (
+        <p className={`px-4 pb-3 font-support text-sm ${load.state === 'sample' && load.isError ? 'text-red-400' : 'text-muted'}`}>
+          {caption}
+          {load.state === 'sample' && !load.isError && ' The list below is an example.'}
+        </p>
+      )}
 
-      <div className="grid grid-cols-2 gap-3 px-4 @3xl:grid-cols-5">
+      <div className="grid grid-cols-2 gap-3 px-4 @3xl:grid-cols-6">
         {tile('confirmed', 'Confirmed')}
         {tile('likely', 'Likely')}
         {tile('new', 'New')}
-        {tile('review', 'Needs review')}
+        {tile('review', 'Needs Review')}
         <div className="col-span-2 @3xl:col-span-1">
-          <Tile label="Est. monthly" value={`$${Math.round(analysis.monthlyTotal).toLocaleString('en-US')}`} tone="" />
+          <Tile label="Est. Monthly" value={`$${Math.round(analysis.monthlyTotal).toLocaleString('en-US')}`} tone="" />
+        </div>
+        <div className="col-span-2 @3xl:col-span-1">
+          <Tile label="Transactions" value={transactionCount} detail={transactionRange} tone="text-sky-300" />
         </div>
       </div>
 
@@ -577,10 +595,7 @@ export default function RecurringTab({ load, initialFilter = 'all' }: { load: Lo
                 <div role="cell" className="flex min-w-0 items-center gap-2.5">
                   <MerchantLogo key={r.id} name={r.name} sources={r.logos} />
                   <div className="min-w-0">
-                    <p className="truncate font-medium">
-                      {r.name}
-                      {r.status === 'possibly-ended' && <span className="ml-2 text-xs font-normal text-muted">Possibly ended</span>}
-                    </p>
+                    <p className="truncate font-medium">{r.name}</p>
                     <p className="truncate font-support text-xs text-muted">
                       {showHidden && c.hideReason
                         ? HIDE_TEXT[c.hideReason]
@@ -588,19 +603,25 @@ export default function RecurringTab({ load, initialFilter = 'all' }: { load: Lo
                           ? `${kindText(r)} · ${cadenceWord(r.cadence)}`
                           : `${kindText(r)}${r.charges.length ? ` · ${r.charges.length} charge${r.charges.length === 1 ? '' : 's'}` : ''}`}
                     </p>
-                    {mobile && <span className={`mt-1 inline-block rounded-full px-2 py-0.5 text-[11px] font-medium ${b.badge}`}>{b.label}</span>}
+                    {mobile && (
+                      <div className="mt-1 flex items-center gap-1.5">
+                        <span className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${b.badge}`}>{b.label}</span>
+                        {r.status === 'possibly-ended' && <span className={`${ENDED_BADGE} text-[11px]`}>Possibly Ended</span>}
+                      </div>
+                    )}
                   </div>
                 </div>
                 {!mobile && (
                   <div role="cell" className="min-w-0 truncate font-support text-muted" title={r.cadenceLabel}>
-                    {r.cadence === 'mixed' ? r.cadenceLabel : cadenceText(r)}
+                    {cadenceText(r)}
                   </div>
                 )}
                 {!mobile && (
-                  <div role="cell">
+                  <div role="cell" className="flex items-center gap-1.5">
                     <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${b.badge}`} title={CONFIDENCE_LABEL[r.confidence]}>
-                      {c.userConfirmed ? 'You confirmed' : b.label}
+                      {c.userConfirmed ? 'You Confirmed' : b.label}
                     </span>
+                    {r.status === 'possibly-ended' && <span className={ENDED_BADGE}>Possibly Ended</span>}
                   </div>
                 )}
                 <div role="cell" className="min-w-0 text-right">
@@ -636,4 +657,3 @@ export default function RecurringTab({ load, initialFilter = 'all' }: { load: Lo
     </div>
   );
 }
-

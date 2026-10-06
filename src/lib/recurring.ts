@@ -473,12 +473,12 @@ const cadenceText = (p: Pattern) => (p.cadence === 'monthly' && p.day ? `~${ordi
 
 const KIND_SUMMARY: Record<Kind, string> = {
   bill: 'Bill',
-  debt: 'Debt / repayment',
+  debt: 'Debt / Repayment',
   installment: 'Installment',
   subscription: 'Subscription',
-  usage: 'Subscription + usage',
-  aggregator: 'Billing aggregator',
-  habit: 'Recurring habit',
+  usage: 'Subscription + Usage',
+  aggregator: 'Billing Aggregator',
+  habit: 'Recurring Habit',
 };
 
 const CONFIDENCE_ORDER: Confidence[] = ['confirmed', 'likely', 'new', 'review', 'habit'];
@@ -489,11 +489,11 @@ const CONFIDENCE_ORDER: Confidence[] = ['confirmed', 'likely', 'new', 'review', 
 
 const CADENCE_WORD: Record<RecurringCadence, string> = {
   weekly: 'Weekly',
-  biweekly: 'Every 2 weeks',
+  biweekly: 'BiWeekly',
   monthly: 'Monthly',
   quarterly: 'Quarterly',
   annual: 'Annual',
-  mixed: 'Several schedules',
+  mixed: 'Several Schedules',
   irregular: 'Irregular',
 };
 export const cadenceWord = (c: RecurringCadence) => CADENCE_WORD[c];

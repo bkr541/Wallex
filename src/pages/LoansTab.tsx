@@ -82,11 +82,11 @@ function LoanForm({ initial, hint, onClose }: { initial: Draft; hint?: BankLoanH
 
       <div className="mt-5 grid grid-cols-1 gap-x-8 gap-y-6 @3xl:grid-cols-2">
         <UnderlineField label="Lender" icon="government-building-1" value={d.lender} onChange={(e) => set('lender', e.target.value)} placeholder="Affirm, Klarna, a car loan…" error={show('lender')} autoFocus />
-        <UnderlineField label="What it paid for (optional)" icon="tag-alt" value={d.item} onChange={(e) => set('item', e.target.value)} placeholder="Peloton, flights, laptop…" />
-        <UnderlineField label="Amount borrowed" icon="dollar-coin" inputMode="decimal" value={d.amount} onChange={(e) => set('amount', e.target.value)} placeholder="600.00" hint="After any down payment." error={show('amount')} />
-        <UnderlineField label="Number of payments" icon="circle-clock" inputMode="numeric" value={d.count} onChange={(e) => set('count', e.target.value)} placeholder="12" error={show('count')} />
-        <UnderlineField label="Interest rate (APR %)" icon="graph-bar-increase" inputMode="decimal" value={d.apr} onChange={(e) => set('apr', e.target.value)} placeholder="0" hint="Most pay-in-4 plans are 0%." error={show('apr')} />
-        <UnderlineField label="First payment date" icon="calendar-check" type="date" value={d.firstDate} onChange={(e) => set('firstDate', e.target.value)} error={show('firstDate')} />
+        <UnderlineField label="What It Paid For (Optional)" icon="tag-alt" value={d.item} onChange={(e) => set('item', e.target.value)} placeholder="Peloton, flights, laptop…" />
+        <UnderlineField label="Amount Borrowed" icon="dollar-coin" inputMode="decimal" value={d.amount} onChange={(e) => set('amount', e.target.value)} placeholder="600.00" hint="After any down payment." error={show('amount')} />
+        <UnderlineField label="Number of Payments" icon="circle-clock" inputMode="numeric" value={d.count} onChange={(e) => set('count', e.target.value)} placeholder="12" error={show('count')} />
+        <UnderlineField label="Interest Rate (APR %)" icon="graph-bar-increase" inputMode="decimal" value={d.apr} onChange={(e) => set('apr', e.target.value)} placeholder="0" hint="Most pay-in-4 plans are 0%." error={show('apr')} />
+        <UnderlineField label="First Payment Date" icon="calendar-check" type="date" value={d.firstDate} onChange={(e) => set('firstDate', e.target.value)} error={show('firstDate')} />
       </div>
 
       <div className="mt-6">
@@ -105,9 +105,9 @@ function LoanForm({ initial, hint, onClose }: { initial: Draft; hint?: BankLoanH
 
       {preview && (
         <div className="mt-6 flex flex-wrap items-center gap-2" aria-live="polite">
-          <span className="rounded-full border border-line bg-surface px-4 py-1.5 font-support text-sm text-ink/80"><b className="font-semibold text-accent">{moneyExact(preview.payment)}</b> each payment</span>
-          <span className="rounded-full border border-line bg-surface px-4 py-1.5 font-support text-sm text-ink/80"><b className="font-semibold text-ink">{moneyExact(preview.totalToPay)}</b> paid in all</span>
-          {preview.totalInterest > 0 && <span className="rounded-full border border-line bg-surface px-4 py-1.5 font-support text-sm text-ink/80"><b className="font-semibold text-amber-300">{moneyExact(preview.totalInterest)}</b> interest</span>}
+          <span className="rounded-full border border-line bg-surface px-4 py-1.5 font-support text-sm text-ink/80"><b className="font-semibold text-accent">{moneyExact(preview.payment)}</b> Each Payment</span>
+          <span className="rounded-full border border-line bg-surface px-4 py-1.5 font-support text-sm text-ink/80"><b className="font-semibold text-ink">{moneyExact(preview.totalToPay)}</b> Paid in All</span>
+          {preview.totalInterest > 0 && <span className="rounded-full border border-line bg-surface px-4 py-1.5 font-support text-sm text-ink/80"><b className="font-semibold text-amber-300">{moneyExact(preview.totalInterest)}</b> Interest</span>}
           <span className="rounded-full border border-line bg-surface px-4 py-1.5 font-support text-sm text-ink/80">Paid off <b className="font-semibold text-ink">{dateText(preview.payoffDate)}</b></span>
         </div>
       )}
@@ -266,22 +266,14 @@ export default function LoansTab({ load }: { load: Load }) {
                   <p className="text-sm font-semibold">{h.lender}</p>
                   <p className="font-support text-xs text-muted">{plural(h.payments, 'payment')} · about {moneyExact(h.typical)} · last {dateText(h.last)}</p>
                 </div>
-                <button type="button" onClick={() => openNew(h)} className={outlineBtn}>Add Loan</button>
+                <button type="button" onClick={() => openNew(h)} className={outlineBtn}>Edit</button>
               </div>
             ))}
           </div>
         </section>
       )}
 
-      {loans.length === 0 && !editing ? (
-        <div className="mx-4 rounded-2xl border border-dashed border-line px-6 py-12 text-center">
-          <p className="text-lg font-semibold tracking-tight">No loans yet</p>
-          <p className="mx-auto mt-2 max-w-md font-support text-sm text-muted">
-            Add an Affirm or Klarna plan, a car loan, anything with a set number of payments. Enter the amount, the payments and the first date, and Wallex tracks the balance down.
-          </p>
-          <button type="button" onClick={() => openNew()} className={`${primaryBtn} mt-5`}>Add Your First Loan</button>
-        </div>
-      ) : (
+      {loans.length > 0 && (
         <div className="mx-4 space-y-4">
           {statuses
             .slice()
