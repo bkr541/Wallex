@@ -63,7 +63,7 @@ export const CATEGORY_COLORS: Record<string, string> = {
 const FALLBACK_COLOR = '148, 163, 184';
 
 // Merchants and bills get a stable color from their name.
-const PALETTE = [
+export const PALETTE = [
   '79, 140, 255',
   '74, 214, 130',
   '255, 152, 67',
@@ -479,4 +479,22 @@ export function sampleTransactionsFor(bubble: Bubble): Txn[] {
       ],
     };
   });
+}
+
+// Gives every circle on screen a colour of its own, so each one can be told apart and matched to its slice of the centre
+// ring. A circle keeps the colour it already has unless another circle shown has the same one; then it takes the next
+// colour nobody is using.
+export function withDistinctColors<T extends { rgb: string }>(items: T[]): T[] {
+  const used = new Set<string>();
+  const out = items.map((it) => {
+    if (!used.has(it.rgb)) {
+      used.add(it.rgb);
+      return it;
+    }
+    const free = PALETTE.find((c) => !used.has(c));
+    if (!free) return it;
+    used.add(free);
+    return { ...it, rgb: free };
+  });
+  return out;
 }

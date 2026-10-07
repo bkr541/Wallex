@@ -48,6 +48,7 @@ import {
   type Bubble,
   type PatternFilters,
   type View,
+  withDistinctColors,
 } from '../lib/patterns';
 
 
@@ -387,7 +388,9 @@ export default function PatternsTab({ load }: { load: Load }) {
   // Only real items get a circle. A lumped "Other" circle would be a different kind of thing and
   // would distort the sizes, so the smaller ones are summarised in text instead.
   const layout = useMemo(() => buildLayout(matching, cfg), [matching, cfg]);
-  const shown = layout.bubbles;
+  // Every circle drawn has a colour of its own, and the centre ring has one slice in each.
+  const drawn = useMemo(() => withDistinctColors(layout.bubbles), [layout.bubbles]);
+  const shown = drawn;
   const hidden = matching.slice(shown.length);
   const hiddenTotal = hidden.reduce((sum, b) => sum + b.amount, 0);
 
@@ -397,7 +400,6 @@ export default function PatternsTab({ load }: { load: Load }) {
   const base = hasIncome ? data.income : total;
   const centerLabel = hasIncome ? 'Monthly Income' : 'Monthly spending';
   const centerAmount = base;
-  const fillShare = base > 0 ? Math.min(1, total / base) : 0;
   const viewLabel = VIEWS.find((v) => v.id === view)!.label;
 
   // Everything the detail view shows for the selected circle. It reuses the scope the circles were
@@ -725,7 +727,7 @@ export default function PatternsTab({ load }: { load: Load }) {
           }}
         >
           <AnimatePresence>
-          {layout.bubbles.map((b) => {
+          {drawn.map((b) => {
             const d = b.diameter;
             return (
               <motion.div
@@ -788,7 +790,7 @@ export default function PatternsTab({ load }: { load: Load }) {
           </AnimatePresence>
 
           <div
-            className="fill-orb bubble-move pointer-events-none absolute flex -translate-x-1/2 -translate-y-1/2 flex-col items-center justify-center overflow-hidden rounded-full border-2 border-accent/60 bg-card text-center"
+            className="fill-orb bubble-move pointer-events-none absolute -translate-x-1/2 -translate-y-1/2"
             style={{
               left: '50%',
               top: '50%',
@@ -796,20 +798,44 @@ export default function PatternsTab({ load }: { load: Load }) {
               height: `${layout.centerDiameter}cqh`,
             }}
           >
-            {/* The orb fills from the bottom with the share of income the circles in view add up to. */}
-            <span
-              aria-hidden="true"
-              className="absolute inset-x-0 bottom-0 bg-accent/25"
-              style={{ height: `${fillShare * 100}%`, transition: 'height 0.8s cubic-bezier(0.22, 1, 0.36, 1)' }}
-            />
-            <div className="relative flex flex-col items-center justify-center" style={{ gap: `${layout.centerDiameter * 0.02}cqh` }}>
-              <span className="font-support text-muted" style={{ fontSize: `${layout.centerDiameter * 0.065}cqh` }}>
+            {/* A ring with one slice for each circle around it, in that circle's colour and as long as its share of the income. */}
+            <svg viewBox="0 0 156 156" className="absolute inset-0 h-full w-full" fill="none" aria-hidden="true">
+              <circle cx="78" cy="78" r="55" stroke="var(--line)" strokeWidth="9" opacity="0.5" />
+              {(() => {
+                const sum = drawn.reduce((n, b) => n + b.amount, 0);
+                const whole = Math.max(base, sum, 1);
+                const gap = drawn.length > 1 ? 0.012 : 0;
+                let at = 0;
+                return drawn.map((b) => {
+                  const share = b.amount / whole;
+                  const start = at;
+                  at += share;
+                  return (
+                    <g key={b.key} transform={`rotate(${-90 + start * 360} 78 78)`}>
+                      <motion.circle
+                        cx="78"
+                        cy="78"
+                        r="55"
+                        stroke={`rgb(${b.rgb})`}
+                        strokeWidth="9"
+                        strokeLinecap="round"
+                        initial={{ pathLength: 0 }}
+                        animate={{ pathLength: Math.max(0.01, share - gap) }}
+                        transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
+                      />
+                    </g>
+                  );
+                });
+              })()}
+            </svg>
+            <div className="absolute inset-[24%] flex flex-col items-center justify-center text-center" style={{ gap: `${layout.centerDiameter * 0.015}cqh` }}>
+              <span className="font-support text-muted" style={{ fontSize: `${layout.centerDiameter * 0.058}cqh` }}>
                 {centerLabel}
               </span>
-              <span className="leading-none font-semibold tracking-tight" style={{ fontSize: `${layout.centerDiameter * 0.14}cqh` }}>
+              <span className="leading-none font-semibold tracking-tight" style={{ fontSize: `${layout.centerDiameter * 0.12}cqh` }}>
                 {money(centerAmount)}
               </span>
-              <span className={`font-support leading-none ${hasIncome ? 'text-accent' : 'text-muted'}`} style={{ fontSize: `${layout.centerDiameter * 0.058}cqh` }}>
+              <span className={`font-support leading-none ${hasIncome ? 'text-accent' : 'text-muted'}`} style={{ fontSize: `${layout.centerDiameter * 0.052}cqh` }}>
                 {hasIncome ? `${percent(total, base)} spent` : '100%'}
               </span>
             </div>
@@ -826,7 +852,7 @@ export default function PatternsTab({ load }: { load: Load }) {
       metrics={detailData.metrics}
       days={filters.days}
       hasIncome={hasIncome}
-      icon={<DiscIcon bubble={selected} px={mobile ? 56 : 72} />}
+      icon={<DiscIcon bubble={selected} px={mobile ? 44 : 56} />}
       periodRows={detailData.periodRows}
       historyRows={detailData.historyRows}
       onBack={() => setSelected(null)}
