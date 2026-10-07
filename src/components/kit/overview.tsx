@@ -1,5 +1,5 @@
-import { useId, useState } from 'react';
-import { motion } from 'motion/react';
+import { useId, useRef, useState } from 'react';
+import { animate, motion, useMotionValue, useTransform } from 'motion/react';
 import { ArrowDown, ArrowUp, ChevronDown, ChevronRight, Minus, Plus } from 'lucide-react';
 import MerchantLogo from '../MerchantLogo';
 import PlumpIcon from '../PlumpIcon';
@@ -457,6 +457,177 @@ function MeterOpportunity() {
   );
 }
 
+/* ------------------------------------------------------------------------------- opportunity, three more */
+// Drag to choose how much to cut. The saving counts up and down with the handle, and a bar shows what is left of the spend.
+function SliderOpportunity() {
+  const [pct, setPct] = useState(25);
+  const now = 210;
+  const saved = Math.round((now * pct) / 100);
+  return (
+    <div className="w-full rounded-2xl border border-line bg-card p-4">
+      <div className="flex items-baseline justify-between">
+        <span className="text-sm font-semibold">Dining out</span>
+        <span className="font-support text-xs text-muted">${now} / month now</span>
+      </div>
+      <div className="mt-3 flex items-end justify-between">
+        <span className="text-4xl leading-none font-semibold tracking-tight tabular-nums text-accent">+${saved}<span className="font-support text-sm font-normal text-muted"> /mo</span></span>
+        <span className="font-support text-xs text-muted tabular-nums">${saved * 12} a year</span>
+      </div>
+      <div className="mt-4 flex h-2 overflow-hidden rounded-full bg-line">
+        <motion.span className="bg-ink/70" animate={{ width: `${100 - pct}%` }} transition={{ type: 'spring', stiffness: 300, damping: 30 }} />
+        <motion.span className="bg-accent" animate={{ width: `${pct}%` }} transition={{ type: 'spring', stiffness: 300, damping: 30 }} />
+      </div>
+      <input type="range" min={5} max={60} step={5} value={pct} onChange={(e) => setPct(Number(e.target.value))} aria-label="How much to cut dining out" className="wx-range mt-3" style={{ ['--pct' as string]: `${((pct - 5) / 55) * 100}%` }} />
+      <div className="mt-1 flex justify-between font-support text-[11px] text-muted"><span>Cut 5%</span><span className="font-semibold text-ink">Cut {pct}%</span><span>60%</span></div>
+    </div>
+  );
+}
+
+// Two bars for the same spend: what it is now, and what it would be. The second shrinks as you pick a bigger cut.
+function BeforeAfterOpportunity() {
+  const [cut, setCut] = useState(20);
+  const now = 665;
+  const after = Math.round(now * (1 - cut / 100));
+  const row = (label: string, value: number, color: string, w: number) => (
+    <div className="flex items-center gap-3">
+      <span className="w-12 font-support text-[11px] text-muted">{label}</span>
+      <span className="h-6 flex-1 overflow-hidden rounded-md bg-line"><motion.span className="flex h-full items-center rounded-md pl-2 font-support text-[11px] font-bold text-canvas" style={{ background: color }} animate={{ width: `${w}%` }} transition={{ type: 'spring', stiffness: 260, damping: 28 }}>${value}</motion.span></span>
+    </div>
+  );
+  return (
+    <div className="w-full rounded-2xl border border-line bg-card p-4">
+      <div className="flex items-center justify-between">
+        <span className="text-sm font-semibold">Shopping</span>
+        <span className="rounded-full bg-accent-soft px-2.5 py-0.5 font-support text-xs font-semibold text-accent">saves ${now - after} a month</span>
+      </div>
+      <div className="mt-3 space-y-2">{row('Now', now, 'color-mix(in srgb, var(--text) 78%, transparent)', 100)}{row('After', after, 'var(--accent)', 100 - cut)}</div>
+      <div className="mt-3 flex gap-1.5" role="group" aria-label="Cut">
+        {[10, 20, 30, 40].map((n) => (
+          <button key={n} type="button" aria-pressed={cut === n} onClick={() => setCut(n)} className={`flex-1 cursor-pointer rounded-lg py-1.5 text-xs transition-colors ${cut === n ? 'bg-ink font-semibold text-canvas' : 'bg-surface text-muted hover:text-ink'}`}>-{n}%</button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// A cancel switch. Flip it and the name is struck through, the price counts down to nothing, and what that saves in a year appears.
+function StrikeOpportunity() {
+  const [on, setOn] = useState(false);
+  const cost = 15.49;
+  return (
+    <div className="w-full rounded-2xl border border-line bg-card p-3.5">
+      <div className="flex items-center gap-3">
+        <MerchantLogo name="Netflix" sources={[]} className={`h-10 w-10 text-xs transition-opacity ${on ? 'opacity-40' : ''}`} />
+        <span className="min-w-0 flex-1">
+          <span className={`relative block w-fit text-sm font-semibold transition-colors ${on ? 'text-muted' : ''}`}>
+            Netflix
+            <motion.span aria-hidden="true" className="absolute top-1/2 left-0 h-[2px] bg-accent" initial={false} animate={{ width: on ? '100%' : '0%' }} transition={{ duration: 0.3 }} />
+          </span>
+          <span className="block font-support text-xs text-muted">Streaming · last used 3 months ago</span>
+        </span>
+        <span className={`text-sm font-semibold tabular-nums transition-colors ${on ? 'text-muted line-through' : ''}`}>${cost}/mo</span>
+        <button type="button" role="switch" aria-checked={on} aria-label="Cancel Netflix" onClick={() => setOn(!on)} className={`relative h-6 w-11 shrink-0 cursor-pointer rounded-full transition-colors ${on ? 'bg-accent' : 'bg-line'}`}>
+          <span className={`absolute top-0.5 left-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform ${on ? 'translate-x-5' : ''}`} />
+        </button>
+      </div>
+      <Collapse open={on}>
+        <div className="mt-3 flex items-center justify-between rounded-xl bg-accent-soft px-3 py-2">
+          <span className="font-support text-xs text-ink/80">Cancelling keeps</span>
+          <span className="text-sm font-semibold text-accent tabular-nums">${(cost * 12).toFixed(2)} a year</span>
+        </div>
+      </Collapse>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------------------- cancel a subscription */
+// The logo is the control. A ring round it shows this subscription's share of everything you pay for; tap it and the ring
+// closes, a tick lands on the corner, and the price is struck out.
+function RingCancel() {
+  const [on, setOn] = useState(false);
+  const share = 0.34;
+  return (
+    <button type="button" role="checkbox" aria-checked={on} onClick={() => setOn(!on)} className="flex w-full cursor-pointer items-center gap-4 rounded-2xl bg-surface p-3 text-left">
+      <span className="relative h-14 w-14 shrink-0">
+        <svg viewBox="0 0 56 56" className="absolute inset-0 h-full w-full -rotate-90" fill="none" aria-hidden="true">
+          <circle cx="28" cy="28" r="25" stroke="var(--line)" strokeWidth="3" />
+          <motion.circle cx="28" cy="28" r="25" stroke="var(--accent)" strokeWidth="3" strokeLinecap="round" initial={false} animate={{ pathLength: on ? 1 : share }} transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }} />
+        </svg>
+        <MerchantLogo name="Hypeddit" sources={[]} className={`absolute inset-[7px] h-auto w-auto text-xs transition-all ${on ? 'opacity-40 grayscale' : ''}`} />
+        <motion.span className="absolute -right-1 -bottom-1 flex h-5 w-5 items-center justify-center rounded-full bg-accent text-[11px] font-bold text-canvas" initial={false} animate={{ scale: on ? 1 : 0 }} transition={{ type: 'spring', stiffness: 500, damping: 18 }}>✓</motion.span>
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block truncate text-sm font-semibold">Cancel Hypeddit</span>
+        <span className="block font-support text-xs text-muted">{on ? 'Will stop after this month' : `${Math.round(share * 100)}% of your subscriptions`}</span>
+      </span>
+      <span className={`text-sm font-semibold tabular-nums transition-colors ${on ? 'text-muted line-through' : ''}`}>$20/mo</span>
+    </button>
+  );
+}
+
+// The price is the headline. A small button underneath turns into "Cancelled" with an undo, and the whole tile dims.
+function PriceCancel() {
+  const [on, setOn] = useState(false);
+  return (
+    <div className={`w-full overflow-hidden rounded-2xl border bg-card transition-colors ${on ? 'border-accent/50' : 'border-line'}`}>
+      <div className={`flex items-center gap-3 p-3.5 transition-opacity ${on ? 'opacity-50' : ''}`}>
+        <MerchantLogo name="OpenAI / ChatGPT" sources={[]} className="h-10 w-10 text-xs" />
+        <span className="min-w-0 flex-1">
+          <span className="block truncate text-sm font-semibold">OpenAI / ChatGPT</span>
+          <span className="block font-support text-xs text-muted">Renews on the 14th</span>
+        </span>
+        <span className="text-right"><span className="block text-2xl leading-none font-semibold tracking-tight tabular-nums">$20</span><span className="block font-support text-[10px] tracking-widest text-muted uppercase">a month</span></span>
+      </div>
+      <div className="flex items-center justify-between border-t border-line bg-surface/60 px-3.5 py-2">
+        <span className="font-support text-xs text-muted">{on ? <>Keeps <b className="font-semibold text-accent">$240</b> a year</> : 'Not using it?'}</span>
+        {on ? (
+          <button type="button" onClick={() => setOn(false)} className="cursor-pointer font-support text-xs font-semibold text-muted underline underline-offset-2 hover:text-ink">Undo</button>
+        ) : (
+          <button type="button" onClick={() => setOn(true)} className="cursor-pointer rounded-full bg-ink px-3.5 py-1 font-support text-xs font-bold text-canvas">Cancel it</button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// Slide the knob across to cancel, so it cannot be done by accident. Let go early and it springs back.
+function SlideCancel() {
+  const track = useRef<HTMLDivElement>(null);
+  const x = useMotionValue(0);
+  const fill = useTransform(x, (v) => v + 40);
+  const [done, setDone] = useState(false);
+  const reach = () => (track.current?.offsetWidth ?? 240) - 40;
+  return (
+    <div className="w-full rounded-2xl border border-line bg-card p-3.5">
+      <div className="flex items-center gap-3">
+        <MerchantLogo name="OpenArt" sources={[]} className="h-9 w-9 text-xs" />
+        <span className="min-w-0 flex-1"><span className="block truncate text-sm font-semibold">OpenArt</span><span className="block font-support text-xs text-muted">$15.12 a month</span></span>
+        {done && <button type="button" onClick={() => { setDone(false); animate(x, 0, { type: 'spring', stiffness: 400, damping: 30 }); }} className="cursor-pointer font-support text-xs font-semibold text-muted underline underline-offset-2 hover:text-ink">Undo</button>}
+      </div>
+      <div ref={track} className="relative mt-3 h-10 overflow-hidden rounded-full bg-surface">
+        <motion.span className="absolute inset-y-0 left-0 rounded-full bg-accent/30" style={{ width: fill }} />
+        <span className="pointer-events-none absolute inset-0 flex items-center justify-center font-support text-xs font-semibold tracking-wide text-muted">{done ? <span className="text-accent">Cancelled · keeps $181.44 a year</span> : 'Slide to cancel'}</span>
+        <motion.span
+          drag={done ? false : 'x'}
+          dragConstraints={track}
+          dragElastic={0}
+          dragMomentum={false}
+          style={{ x }}
+          onDragEnd={() => {
+            if (x.get() > reach() * 0.7) {
+              animate(x, reach(), { type: 'spring', stiffness: 400, damping: 30 });
+              setDone(true);
+            } else animate(x, 0, { type: 'spring', stiffness: 400, damping: 28 });
+          }}
+          className="absolute top-0 left-0 flex h-10 w-10 cursor-grab items-center justify-center rounded-full bg-accent text-canvas active:cursor-grabbing"
+        >
+          {done ? '✓' : <ChevronRight className="h-4 w-4" />}
+        </motion.span>
+      </div>
+    </div>
+  );
+}
+
 export const overviewRows: KitRow[] = [
   { name: 'Period switch', used: 'Overview header', items: [['Sliding pill', <PillSwitch />], ['Underline tabs', <UnderlineSwitch />], ['Boxed segments', <BoxedSwitch />]] },
   { name: 'Section header', used: 'Overview: Commitments, Cash flow and the other folding groups', items: [['Line with chevron', <LineHeader />], ['Card with icon tile', <CardHeader />], ['Plus and minus', <PlusHeader />]] },
@@ -468,4 +639,6 @@ export const overviewRows: KitRow[] = [
   { name: 'Cash flow chart', used: 'Overview: Cash flow', items: [['Paired bars', <PairedBars />], ['Net up and down', <NetBars />], ['Area and line', <AreaChart />]] },
   { name: 'Cash buffer', used: 'Overview: Cash buffer', items: [['List and bar', <ListBuffer />], ['Gauge', <GaugeBuffer />], ['Stacked bar', <StackBuffer />]] },
   { name: 'Opportunity', used: 'Overview: Opportunities', items: [['Text row', <TextOpportunity />], ['Card with percent choice', <StepOpportunity />], ['Checklist with meter', <MeterOpportunity />]] },
+  { name: 'Opportunity, more', used: 'Overview: Opportunities', items: [['Cut slider', <SliderOpportunity />], ['Before and after bars', <BeforeAfterOpportunity />], ['Cancel switch', <StrikeOpportunity />]] },
+  { name: 'Cancel a subscription', used: 'Overview: Opportunities, the cancel rows', items: [['Logo with ring', <RingCancel />], ['Price and cancel button', <PriceCancel />], ['Slide to cancel', <SlideCancel />]] },
 ];

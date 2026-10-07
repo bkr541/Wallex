@@ -50,7 +50,7 @@ export function Cluster({ list, size, ring = 'var(--card)' }: { list: CalEvent[]
 }
 
 /* ------------------------------------------------------------------------------------------ shared state */
-function useCal(events: CalEvent[]) {
+export function useCal(events: CalEvent[]) {
   const t = todayIso();
   const [year, setYear] = useState(Number(t.slice(0, 4)));
   const [month, setMonth] = useState(Number(t.slice(5, 7)) - 1);
@@ -68,11 +68,12 @@ function useCal(events: CalEvent[]) {
     year, month, map, cells, sel, setSel, today: t, monthEvents,
     label: MONTHS[month], step,
     goToday: () => { setYear(Number(t.slice(0, 4))); setMonth(Number(t.slice(5, 7)) - 1); setSel(t); },
+    goTo: (iso: string) => { setYear(Number(iso.slice(0, 4))); setMonth(Number(iso.slice(5, 7)) - 1); setSel(iso); },
   };
 }
 type Cal = ReturnType<typeof useCal>;
 
-function NavButtons({ cal, className = '' }: { cal: Cal; className?: string }) {
+export function NavButtons({ cal, className = '' }: { cal: Cal; className?: string }) {
   const b = 'flex h-9 w-9 cursor-pointer items-center justify-center rounded-full border transition-colors';
   return (
     <span className={`flex items-center gap-2 ${className}`}>
@@ -82,7 +83,7 @@ function NavButtons({ cal, className = '' }: { cal: Cal; className?: string }) {
   );
 }
 
-function DayList({ iso, list, className = '' }: { iso: string; list: CalEvent[]; className?: string }) {
+export function DayList({ iso, list, className = '' }: { iso: string; list: CalEvent[]; className?: string }) {
   const d = new Date(`${iso}T00:00:00`);
   return (
     <div className={className}>

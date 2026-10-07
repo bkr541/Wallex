@@ -299,6 +299,7 @@ export function bankFees(txns: Txn[], scope: PatternScope): BankFees {
 export interface CommitmentGroup {
   count: number;
   monthly: number; // estimated dollars per month
+  items: { name: string; monthly: number }[]; // each one, biggest first
 }
 
 // How many active charges are left out of the upcoming list because your card payment covers them.
@@ -321,7 +322,11 @@ export const isCommitment = (r: Recurring) => r.active && SOLID.has(r.confidence
 export function commitments(analysis: Analysis): Commitments {
   const group = (kinds: Recurring['kind'][]): CommitmentGroup => {
     const items = analysis.items.filter((r) => isCommitment(r) && kinds.includes(r.kind));
-    return { count: items.length, monthly: items.reduce((s, r) => s + (r.monthly ?? 0), 0) };
+    return {
+      count: items.length,
+      monthly: items.reduce((s, r) => s + (r.monthly ?? 0), 0),
+      items: items.map((r) => ({ name: r.name, monthly: r.monthly ?? 0 })).sort((a, b) => b.monthly - a.monthly),
+    };
   };
   return {
     bills: group(['bill']),

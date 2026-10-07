@@ -1,13 +1,13 @@
 import { useState } from 'react';
 import { motion } from 'motion/react';
 import type { FlowBucket } from '../../lib/overview';
-import { money } from '../../lib/patternFormat';
+import { money, percentText } from '../../lib/patternFormat';
 
 const signed = (n: number) => `${n >= 0 ? '+' : '-'}${money(Math.abs(n))}`;
 
 // Money in and money out for each period as paired bars, drawn without grid lines or legends.
 // Hover, focus or tap a pair to read the exact figures above the chart.
-export default function CashFlowChart({ buckets }: { buckets: FlowBucket[] }) {
+export default function CashFlowChart({ buckets, savingsRate = null }: { buckets: FlowBucket[]; savingsRate?: number | null }) {
   const [picked, setPicked] = useState<string | null>(null);
   const max = Math.max(1, ...buckets.flatMap((b) => [b.moneyIn, b.moneyOut]));
   const active = buckets.find((b) => b.key === picked) ?? buckets[buckets.length - 1];
@@ -29,6 +29,15 @@ export default function CashFlowChart({ buckets }: { buckets: FlowBucket[] }) {
         <p className="font-support text-sm text-muted">
           Net <span className={`tabular-nums ${active.net < 0 ? 'text-red-300' : 'text-ink'}`}>{signed(active.net)}</span>
         </p>
+        {savingsRate !== null && (
+          <p className="font-support text-sm text-muted">
+            <span className={`font-semibold tabular-nums ${savingsRate >= 0 ? 'text-ink' : 'text-red-300'}`}>
+              {savingsRate >= 0 ? '+' : '-'}
+              {percentText(Math.abs(savingsRate))}
+            </span>{' '}
+            savings rate
+          </p>
+        )}
       </div>
 
       <div className="mt-3 flex h-44 items-end gap-2 @3xl:gap-4" role="group" aria-label="Money in and out by period">

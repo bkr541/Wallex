@@ -226,7 +226,7 @@ function Shell() {
           ) : activeId === 'patterns' ? (
             <PatternsTab load={load} />
           ) : activeId === 'schedule' ? (
-            <ScheduleTab />
+            <ScheduleTab load={load} />
           ) : activeId === 'settings' && activeTab === 'Account' ? (
             <AccountTab onConnectionChange={refresh} onRefresh={refresh} refreshing={refreshing} />
           ) : activeId === 'settings' && activeTab === 'Appearance' ? (

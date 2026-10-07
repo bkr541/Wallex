@@ -158,33 +158,96 @@ function FlowBar({ moneyIn, moneyOut }: { moneyIn: number; moneyOut: number }) {
   );
 }
 
-function Commitment({
+// A commitment as a ring cut into arcs, one for each item, as long as its share of the monthly cost. The arcs draw on when
+// the tile appears. A dashed amber arc stands for items Wallex has not identified yet. Point at an arc and the middle
+// shows that item's name and price.
+const ARC_COLORS = ['var(--accent)', 'color-mix(in srgb, var(--accent) 62%, white)', 'color-mix(in srgb, var(--accent) 38%, var(--muted))', 'color-mix(in srgb, var(--accent) 22%, var(--muted))'];
+function CommitmentRing({
   label,
-  lead,
+  count,
+  centerLabel = 'Active',
+  headline,
+  headlineNote,
+  items,
+  unidentified = 0,
   detail,
   onOpen,
 }: {
   label: string;
-  lead: string;
-  detail: string;
+  count: number;
+  centerLabel?: string;
+  headline: string;
+  headlineNote?: string;
+  items: { name: string; value: number; display: string }[];
+  unidentified?: number;
+  detail?: string;
   onOpen?: () => void;
 }) {
+  const [hot, setHot] = useState<number | null>(null);
+  // The biggest four get an arc each; the rest share one.
+  const shown = items.slice(0, 4);
+  const rest = items.slice(4);
+  const arcsIn = rest.length ? [...shown, { name: `${rest.length} more`, value: rest.reduce((n, i) => n + i.value, 0), display: '' }] : shown;
+  const sum = arcsIn.reduce((n, i) => n + i.value, 0);
+  const unknownShare = unidentified > 0 ? 0.1 : 0;
+  const gap = 0.018;
+  let at = 0;
+  const arcs = arcsIn.map((it, i) => {
+    const share = (sum > 0 ? it.value / sum : 1 / arcsIn.length) * (1 - unknownShare);
+    const arc = { ...it, start: at, len: Math.max(0.02, share - gap), color: ARC_COLORS[i % ARC_COLORS.length] };
+    at += share;
+    return arc;
+  });
+  const hotArc = hot !== null && hot < arcs.length ? arcs[hot] : null;
+  const R = 40;
   const body = (
     <>
-      <span className="flex items-center justify-between gap-2 font-support text-xs text-muted">
-        {label}
-        {onOpen && <ChevronRight className="h-4 w-4 opacity-60 transition-transform group-hover:translate-x-0.5 group-hover:opacity-100" />}
+      <span className="relative h-[92px] w-[92px] shrink-0 @3xl:h-[104px] @3xl:w-[104px]">
+        <svg viewBox="0 0 104 104" className="h-full w-full" fill="none" aria-hidden="true">
+          <circle cx="52" cy="52" r={R} stroke="var(--line)" strokeWidth="2" strokeDasharray="1 5" />
+          {arcs.map((a, i) => (
+            <g key={a.name} transform={`rotate(${-90 + a.start * 360} 52 52)`} onMouseEnter={() => setHot(i)}>
+              <motion.circle cx="52" cy="52" r={R} stroke={a.color} strokeLinecap="round" initial={{ pathLength: 0 }} animate={{ pathLength: a.len, strokeWidth: hot === i ? 12 : 8 }} transition={{ pathLength: { delay: 0.1 + i * 0.15, duration: 0.7, ease: [0.22, 1, 0.36, 1] }, strokeWidth: { duration: 0.15 } }} style={{ pointerEvents: 'stroke' }} />
+            </g>
+          ))}
+          {unknownShare > 0 && (
+            <g transform={`rotate(${-90 + at * 360} 52 52)`}>
+              <motion.circle cx="52" cy="52" r={R} stroke="#f5c542" strokeLinecap="round" strokeDasharray="0.01 7" strokeWidth="8" initial={{ pathLength: 0 }} animate={{ pathLength: unknownShare - gap }} transition={{ delay: 0.1 + arcs.length * 0.15, duration: 0.6 }} />
+            </g>
+          )}
+        </svg>
+        <span className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center px-3 text-center">
+          <span className="max-w-full truncate text-[24px] leading-none font-semibold tabular-nums">{hotArc ? (hotArc.display || '—') : count}</span>
+          <span className="mt-0.5 max-w-full truncate font-support text-[9px] font-bold tracking-[0.2em] text-muted uppercase">{hotArc ? hotArc.name : count === 0 ? 'None' : centerLabel}</span>
+        </span>
       </span>
-      <span className="mt-2 block text-2xl leading-none font-semibold tracking-tight">{lead}</span>
-      <span className="mt-1.5 block font-support text-sm text-muted">{detail}</span>
+      <span className="min-w-0">
+        <span className="flex items-center gap-1 font-support text-[10px] font-semibold tracking-[0.2em] text-muted uppercase">
+          {label}
+          {onOpen && <ChevronRight className="h-3.5 w-3.5 opacity-60 transition-transform group-hover:translate-x-0.5 group-hover:opacity-100" />}
+        </span>
+        <span className="mt-1 block text-xl leading-tight font-semibold tracking-tight">
+          {headline}
+          {headlineNote && <span className="font-support text-sm font-normal text-muted"> {headlineNote}</span>}
+        </span>
+        {unidentified > 0 ? (
+          <span className="mt-1.5 inline-flex items-center gap-1.5 rounded-full border border-amber-300/30 bg-amber-300/10 px-2 py-0.5 font-support text-[11px] text-amber-300">
+            <span className="h-1.5 w-1.5 rounded-full bg-amber-300" />
+            {unidentified} Unidentified
+          </span>
+        ) : (
+          detail && <span className="mt-1 block font-support text-xs text-muted">{detail}</span>
+        )}
+      </span>
     </>
   );
+  const cls = 'group flex min-w-0 flex-col items-start gap-3 text-left @3xl:flex-row @3xl:items-center @3xl:gap-4';
   return onOpen ? (
-    <button type="button" onClick={onOpen} className="group min-w-0 cursor-pointer text-left">
+    <button type="button" onClick={onOpen} onMouseLeave={() => setHot(null)} className={`${cls} cursor-pointer`}>
       {body}
     </button>
   ) : (
-    <div className="min-w-0">{body}</div>
+    <div className={cls} onMouseLeave={() => setHot(null)}>{body}</div>
   );
 }
 
@@ -448,34 +511,41 @@ export default function OverviewTab({
         }
       >
         <div className="grid grid-cols-2 gap-x-8 gap-y-7 @3xl:grid-cols-4">
-          <Commitment
+          <CommitmentRing
             label="Bills"
-            lead={owed.bills.count ? `${owed.bills.count} Active` : 'None Found'}
+            count={owed.bills.count}
+            headline={owed.bills.count ? `${money(owed.bills.monthly)}` : 'None Found'}
+            headlineNote={owed.bills.count ? '/ mo' : undefined}
             detail={owed.bills.count ? 'recurring bills' : 'No recurring bills yet'}
+            items={owed.bills.items.map((i) => ({ name: i.name, value: i.monthly, display: money(i.monthly) }))}
             onOpen={() => onNavigate('transactions', 'Recurring', 'bills')}
           />
-          <Commitment
+          <CommitmentRing
             label="Debt & Installments"
-            lead={owed.debt.count ? `${owed.debt.count} Active` : 'None Found'}
+            count={owed.debt.count}
+            headline={owed.debt.count ? `${money(owed.debt.monthly)}` : 'None Found'}
+            headlineNote={owed.debt.count ? '/ mo' : undefined}
             detail={owed.debt.count ? 'repayments and installments' : 'No repayments found'}
+            items={owed.debt.items.map((i) => ({ name: i.name, value: i.monthly, display: money(i.monthly) }))}
             onOpen={() => onNavigate('transactions', 'Recurring', 'debt')}
           />
-          <Commitment
+          <CommitmentRing
             label="Subscriptions"
-            lead={owed.subscriptions.count ? `${owed.subscriptions.count} Active` : 'None Found'}
-            detail={
-              owed.subscriptions.count
-                ? owed.unidentified
-                  ? `${owed.unidentified} more unidentified`
-                  : 'recurring subscriptions'
-                : 'No subscriptions found'
-            }
+            count={owed.subscriptions.count}
+            headline={owed.subscriptions.count ? `${money(owed.subscriptions.monthly)}` : 'None Found'}
+            headlineNote={owed.subscriptions.count ? '/ mo' : undefined}
+            detail={owed.subscriptions.count ? 'recurring subscriptions' : 'No subscriptions found'}
+            items={owed.subscriptions.items.map((i) => ({ name: i.name, value: i.monthly, display: money(i.monthly) }))}
+            unidentified={owed.subscriptions.count ? owed.unidentified : 0}
             onOpen={() => onNavigate('transactions', 'Recurring', 'subs')}
           />
-          <Commitment
+          <CommitmentRing
             label="Bank Fees"
-            lead={fees.count ? money(fees.total) : 'None'}
-            detail={fees.count ? `${plural(fees.count, 'charge')} · ${fees.types.join(', ')}` : `No fees in the last ${periodLabel}`}
+            count={fees.count}
+            centerLabel="Charges"
+            headline={fees.count ? money(fees.total) : 'None'}
+            detail={fees.count ? fees.types.join(', ') : `No fees in the last ${periodLabel}`}
+            items={fees.types.map((t) => ({ name: t, value: 1, display: '' }))}
           />
         </div>
       </Collapsible>
@@ -487,15 +557,6 @@ export default function OverviewTab({
         icon="graph-bar-increase"
         aside={
           <>
-            {savings.rate !== null && (
-              <p className="font-support text-sm text-muted">
-                <span className={`font-semibold ${savings.rate >= 0 ? 'text-ink' : 'text-red-300'}`}>
-                  {savings.rate >= 0 ? '+' : '-'}
-                  {percentText(Math.abs(savings.rate))}
-                </span>{' '}
-                savings rate
-              </p>
-            )}
             {options.length > 1 && (
               <Segmented label="Range" value={chosen ?? 0} onChange={setRange} options={options.map((n) => ({ value: n, label: `${n}M` }))} />
             )}
@@ -504,7 +565,7 @@ export default function OverviewTab({
       >
         <div>
           {anyFlow ? (
-            <CashFlowChart key={`${chosen}-${buckets.length}`} buckets={buckets} />
+            <CashFlowChart key={`${chosen}-${buckets.length}`} buckets={buckets} savingsRate={savings.rate} />
           ) : (
             <p className="font-support text-sm text-muted">No money in or out to chart yet.</p>
           )}
@@ -603,7 +664,7 @@ export default function OverviewTab({
                           onNavigate('transactions', 'Checking', undefined, { name: p.name, ids: p.chargeIds });
                         }
                       }}
-                      className={`cursor-pointer border-b border-line py-3 transition-colors hover:bg-line focus-visible:bg-line focus-visible:outline-none ${inside ? 'border-l-2 border-l-accent bg-accent-soft/40 pl-3' : ''}`}
+                      className={`cursor-pointer border-b border-line py-3 transition-colors hover:border-b-accent focus-visible:border-b-accent focus-visible:outline-none ${inside ? 'border-l-2 border-l-accent bg-accent-soft/40 pl-3' : ''}`}
                     >
                       <div className="grid grid-cols-[3.25rem_minmax(0,1fr)_auto] items-center gap-3">
                         <span className="font-support text-sm text-muted tabular-nums">{shortDate(p.date)}</span>
@@ -663,33 +724,32 @@ export default function OverviewTab({
             <p className="font-support text-sm text-muted">No checking or savings balance is available to measure against.</p>
           ) : (
             <div>
-              <div className="w-full">
-                <p className="font-support text-xs text-muted">Left After The Next {WINDOW_DAYS} Days</p>
-                <p className={`text-3xl font-semibold tracking-tight tabular-nums ${buffer.remaining < 0 ? 'text-red-300' : ''}`}>{signed(buffer.remaining).replace(/^\+/, '')}</p>
-                {/* One bar: the part of the cash that stays, then the part the known payments take. */}
-                <div className="mt-2 flex h-5 overflow-hidden rounded-md bg-line" role="img" aria-label={`${money(buffer.obligations)} of ${money(buffer.available)} is already spoken for`}>
-                  <motion.span
-                    className="flex items-center overflow-hidden bg-accent pl-2 font-support text-[10px] font-bold tracking-wide text-canvas uppercase"
-                    initial={{ width: 0 }}
-                    animate={{ width: `${keepShare * 100}%` }}
-                    transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
-                  >
-                    {keepShare > 0.12 && 'Keep'}
-                  </motion.span>
-                  <motion.span
-                    className="flex flex-1 items-center justify-center overflow-hidden bg-[#f87171]/80 font-support text-[10px] font-bold tracking-wide text-canvas uppercase"
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    transition={{ duration: 0.5, delay: 0.3 }}
-                  >
-                    {keepShare < 0.88 && 'Due'}
-                  </motion.span>
+              <dl className="space-y-3 font-support text-sm">
+                <div className="flex items-baseline justify-between">
+                  <dt className="text-muted">Cash Available</dt>
+                  <dd className="tabular-nums">{moneyExact(buffer.available)}</dd>
                 </div>
-                <p className="mt-1.5 font-support text-[11px] text-muted">
-                  {money(buffer.obligations)} of {moneyExact(buffer.available)} is already spoken for
-                </p>
+                <div className="flex items-baseline justify-between">
+                  <dt className="text-muted">Expected Recurring Payments</dt>
+                  <dd className="tabular-nums">-{money(buffer.obligations)}</dd>
+                </div>
+                <div className="flex items-baseline justify-between border-t border-line pt-3">
+                  <dt className="text-ink">Remaining Buffer</dt>
+                  <dd className={`text-2xl font-semibold tracking-tight tabular-nums ${buffer.remaining < 0 ? 'text-red-300' : ''}`}>
+                    {signed(buffer.remaining).replace(/^\+/, '')}
+                  </dd>
+                </div>
+              </dl>
+              {/* How much of the cash the known payments take. */}
+              <div className="mt-4 h-1.5 overflow-hidden rounded-full bg-line" role="img" aria-label={`Known payments take ${Math.round((1 - keepShare) * 100)}% of your cash`}>
+                <motion.div
+                  className={`h-full rounded-full ${buffer.remaining < 0 ? 'bg-red-300' : 'bg-accent/80'}`}
+                  initial={{ width: 0 }}
+                  animate={{ width: `${buffer.available > 0 ? Math.min(100, (buffer.obligations / buffer.available) * 100) : 100}%` }}
+                  transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
+                />
               </div>
-              <p className="mt-5 font-support text-xs text-muted">
+              <p className="mt-2 font-support text-xs text-muted">
                 {buffer.available > 0
                   ? `Known payments take ${percentText(Math.min(1, buffer.obligations / buffer.available))} of your cash.`
                   : 'There is no cash to cover them.'}{' '}
@@ -716,10 +776,11 @@ export default function OverviewTab({
           <p className="font-support text-sm text-muted">No spending in these areas yet, so there is nothing to model.</p>
         ) : (
           <div>
-            <div className="space-y-3">
+            <div className="grid grid-cols-1 items-start gap-3 @3xl:grid-cols-2">
               {subs.map((r) => {
                 const on = !!cancelled[r.id];
                 const monthly = r.monthly ?? 0;
+                const ringShare = owed.subscriptions.monthly > 0 ? monthly / owed.subscriptions.monthly : 0;
                 return (
                   <button
                     key={r.id}
@@ -727,19 +788,22 @@ export default function OverviewTab({
                     role="checkbox"
                     aria-checked={on}
                     onClick={() => setCancelled((c) => ({ ...c, [r.id]: !c[r.id] }))}
-                    className="flex w-full cursor-pointer items-center gap-3 rounded-xl bg-surface px-3 py-3 text-left"
+                    className="flex w-full cursor-pointer items-center gap-4 rounded-2xl bg-surface p-3 text-left"
                   >
-                    <span className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-md border-2 transition-colors ${on ? 'border-accent bg-accent text-canvas' : 'border-line'}`}>
-                      {on && <span className="text-[11px] font-bold">✓</span>}
+                    {/* The logo is the control: the ring shows this subscription's share of all you pay for, and closes when it is ticked. */}
+                    <span className="relative h-14 w-14 shrink-0">
+                      <svg viewBox="0 0 56 56" className="absolute inset-0 h-full w-full -rotate-90" fill="none" aria-hidden="true">
+                        <circle cx="28" cy="28" r="25" stroke="var(--line)" strokeWidth="3" />
+                        <motion.circle cx="28" cy="28" r="25" stroke="var(--accent)" strokeWidth="3" strokeLinecap="round" initial={false} animate={{ pathLength: on ? 1 : Math.max(0.04, ringShare) }} transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }} />
+                      </svg>
+                      <MerchantLogo name={r.name} sources={r.logos} className={`absolute inset-[7px] h-auto w-auto text-xs transition-all ${on ? 'opacity-40 grayscale' : ''}`} />
+                      <motion.span className="absolute -right-1 -bottom-1 flex h-5 w-5 items-center justify-center rounded-full bg-accent text-[11px] font-bold text-canvas" initial={false} animate={{ scale: on ? 1 : 0 }} transition={{ type: 'spring', stiffness: 500, damping: 18 }}>✓</motion.span>
                     </span>
-                    <MerchantLogo name={r.name} sources={r.logos} className="h-8 w-8 text-[10px]" />
                     <span className="min-w-0 flex-1">
-                      <span className="block truncate text-sm font-medium">Cancel {r.name}</span>
-                      <span className="mt-1.5 block h-1.5 rounded-full bg-line">
-                        <span className="block h-full rounded-full bg-accent" style={{ width: on && subsTotal > 0 ? `${(monthly / subsTotal) * 100}%` : '0%', transition: 'width 0.4s' }} />
-                      </span>
+                      <span className="block truncate text-sm font-semibold">Cancel {r.name}</span>
+                      <span className="block truncate font-support text-xs text-muted">{on ? 'Counts toward your savings' : `${Math.round(ringShare * 100)}% of your subscriptions`}</span>
                     </span>
-                    <span className="text-sm font-semibold tabular-nums">{money(monthly)}/mo</span>
+                    <span className={`text-sm font-semibold tabular-nums transition-colors ${on ? 'text-muted line-through' : ''}`}>{money(monthly)}/mo</span>
                   </button>
                 );
               })}
