@@ -3,25 +3,25 @@ import { Minus, Plus } from 'lucide-react';
 import PlumpIcon, { type PlumpName } from '../PlumpIcon';
 
 // A section of the Overview that can be folded away. Closed it is a single row: the group's icon with a plus box over its
-// corner, the title and a rule running out to the right; open the box becomes a minus and it shows an optional description and controls
+// corner, the title and a rule running out to the right; open the box becomes a minus and shows optional controls
 // (a range picker, a link), then the content.
 export default function Collapsible({
   title,
   icon,
-  subtitle,
   aside,
   open,
   onToggle,
   className = '',
+  bodyClassName = 'pt-2 pb-8',
   children,
 }: {
   title: string;
   icon: PlumpName;
-  subtitle?: React.ReactNode;
   aside?: React.ReactNode;
   open: boolean;
   onToggle: () => void;
   className?: string;
+  bodyClassName?: string;
   children: React.ReactNode;
 }) {
   return (
@@ -57,10 +57,9 @@ export default function Collapsible({
             transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
             className="overflow-hidden"
           >
-            <div className="pt-2 pb-8">
-              {(subtitle || aside) && (
-                <div className="mb-5 flex flex-wrap items-center justify-between gap-x-6 gap-y-3">
-                  {subtitle && <p className="font-support text-sm text-muted">{subtitle}</p>}
+            <div className={bodyClassName}>
+              {aside && (
+                <div className="mb-5 flex flex-wrap items-center justify-end gap-x-6 gap-y-3">
                   {aside && <div className="ml-auto flex flex-wrap items-center gap-x-5 gap-y-2">{aside}</div>}
                 </div>
               )}

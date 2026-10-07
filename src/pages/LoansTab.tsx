@@ -121,15 +121,34 @@ function LoanForm({ initial, hint, onClose }: { initial: Draft; hint?: BankLoanH
 }
 
 /* ----------------------------------------------------------------------------------------------- the cards */
-function LoanCard({ loan, onEdit }: { loan: Loan; onEdit: () => void }) {
+function LoanCard({
+  loan,
+  lenderPosition,
+  lenderTotal,
+  logos,
+  onEdit,
+  onAddAnother,
+}: {
+  loan: Loan;
+  lenderPosition: number;
+  lenderTotal: number;
+  logos: string[];
+  onEdit: () => void;
+  onAddAnother: () => void;
+}) {
   const [open, setOpen] = useState(false);
   const s = statusFor(loan);
   return (
     <div className="rounded-2xl border border-line bg-card/60 p-5">
       <div className="flex flex-wrap items-center gap-4">
-        <MerchantLogo name={loan.lender} sources={[]} className="h-11 w-11 text-sm" />
+        <MerchantLogo name={loan.lender} sources={logos} className="h-11 w-11 text-sm" />
         <div className="min-w-0 flex-1">
-          <p className="truncate text-base font-semibold">{loan.lender}</p>
+          <div className="flex flex-wrap items-center gap-2">
+            <p className="truncate text-base font-semibold">{loan.lender}</p>
+            <span className="rounded-full border border-line bg-surface px-2 py-0.5 font-support text-[10px] font-semibold text-muted">
+              {lenderTotal === 1 ? '1 Loan' : `Loan ${lenderPosition} Of ${lenderTotal}`}
+            </span>
+          </div>
           <p className="truncate font-support text-sm text-muted">
             {loan.item ? `${loan.item} · ` : ''}{moneyExact(s.payment)} every {freqWord(loan.frequency)}{loan.apr > 0 ? ` · ${loan.apr}% APR` : ' · 0% interest'}
           </p>
@@ -164,6 +183,7 @@ function LoanCard({ loan, onEdit }: { loan: Loan; onEdit: () => void }) {
           {open ? 'Hide Schedule' : 'Show Schedule'}
         </button>
         <button type="button" onClick={onEdit} className="flex cursor-pointer items-center gap-1.5 font-support text-sm text-muted transition-colors hover:text-ink"><Pencil className="h-3.5 w-3.5" />Edit</button>
+        <button type="button" onClick={onAddAnother} className="flex cursor-pointer items-center gap-1.5 font-support text-sm text-muted transition-colors hover:text-ink"><Plus className="h-3.5 w-3.5" />Add Another</button>
         <span className="ml-auto font-support text-xs text-muted">Paid off {dateText(s.payoffDate)}{s.totalInterest > 0 ? ` · ${moneyExact(s.totalInterest)} interest` : ''}</span>
       </div>
 
@@ -205,9 +225,8 @@ export default function LoansTab({ load }: { load: Load }) {
 
   const hints = useMemo(() => {
     const txns = load.state === 'live' ? load.allTransactions : [];
-    // A plan already added is not suggested again.
-    return bankLoanHints(txns).filter((h) => !loans.some((l) => l.lender.toLowerCase().includes(h.lender.toLowerCase())));
-  }, [load, loans]);
+    return bankLoanHints(txns);
+  }, [load]);
 
   const statuses = loans.map((l) => ({ loan: l, s: statusFor(l) }));
   const owed = statuses.reduce((sum, x) => sum + x.s.remaining, 0);
@@ -218,6 +237,10 @@ export default function LoansTab({ load }: { load: Load }) {
   const openNew = (h?: BankLoanHint) => {
     setHint(h);
     setEditing(h ? { ...EMPTY, lender: h.lender, frequency: h.frequency, firstDate: h.first } : { ...EMPTY, firstDate: todayIso() });
+  };
+  const openAnother = (lender: string) => {
+    setHint(undefined);
+    setEditing({ ...EMPTY, lender, firstDate: todayIso() });
   };
   const edit = (l: Loan) => {
     setHint(undefined);
@@ -261,10 +284,14 @@ export default function LoansTab({ load }: { load: Load }) {
           <div className="grid grid-cols-1 gap-3 @3xl:grid-cols-2">
             {hints.map((h) => (
               <div key={h.lender} className="flex items-center gap-3 rounded-2xl border border-line bg-card/60 p-4">
-                <MerchantLogo name={h.lender} sources={[]} className="h-10 w-10 text-xs" />
+                <MerchantLogo name={h.lender} sources={h.logos} className="h-10 w-10 text-xs" />
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-semibold">{h.lender}</p>
-                  <p className="font-support text-xs text-muted">{plural(h.payments, 'payment')} · about {moneyExact(h.typical)} · last {dateText(h.last)}</p>
+                  <p className="font-support text-xs text-muted">
+                    {plural(h.payments, 'payment')} · about {moneyExact(h.typical)} · last {dateText(h.last)}
+                    {loans.filter((l) => l.lender.trim().toLowerCase() === h.lender.toLowerCase()).length > 0 &&
+                      ` · ${plural(loans.filter((l) => l.lender.trim().toLowerCase() === h.lender.toLowerCase()).length, 'loan')} tracked`}
+                  </p>
                 </div>
                 <button type="button" onClick={() => openNew(h)} className={outlineBtn}>Edit</button>
               </div>
@@ -278,7 +305,21 @@ export default function LoansTab({ load }: { load: Load }) {
           {statuses
             .slice()
             .sort((a, b) => Number(a.s.done) - Number(b.s.done) || (a.s.next?.date ?? '9999').localeCompare(b.s.next?.date ?? '9999'))
-            .map(({ loan }) => <LoanCard key={loan.id} loan={loan} onEdit={() => edit(loan)} />)}
+            .map(({ loan }) => {
+              const sameLender = loans.filter((candidate) => candidate.lender.trim().toLowerCase() === loan.lender.trim().toLowerCase());
+              const lenderHint = hints.find((candidate) => candidate.lender.toLowerCase() === loan.lender.trim().toLowerCase());
+              return (
+                <LoanCard
+                  key={loan.id}
+                  loan={loan}
+                  lenderPosition={sameLender.findIndex((candidate) => candidate.id === loan.id) + 1}
+                  lenderTotal={sameLender.length}
+                  logos={lenderHint?.logos ?? []}
+                  onEdit={() => edit(loan)}
+                  onAddAnother={() => openAnother(loan.lender)}
+                />
+              );
+            })}
         </div>
       )}
     </div>

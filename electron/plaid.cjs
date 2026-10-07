@@ -209,19 +209,24 @@ async function connect(bank) {
   const s = config.getSettings();
 
   if (s.environment === 'sandbox') {
+    const institutionId = bank?.id || s.bankId;
+    if (!institutionId) throw new PlaidError('Choose a Sandbox bank in Settings → Setup first.');
     const { public_token } = await plaid('/sandbox/public_token/create', {
-      institution_id: bank.id,
+      institution_id: institutionId,
       initial_products: s.products,
     });
-    const item = await exchange(public_token, { institution_id: bank.id, name: bank.name });
-    return { connected: true, institutionName: bank.name, ...item };
+    const institution = { institution_id: institutionId, name: bank?.name || 'Sandbox bank' };
+    const item = await exchange(public_token, institution);
+    return { connected: true, institutionName: institution.name, ...item };
   }
 
-  const linkToken = await createLinkToken(s, bank.routingNumber);
+  // No bank is supplied when Account launches the generic "link another bank" flow.
+  // Plaid then starts at Institution Select with a fresh Link token and creates a new Item.
+  const linkToken = await createLinkToken(s, bank?.routingNumber);
   const result = await runLink(linkToken, s.redirectUri);
   if (result.cancelled) return { connected: false, cancelled: true };
   const item = await exchange(result.publicToken, result.institution);
-  return { connected: true, institutionName: result.institution?.name || bank.name, ...item };
+  return { connected: true, institutionName: result.institution?.name || bank?.name || 'Linked bank', ...item };
 }
 
 // Unlinks one bank by its item id, or every bank when none is given.

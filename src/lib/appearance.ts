@@ -22,6 +22,10 @@ export const ACCENTS = [
   { id: 'pink', name: 'Pink', color: '#ff6fa8' },
   { id: 'orange', name: 'Orange', color: '#ffa94d' },
   { id: 'green', name: 'Green', color: '#5fd38d' },
+  { id: 'red', name: 'Red', color: '#ff6b6b' },
+  { id: 'gold', name: 'Gold', color: '#e6b94a' },
+  { id: 'cyan', name: 'Cyan', color: '#36c4d6' },
+  { id: 'indigo', name: 'Indigo', color: '#7185ff' },
 ] as const;
 
 export const TEXT_SIZES: { value: TextSize; label: string; px: number }[] = [

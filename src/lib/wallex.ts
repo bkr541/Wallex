@@ -79,7 +79,7 @@ interface WallexBridge {
   getStatus(): Promise<Result<Status>>;
   saveSettings(payload: { settings: PlaidSettings; bankId: string }): Promise<Result<void>>;
   syncConnections(authToken?: string, cloudConfig?: { url?: string; key?: string }): Promise<Result<void>>;
-  connect(payload: { settings: PlaidSettings; bank: Bank; authToken?: string; cloudConfig?: { url?: string; key?: string } }): Promise<Result<ConnectResult>>;
+  connect(payload: { settings: PlaidSettings; bank?: Bank; authToken?: string; cloudConfig?: { url?: string; key?: string } }): Promise<Result<ConnectResult>>;
   disconnect(itemId?: string, authToken?: string, cloudConfig?: { url?: string; key?: string }): Promise<Result<void>>;
   getTransactions(): Promise<Result<TransactionsResult>>;
   onAuthCallback(cb: (payload: AuthCallback) => void): void;
@@ -124,6 +124,27 @@ export const wallex = {
     const { data } = await supabase!.auth.getSession();
     await syncPlaidSettings(payload.settings, payload.bank.id);
     return window.wallex.connect({ ...payload, authToken: data.session?.access_token, cloudConfig });
+  },
+  connectAnother: async (): Promise<Result<ConnectResult>> => {
+    if (!window.wallex?.connect) return { ok: false, error: NOT_DESKTOP };
+    const status = await wallex.getStatus();
+    if (!status.ok) return status;
+    if (!status.data.clientId || !status.data.hasSecret) {
+      return { ok: false, error: 'Add your Plaid credentials in Settings → Setup before linking another bank.' };
+    }
+    const settings: PlaidSettings = {
+      environment: status.data.environment,
+      clientId: status.data.clientId,
+      secret: '',
+      products: status.data.products,
+      countries: status.data.countries,
+      language: status.data.language,
+      webhookUrl: status.data.webhookUrl,
+      redirectUri: status.data.redirectUri,
+    };
+    const { data } = await supabase!.auth.getSession();
+    await syncPlaidSettings(settings, status.data.bankId);
+    return window.wallex.connect({ settings, authToken: data.session?.access_token, cloudConfig });
   },
   disconnect: async (itemId?: string): Promise<Result<void>> => {
     if (!window.wallex?.disconnect) return { ok: false, error: NOT_DESKTOP };

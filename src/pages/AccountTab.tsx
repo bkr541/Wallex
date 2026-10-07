@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
-import { Check, Download, LogOut, RefreshCw } from 'lucide-react';
+import { Check, Download, LogOut, Plus, RefreshCw } from 'lucide-react';
 import DestructiveAction from '../components/DestructiveAction';
 import PhotoDropZone from '../components/PhotoDropZone';
 import Collapsible from '../components/overview/Collapsible';
@@ -36,7 +36,7 @@ const Notice = ({ text }: { text: string | null }) =>
 
 // Each group folds away the same way the Overview groups do, and which ones are folded is remembered.
 const CLOSED_KEY = 'wallex-account-closed';
-function Group({ id, title, icon, subtitle, children }: { id: string; title: string; icon: PlumpName; subtitle?: string; children: React.ReactNode }) {
+function Group({ id, title, icon, children }: { id: string; title: string; icon: PlumpName; children: React.ReactNode }) {
   const read = (): Record<string, boolean> => {
     try {
       return JSON.parse(localStorage.getItem(CLOSED_KEY) ?? '{}');
@@ -56,7 +56,7 @@ function Group({ id, title, icon, subtitle, children }: { id: string; title: str
     }
   };
   return (
-    <Collapsible title={title} icon={icon} subtitle={subtitle} open={!closed[id]} onToggle={toggle}>
+    <Collapsible title={title} icon={icon} open={!closed[id]} onToggle={toggle} bodyClassName="pt-2 pb-2">
       <div className="space-y-5">{children}</div>
     </Collapsible>
   );
@@ -65,12 +65,12 @@ function Group({ id, title, icon, subtitle, children }: { id: string; title: str
 // One line of an account group: what it is and its current value at the left, the action at the right.
 function InfoRow({ title, value, children }: { title: string; value?: string; children: React.ReactNode }) {
   return (
-    <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-3">
-      <div className="min-w-0">
+    <div className="flex items-center justify-between gap-x-4">
+      <div className="min-w-0 flex-1">
         <p className="text-sm font-medium">{title}</p>
-        {value && <p className="truncate font-support text-sm text-muted">{value}</p>}
+        {value && <p className="max-w-full font-support text-sm whitespace-normal text-muted break-words">{value}</p>}
       </div>
-      <div className="flex flex-wrap items-center gap-3">{children}</div>
+      <div className="flex shrink-0 items-center gap-3">{children}</div>
     </div>
   );
 }
@@ -168,7 +168,7 @@ function SignIn() {
   };
 
   return (
-    <Group id="signin" title="Sign-in" icon="padlock-key" subtitle="How you get into Wallex.">
+    <Group id="signin" title="Sign-in" icon="padlock-key">
       <div className="space-y-6">
         <div>
           <InfoRow title="Email address" value={email || 'No email added'}>
@@ -235,8 +235,28 @@ function Banks({ onConnectionChange }: { onConnectionChange?: () => void }) {
     onConnectionChange?.();
   };
 
+  const linkAnother = async () => {
+    setBusy(true);
+    flash('Opening Plaid…');
+    const res = await wallex.connectAnother();
+    if (!res.ok) {
+      setBusy(false);
+      return flash(res.error);
+    }
+    if (!res.data.connected) {
+      setBusy(false);
+      return flash('Connection cancelled.');
+    }
+    const refreshed = await wallex.getStatus();
+    setBusy(false);
+    if (!refreshed.ok) return flash(refreshed.error);
+    setBanks(refreshed.data.connections);
+    flash(`Connected ${res.data.institutionName || 'your bank'}.`);
+    onConnectionChange?.();
+  };
+
   return (
-    <Group id="banks" title="Connected banks" icon="government-building-1" subtitle="Every bank Wallex reads through Plaid. Unlinking one removes its connection, not your bank account. Add more in Settings → Setup.">
+    <Group id="banks" title="Connected banks" icon="government-building-1">
       {banks && banks.length > 0 ? (
         <div className="space-y-4">
           {banks.map((b) => (
@@ -252,6 +272,12 @@ function Banks({ onConnectionChange }: { onConnectionChange?: () => void }) {
               confirmDisabled={busy}
             />
           ))}
+          <InfoRow title="Link another bank" value="Connect another institution securely through Plaid.">
+            <button type="button" onClick={linkAnother} disabled={busy} className={outlineBtn}>
+              <Plus className="h-4 w-4" />
+              {busy ? 'Connecting…' : 'Add bank'}
+            </button>
+          </InfoRow>
         </div>
       ) : (
         <p className="font-support text-sm text-muted">
@@ -296,7 +322,7 @@ function YourData({ onRefresh, refreshing }: { onRefresh?: () => void; refreshin
   };
 
   return (
-    <Group id="data" title="Your data" icon="database" subtitle="Wallex keeps your profile, appearance and Recurring corrections on this device. Your bank details are never saved.">
+    <Group id="data" title="Your data" icon="database">
       <div className="space-y-6">
         <InfoRow title="Download my data" value="A copy of everything saved on this device, as a file.">
           <button type="button" onClick={exportData} className={outlineBtn}>
@@ -340,7 +366,7 @@ function DangerZone() {
 
   return (
     <div className="rounded-xl border border-red-400/30 px-5">
-    <Group id="danger" title="Danger zone" icon="notification-alert" subtitle="Deleting your account removes your sign-in, your saved settings and any linked banks. This can't be undone.">
+    <Group id="danger" title="Danger zone" icon="notification-alert">
       <DestructiveAction
         heading="Delete account"
         trigger="Delete account…"
@@ -413,22 +439,20 @@ export default function AccountTab({
   return (
     <div className="space-y-8 px-1 pb-10">
     <form onSubmit={save} noValidate className="space-y-8">
-      <Group id="profile" title="Your profile" icon="user-face-male" subtitle="This is how Wallex knows you. It stays on this device.">
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div className="min-w-0">
-            <p className="truncate text-xl font-semibold tracking-tight">{name || 'Your name'}</p>
-            <p className="truncate font-support text-sm text-muted">{draft.email || 'No email added'}</p>
-          </div>
-          <LogOutButton />
-        </div>
-        <PhotoDropZone photo={draft.photo} error={photoError} onFile={pick} onRemove={() => set('photo', null)} />
-      </Group>
-
-      <Group id="details" title="Personal details" icon="text-box-1" subtitle="Your name is used on Overview, and your phone number is for your own reference.">
+      <Group id="profile" title="Your profile" icon="user-face-male">
         <div className="grid grid-cols-1 gap-x-8 gap-y-6 @3xl:grid-cols-2">
+          <div className="flex min-w-0 items-center gap-4">
+            <PhotoDropZone compact photo={draft.photo} error={photoError} onFile={pick} onRemove={() => set('photo', null)} />
+            <div className="min-w-0">
+              <p className="truncate text-xl font-semibold tracking-tight">{name || 'Your name'}</p>
+              <p className="truncate font-support text-sm text-muted">{draft.email || 'No email added'}</p>
+            </div>
+          </div>
+        </div>
+        <div className="grid grid-cols-2 gap-x-4 gap-y-6 @3xl:gap-x-8">
           <UnderlineField label="First name" icon="user-face-male" value={draft.firstName} autoComplete="given-name" onChange={(e) => set('firstName', e.target.value)} placeholder="Ada" error={shown('firstName')} />
           <UnderlineField label="Last name" icon="user-face-male" value={draft.lastName} autoComplete="family-name" onChange={(e) => set('lastName', e.target.value)} placeholder="Lovelace" error={shown('lastName')} />
-          <UnderlineField label="Preferred name" icon="chat-bubble-text-square" value={draft.preferredName} onChange={(e) => set('preferredName', e.target.value)} placeholder="Ada" hint="What Wallex calls you. Leave blank to use your first name." />
+          <UnderlineField label="Preferred name" icon="chat-bubble-text-square" value={draft.preferredName} onChange={(e) => set('preferredName', e.target.value)} placeholder="Ada" />
           <UnderlineField label="Phone (optional)" icon="phone" type="tel" value={draft.phone} autoComplete="tel" onChange={(e) => set('phone', e.target.value)} placeholder="+1 555 123 4567" error={shown('phone')} />
         </div>
       </Group>
@@ -449,6 +473,7 @@ export default function AccountTab({
     <Banks onConnectionChange={onConnectionChange} />
     <YourData onRefresh={onRefresh} refreshing={refreshing} />
     <About />
+    <LogOutButton />
     <DangerZone />
     </div>
   );

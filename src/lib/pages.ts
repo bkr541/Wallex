@@ -18,5 +18,5 @@ export const NAV: NavItem[] = [
   { id: 'schedule', name: 'Schedule', icon: CalendarIcon, accent: '255, 122, 107', description: 'See what is due, and when.', tabs: [] },
   { id: 'transactions', name: 'Transactions', icon: ReceiptIcon, accent: '129, 140, 248', description: 'Review every purchase, payment and deposit.', tabs: ['Checking', 'Recurring', 'Loans'] },
   { id: 'settings', name: 'Settings', icon: GearIcon, accent: '148, 163, 184', description: 'Manage your account and app preferences.', tabs: ['Account', 'Appearance', 'Setup'] },
-  { id: 'scratchpad', name: 'Scratchpad', icon: ListIcon, accent: '46, 208, 138', description: 'A sandbox for trying out interface components.', tabs: ['UI Components', 'UI Cards', 'Logos', 'Onboarding', 'Login', 'Login Hero', 'Calendar'] },
+  { id: 'scratchpad', name: 'Scratchpad', icon: ListIcon, accent: '46, 208, 138', description: 'A sandbox for trying out interface components.', tabs: ['UI Components', 'UI Cards', 'Pattern Detail', 'Logos', 'Onboarding', 'Login', 'Login Hero', 'Calendar'] },
 ];

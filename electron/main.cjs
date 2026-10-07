@@ -56,7 +56,7 @@ handle('wallex:sync-connections', async (authToken, cloudConfig) => {
   for (const connection of connections) await cloud.storePlaidItem(authToken, connection, cloudConfig);
 });
 handle('wallex:connect', async ({ settings, bank, authToken, cloudConfig }) => {
-  config.saveSettings({ ...settings, bankId: bank.id });
+  config.saveSettings({ ...settings, bankId: bank?.id || config.getSettings().bankId });
   const result = await plaid.connect(bank);
   if (result.connected) await cloud.storePlaidItem(authToken, result, cloudConfig);
   const { accessToken: _accessToken, ...safe } = result;

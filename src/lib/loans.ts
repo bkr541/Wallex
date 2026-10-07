@@ -193,6 +193,7 @@ const LENDERS: { test: RegExp; name: string }[] = [
 
 export interface BankLoanHint {
   lender: string;
+  logos: string[];
   payments: number;
   typical: number; // the usual payment
   last: string;
@@ -216,6 +217,7 @@ export function bankLoanHints(txns: Txn[]): BankLoanHint[] {
     const amounts = sorted.map((t) => Math.abs(t.amount)).sort((a, b) => a - b);
     return {
       lender,
+      logos: [...new Set([...sorted].reverse().flatMap((t) => t.logos))],
       payments: sorted.length,
       typical: amounts[Math.floor(amounts.length / 2)],
       last: sorted[sorted.length - 1].date,

@@ -485,7 +485,6 @@ export default function OverviewTab({
         {...sectionProps('cashflow')}
         title="Cash flow"
         icon="graph-bar-increase"
-        subtitle={chosen ? `Month by month, last ${chosen} months.` : 'Week by week. Monthly bars appear once there are three months of history.'}
         aside={
           <>
             {savings.rate !== null && (
@@ -522,7 +521,6 @@ export default function OverviewTab({
         {...sectionProps('breakdown')}
         title="Spending breakdown"
         icon="dollar-coin"
-        subtitle={`Where your money out went in the last ${periodLabel}, by category.`}
         aside={
           <button
             type="button"
@@ -574,7 +572,6 @@ export default function OverviewTab({
           {...sectionProps('upcoming')}
           title="Upcoming payments"
         icon="notification-alert"
-          subtitle={`Recurring payments expected in the next ${WINDOW_DAYS} days.`}
         >
 
           {upcoming.length === 0 ? (
@@ -660,7 +657,6 @@ export default function OverviewTab({
           {...sectionProps('buffer')}
           title="Cash buffer"
         icon="piggy-bank"
-          subtitle="What is left of your cash after the payments above."
         >
 
           {buffer === null ? (
@@ -715,7 +711,6 @@ export default function OverviewTab({
         {...sectionProps('opportunities')}
         title="Opportunities"
         icon="lightbulb"
-        subtitle={`What-ifs based on your last ${periodLabel} of spending. They are estimates, not advice.`}
       >
         {ideas.length === 0 && subs.length === 0 ? (
           <p className="font-support text-sm text-muted">No spending in these areas yet, so there is nothing to model.</p>

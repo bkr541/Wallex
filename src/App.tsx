@@ -20,6 +20,7 @@ import LoginTab from './pages/LoginTab';
 import LoginHeroTab from './pages/LoginHeroTab';
 import AccountTab from './pages/AccountTab';
 import CalendarTab from './pages/CalendarTab';
+import PatternDetailTab from './pages/PatternDetailTab';
 import OverviewTab from './pages/OverviewTab';
 import LoadingLogo from './components/LoadingLogo';
 import { cashPosition } from './lib/overview';
@@ -244,6 +245,8 @@ function Shell() {
             <LoginHeroTab />
           ) : activeId === 'scratchpad' && activeTab === 'UI Cards' ? (
             <CardsTab />
+          ) : activeId === 'scratchpad' && activeTab === 'Pattern Detail' ? (
+            <PatternDetailTab />
           ) : activeId === 'scratchpad' && activeTab === 'Logos' ? (
             <UiComponentsTab />
           ) : activeId === 'scratchpad' && activeTab === 'Onboarding' ? (

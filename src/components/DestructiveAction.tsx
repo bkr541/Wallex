@@ -35,9 +35,9 @@ export default function DestructiveAction({
   };
   return (
     <div className="w-full">
-      <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-2">
+      <div className="flex items-center justify-between gap-x-4">
         {heading && (
-          <div className="min-w-0">
+          <div className="min-w-0 flex-1">
             <p className="text-sm font-medium">{heading}</p>
             {description && <p className="font-support text-sm text-muted">{description}</p>}
           </div>
@@ -46,7 +46,7 @@ export default function DestructiveAction({
           type="button"
           aria-expanded={open}
           onClick={() => (open ? close() : setOpen(true))}
-          className="ml-auto cursor-pointer font-support text-sm text-red-300 underline underline-offset-2 transition-colors hover:text-red-200"
+          className="ml-auto shrink-0 cursor-pointer font-support text-sm text-red-300 underline underline-offset-2 transition-colors hover:text-red-200"
         >
           {trigger}
         </button>
