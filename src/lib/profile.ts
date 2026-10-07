@@ -1,4 +1,5 @@
 import { useSyncExternalStore } from 'react';
+import { syncProfile } from './cloud';
 
 // The person's own details, kept on this device (localStorage) until sign-in is connected. Nothing here comes
 // from the bank.
@@ -47,6 +48,18 @@ export function saveProfile(next: Profile) {
     localStorage.setItem(KEY, JSON.stringify(next));
   } catch {
     // Storage can be blocked or full (a large photo); the change then lasts until the app closes.
+  }
+  listeners.forEach((l) => l());
+  void syncProfile(next);
+}
+
+// Cloud hydration updates the local cache without echoing the same row back to Supabase.
+export function hydrateProfile(next: Profile) {
+  state = next;
+  try {
+    localStorage.setItem(KEY, JSON.stringify(next));
+  } catch {
+    // The hydrated value still lasts for this launch.
   }
   listeners.forEach((l) => l());
 }

@@ -1,6 +1,7 @@
 const { app, BrowserWindow, ipcMain, shell } = require('electron');
 const path = require('path');
 const config = require('./config.cjs');
+const cloud = require('./supabase.cjs');
 const plaid = require('./plaid.cjs');
 const authServer = require('./authServer.cjs');
 
@@ -49,11 +50,23 @@ const handle = (channel, fn) =>
   });
 
 handle('wallex:status', () => plaid.getStatus());
-handle('wallex:connect', ({ settings, bank }) => {
-  config.saveSettings({ ...settings, bankId: bank.id });
-  return plaid.connect(bank);
+handle('wallex:save-settings', ({ settings, bankId }) => config.saveSettings({ ...settings, bankId }));
+handle('wallex:sync-connections', async (authToken, cloudConfig) => {
+  const connections = config.getConnections();
+  for (const connection of connections) await cloud.storePlaidItem(authToken, connection, cloudConfig);
 });
-handle('wallex:disconnect', (itemId) => plaid.disconnect(itemId));
+handle('wallex:connect', async ({ settings, bank, authToken, cloudConfig }) => {
+  config.saveSettings({ ...settings, bankId: bank.id });
+  const result = await plaid.connect(bank);
+  if (result.connected) await cloud.storePlaidItem(authToken, result, cloudConfig);
+  const { accessToken: _accessToken, ...safe } = result;
+  return safe;
+});
+handle('wallex:disconnect', async (itemId, authToken, cloudConfig) => {
+  const ids = itemId ? [itemId] : plaid.getStatus().connections.map((connection) => connection.itemId);
+  for (const id of ids) await cloud.deletePlaidItem(authToken, id, cloudConfig);
+  return plaid.disconnect(itemId);
+});
 handle('wallex:transactions', () => plaid.getTransactions());
 
 // An email link was opened in the browser: hand what it carried to the app and bring the window forward. If the

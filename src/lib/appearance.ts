@@ -1,4 +1,5 @@
 import { useSyncExternalStore } from 'react';
+import { syncUserSettings } from './cloud';
 
 // Look-and-feel preferences, remembered between launches. They are applied straight to the document
 // (a theme attribute, the accent colour, the root font size), so everything built on the theme variables
@@ -70,12 +71,31 @@ const listeners = new Set<() => void>();
 apply(state);
 systemLight?.addEventListener('change', () => apply(state));
 
+export const getAppearance = () => state;
+
 export function setAppearance(patch: Partial<Appearance>) {
   state = { ...state, ...patch };
   try {
     localStorage.setItem(KEY, JSON.stringify(state));
   } catch {
     // Not remembering the choice is fine.
+  }
+  apply(state);
+  listeners.forEach((l) => l());
+  void syncUserSettings({
+    theme: state.theme,
+    accent: state.accent,
+    text_size: state.textSize,
+    reduce_motion: state.reduceMotion,
+  });
+}
+
+export function hydrateAppearance(next: Appearance) {
+  state = next;
+  try {
+    localStorage.setItem(KEY, JSON.stringify(state));
+  } catch {
+    // The hydrated value still applies for this launch.
   }
   apply(state);
   listeners.forEach((l) => l());

@@ -73,6 +73,14 @@ function getSettings() {
   };
 }
 
+function getSupabase() {
+  const env = loadDotEnv();
+  return {
+    url: env.VITE_SUPABASE_URL || '',
+    key: env.VITE_SUPABASE_ANON_KEY || '',
+  };
+}
+
 // Persists the settings form. A blank secret keeps whatever is already saved.
 // Changing environment or client ID invalidates the existing bank connection.
 function saveSettings(next) {
@@ -144,4 +152,4 @@ function clearConnections() {
   write(rest);
 }
 
-module.exports = { getSettings, saveSettings, getUserId, getConnections, addConnection, removeConnection, clearConnections };
+module.exports = { getSettings, getSupabase, saveSettings, getUserId, getConnections, addConnection, removeConnection, clearConnections };

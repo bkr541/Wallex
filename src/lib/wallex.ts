@@ -77,8 +77,10 @@ type Result<T> = { ok: true; data: T } | { ok: false; error: string };
 
 interface WallexBridge {
   getStatus(): Promise<Result<Status>>;
-  connect(payload: { settings: PlaidSettings; bank: Bank }): Promise<Result<ConnectResult>>;
-  disconnect(itemId?: string): Promise<Result<void>>;
+  saveSettings(payload: { settings: PlaidSettings; bankId: string }): Promise<Result<void>>;
+  syncConnections(authToken?: string, cloudConfig?: { url?: string; key?: string }): Promise<Result<void>>;
+  connect(payload: { settings: PlaidSettings; bank: Bank; authToken?: string; cloudConfig?: { url?: string; key?: string } }): Promise<Result<ConnectResult>>;
+  disconnect(itemId?: string, authToken?: string, cloudConfig?: { url?: string; key?: string }): Promise<Result<void>>;
   getTransactions(): Promise<Result<TransactionsResult>>;
   onAuthCallback(cb: (payload: AuthCallback) => void): void;
 }
@@ -100,17 +102,37 @@ declare global {
 }
 
 const NOT_DESKTOP = 'Bank linking is only available in the Wallex desktop app.';
+const cloudConfig = {
+  url: import.meta.env.VITE_SUPABASE_URL as string | undefined,
+  key: import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined,
+};
 
 // Thin wrappers so the UI works (with a clear message) when opened in a plain browser.
 export const wallex = {
   available: () => typeof window !== 'undefined' && Boolean(window.wallex?.getStatus),
   getStatus: (): Promise<Result<Status>> =>
     window.wallex?.getStatus?.() ?? Promise.resolve({ ok: false, error: NOT_DESKTOP }),
-  connect: (payload: { settings: PlaidSettings; bank: Bank }): Promise<Result<ConnectResult>> =>
-    window.wallex?.connect?.(payload) ?? Promise.resolve({ ok: false, error: NOT_DESKTOP }),
-  disconnect: (itemId?: string): Promise<Result<void>> =>
-    window.wallex?.disconnect?.(itemId) ?? Promise.resolve({ ok: false, error: NOT_DESKTOP }),
+  saveSettings: (payload: { settings: PlaidSettings; bankId: string }): Promise<Result<void>> =>
+    window.wallex?.saveSettings?.(payload) ?? Promise.resolve({ ok: false, error: NOT_DESKTOP }),
+  syncConnections: async (): Promise<Result<void>> => {
+    if (!window.wallex?.syncConnections) return { ok: false, error: NOT_DESKTOP };
+    const { data } = await supabase!.auth.getSession();
+    return window.wallex.syncConnections(data.session?.access_token, cloudConfig);
+  },
+  connect: async (payload: { settings: PlaidSettings; bank: Bank }): Promise<Result<ConnectResult>> => {
+    if (!window.wallex?.connect) return { ok: false, error: NOT_DESKTOP };
+    const { data } = await supabase!.auth.getSession();
+    await syncPlaidSettings(payload.settings, payload.bank.id);
+    return window.wallex.connect({ ...payload, authToken: data.session?.access_token, cloudConfig });
+  },
+  disconnect: async (itemId?: string): Promise<Result<void>> => {
+    if (!window.wallex?.disconnect) return { ok: false, error: NOT_DESKTOP };
+    const { data } = await supabase!.auth.getSession();
+    return window.wallex.disconnect(itemId, data.session?.access_token, cloudConfig);
+  },
   getTransactions: (): Promise<Result<TransactionsResult>> =>
     window.wallex?.getTransactions?.() ?? Promise.resolve({ ok: false, error: NOT_DESKTOP }),
   onAuthCallback: (cb: (payload: AuthCallback) => void) => window.wallex?.onAuthCallback?.(cb),
 };
+import { supabase } from './supabase';
+import { syncPlaidSettings } from './cloud';

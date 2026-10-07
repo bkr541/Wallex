@@ -27,7 +27,10 @@ import ViewToggle from './components/ViewToggle';
 import { useMobileView } from './lib/viewState';
 import { ViewModeProvider } from './lib/viewMode';
 import AuthScreen from './components/auth/AuthScreen';
+import AppOnboarding from './components/onboarding/AppOnboarding';
 import { useAuth } from './lib/auth';
+import { completeOnboarding, needsOnboarding } from './lib/onboarding';
+import { hydrateCloudUser } from './lib/cloudBootstrap';
 import type { TxFilter } from './lib/txFilter';
 
 function Shell() {
@@ -286,6 +289,53 @@ function Shell() {
 
 // Nothing of the app loads until someone is signed in: the launch loader, the bank data and every page sit behind the
 // sign-in screen. Someone choosing a new password after a reset link is not signed in yet either.
+function SignedInApp({ userId, email }: { userId: string; email: string }) {
+  const [revision, setRevision] = useState(0);
+  const [cloudState, setCloudState] = useState<'loading' | 'ready' | 'error'>('loading');
+  const [cloudError, setCloudError] = useState('');
+
+  useEffect(() => {
+    let current = true;
+    setCloudState('loading');
+    hydrateCloudUser(userId, email)
+      .then(() => current && setCloudState('ready'))
+      .catch((error) => {
+        if (!current) return;
+        setCloudError(error instanceof Error ? error.message : 'Could not load your saved Wallex data.');
+        setCloudState('error');
+      });
+    return () => {
+      current = false;
+    };
+  }, [userId, email, revision]);
+
+  if (cloudState === 'loading') return <div className="h-screen w-screen bg-canvas" />;
+  if (cloudState === 'error') {
+    return (
+      <div className="flex h-screen w-screen items-center justify-center bg-canvas p-8 text-center text-ink">
+        <div className="max-w-md rounded-2xl border border-line bg-card p-6">
+          <h1 className="text-xl font-semibold">Wallex Could Not Load Your Data</h1>
+          <p className="mt-2 font-support text-sm text-muted">{cloudError}</p>
+          <button type="button" onClick={() => setRevision((value) => value + 1)} className="mt-5 rounded-xl bg-accent px-5 py-2.5 text-sm font-semibold text-canvas">Try Again</button>
+        </div>
+      </div>
+    );
+  }
+
+  if (needsOnboarding(email)) {
+    return (
+      <AppOnboarding
+        email={email}
+        onComplete={async () => {
+          await completeOnboarding(email);
+          setRevision((value) => value + 1);
+        }}
+      />
+    );
+  }
+  return <Shell />;
+}
+
 export default function App() {
   const auth = useAuth();
   if (auth.status === 'loading') return <div className="h-screen w-screen bg-canvas" />;
@@ -302,5 +352,6 @@ export default function App() {
     );
   }
   if (auth.status === 'signedOut' || auth.recovering) return <AuthScreen />;
-  return <Shell />;
+  const email = auth.session?.user.email ?? '';
+  return <SignedInApp userId={auth.session!.user.id} email={email} />;
 }

@@ -1,5 +1,6 @@
 import { useMemo, useSyncExternalStore } from 'react';
 import { analyze, type Analysis, type Confidence, type Kind, type Recurring } from './recurring';
+import { syncRecurringOverride } from './cloud';
 import type { LinkedAccount, Txn } from './wallex';
 
 const EMPTY: LinkedAccount[] = [];
@@ -53,6 +54,11 @@ export function setOverride(id: string, patch: Partial<Override> | null) {
   if (Object.keys(merged).length === 0) delete store[id];
   else store[id] = merged;
   write(store);
+  void syncRecurringOverride(id, store[id] ?? null);
+}
+
+export function hydrateOverrides(next: Store) {
+  write(next);
 }
 
 const subscribe = (l: () => void) => {
@@ -60,6 +66,7 @@ const subscribe = (l: () => void) => {
   return () => listeners.delete(l);
 };
 export const useOverrides = (): Store => useSyncExternalStore(subscribe, read, read);
+export const getOverrides = (): Store => read();
 
 export interface Corrected extends Recurring {
   originalName: string;

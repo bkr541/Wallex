@@ -197,6 +197,11 @@ async function exchange(publicToken, institution) {
       // Best effort.
     }
   }
+  return {
+    accessToken: access_token,
+    itemId: item_id,
+    institutionName: institution?.name || '',
+  };
 }
 
 // Links the chosen bank. Sandbox skips the Link UI; production runs the real Link flow.
@@ -208,15 +213,15 @@ async function connect(bank) {
       institution_id: bank.id,
       initial_products: s.products,
     });
-    await exchange(public_token, { institution_id: bank.id, name: bank.name });
-    return { connected: true, institutionName: bank.name };
+    const item = await exchange(public_token, { institution_id: bank.id, name: bank.name });
+    return { connected: true, institutionName: bank.name, ...item };
   }
 
   const linkToken = await createLinkToken(s, bank.routingNumber);
   const result = await runLink(linkToken, s.redirectUri);
   if (result.cancelled) return { connected: false, cancelled: true };
-  await exchange(result.publicToken, result.institution);
-  return { connected: true, institutionName: result.institution?.name || bank.name };
+  const item = await exchange(result.publicToken, result.institution);
+  return { connected: true, institutionName: result.institution?.name || bank.name, ...item };
 }
 
 // Unlinks one bank by its item id, or every bank when none is given.

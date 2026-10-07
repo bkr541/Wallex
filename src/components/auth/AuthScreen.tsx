@@ -7,6 +7,7 @@ import BrandStage from './BrandStage';
 import UnderlineField from '../UnderlineField';
 import ViewToggle from '../ViewToggle';
 import { useMobileView } from '../../lib/viewState';
+import { clearOnboardingPending, markOnboardingPending } from '../../lib/onboarding';
 import { RevealButton } from './shared';
 import {
   cancelRecovery,
@@ -135,9 +136,14 @@ export default function AuthScreen() {
         } else setError(r.error);
       }
     } else if (step === 'signup') {
+      markOnboardingPending(values.email);
       const r = await signUp({ firstName: values.first, lastName: values.last, email: values.email, password: values.password });
-      if (!r.ok) setError(r.error);
+      if (!r.ok) {
+        clearOnboardingPending(values.email);
+        setError(r.error);
+      }
       else if (r.next === 'exists') {
+        clearOnboardingPending(values.email);
         setExists(true);
         setError('An account with this email already exists.');
       } else if (r.next === 'verify') {

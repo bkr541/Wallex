@@ -35,6 +35,7 @@ import { money, moneyExact, percentText } from '../lib/patternFormat';
 import { useMobile } from '../lib/viewMode';
 import type { Load } from '../lib/useTransactions';
 import type { TxFilter } from '../lib/txFilter';
+import { syncUserSettings } from '../lib/cloud';
 
 const WINDOW_DAYS = 30; // how far ahead "upcoming" looks
 const LOW_BALANCE = 1000; // the line month-end balances are compared against
@@ -233,6 +234,7 @@ export default function OverviewTab({
         } catch {
           // Not remembering is fine.
         }
+        void syncUserSettings({ overview_closed: next });
         return next;
       }),
   });
