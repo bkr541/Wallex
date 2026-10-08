@@ -7,6 +7,7 @@ import Collapsible from '../components/overview/Collapsible';
 import SlotNumber from '../components/overview/SlotNumber';
 import MerchantLogo from '../components/MerchantLogo';
 import { useRecurring } from '../lib/recurringOverrides';
+import { useRules } from '../lib/rules';
 import {
   bankFees,
   cashBuffer,
@@ -303,15 +304,17 @@ export default function OverviewTab({
   });
   // The Recurring tab's analysis, including any corrections the user made there.
   const recurring = useRecurring(live ? load.allTransactions : null, live ? load.allAccounts : undefined);
+  // The person's Rules decide what counts as spending and income, so the figures follow them.
+  const rules = useRules();
 
   // Everything below is derived once per data change from the same transactions and the same scope.
   const view = useMemo(() => {
     if (!live || !recurring) return null;
     // Every period is offered. When the history is shorter than the one chosen, the page says how much it has.
-    const scopes = OVERVIEW_PERIODS.map((p) => ({ days: p.days, scope: overviewScope(txns, accounts, p.days) }));
+    const scopes = OVERVIEW_PERIODS.map((p) => ({ days: p.days, scope: overviewScope(txns, accounts, p.days, rules) }));
     const periods = scopes.map((s) => s.days);
     return { scopes, periods, analysis: recurring! };
-  }, [live, load, recurring]);
+  }, [live, load, recurring, rules]);
 
   // While loading, the app shows its floating loader instead of text.
   if (load.state === 'loading') return null;
@@ -664,7 +667,7 @@ export default function OverviewTab({
                           onNavigate('transactions', 'Checking', undefined, { name: p.name, ids: p.chargeIds });
                         }
                       }}
-                      className={`cursor-pointer border-b border-line py-3 transition-colors hover:border-b-accent focus-visible:border-b-accent focus-visible:outline-none ${inside ? 'border-l-2 border-l-accent bg-accent-soft/40 pl-3' : ''}`}
+                      className={`cursor-pointer border-b border-line py-3 transition-colors hover:border-b-accent focus-visible:border-b-accent focus-visible:outline-none`}
                     >
                       <div className="grid grid-cols-[3.25rem_minmax(0,1fr)_auto] items-center gap-3">
                         <span className="font-support text-sm text-muted tabular-nums">{shortDate(p.date)}</span>

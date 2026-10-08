@@ -2,6 +2,7 @@ import { supabase } from './supabase';
 import type { Profile } from './profile';
 import type { Appearance } from './appearance';
 import type { Override } from './recurringOverrides';
+import type { Rules } from './rules';
 import type { PlaidSettings } from './wallex';
 
 const QUEUE_KEY = 'wallex-cloud-write-queue';
@@ -20,6 +21,7 @@ type SettingsPatch = {
 type QueuedWrite =
   | { kind: 'profile'; userId: string; data: Profile }
   | { kind: 'settings'; userId: string; data: SettingsPatch }
+  | { kind: 'rules'; userId: string; data: Rules }
   | { kind: 'override-upsert'; userId: string; recurringId: string; data: Override }
   | { kind: 'override-delete'; userId: string; recurringId: string }
   | { kind: 'plaid-settings'; userId: string; bankId: string; data: PlaidSettings };
@@ -42,6 +44,8 @@ export interface CloudSnapshot {
     notification_preferences: Record<string, unknown>;
     onboarding_completed: boolean;
   } | null;
+  // The saved rules; undefined when the account's table has no rules column yet (the migration has not been applied).
+  rules?: Record<string, unknown> | null;
   overrides: Array<{ recurring_id: string; label: string | null; kind: Override['kind'] | null; hide_reason: Override['hide'] | null }>;
   plaidSettings: {
     environment: string;
@@ -102,6 +106,8 @@ async function execute(write: QueuedWrite): Promise<boolean> {
     }));
   } else if (write.kind === 'settings') {
     ({ error } = await supabase.from('user_settings').upsert({ user_id: write.userId, ...write.data }));
+  } else if (write.kind === 'rules') {
+    ({ error } = await supabase.from('user_settings').upsert({ user_id: write.userId, rules: write.data }));
   } else if (write.kind === 'override-upsert') {
     ({ error } = await supabase.from('recurring_overrides').upsert({
       user_id: write.userId,
@@ -142,6 +148,11 @@ export async function syncUserSettings(data: SettingsPatch) {
   if (id) await send({ kind: 'settings', userId: id, data });
 }
 
+export async function syncRules(data: Rules) {
+  const id = await userId();
+  if (id) await send({ kind: 'rules', userId: id, data });
+}
+
 export async function syncRecurringOverride(recurringId: string, data: Override | null) {
   const id = await userId();
   if (!id) return;
@@ -170,11 +181,14 @@ export async function loadCloudSnapshot(activeUserId: string): Promise<CloudSnap
     supabase.from('recurring_overrides').select('recurring_id,label,kind,hide_reason').eq('user_id', activeUserId),
     supabase.from('plaid_settings').select('environment,bank_id,products,country_codes,language,webhook_url,redirect_uri').eq('user_id', activeUserId).maybeSingle(),
   ]);
+  // Read on its own: a missing rules column must not stop the rest of the account from loading.
+  const rules = await supabase.from('user_settings').select('rules').eq('user_id', activeUserId).maybeSingle();
   const errors = [profile.error, settings.error, overrides.error, plaidSettings.error].filter(Boolean);
   if (errors.length) throw new Error(errors.map((error) => error!.message).join(' '));
   return {
     profile: profile.data as CloudSnapshot['profile'],
     settings: settings.data as CloudSnapshot['settings'],
+    rules: rules.error ? undefined : ((rules.data as { rules?: Record<string, unknown> } | null)?.rules ?? null),
     overrides: (overrides.data ?? []) as CloudSnapshot['overrides'],
     plaidSettings: plaidSettings.data as CloudSnapshot['plaidSettings'],
   };

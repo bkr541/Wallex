@@ -38,11 +38,12 @@ import PatternDetail from '../components/PatternDetail';
 import { withBalances } from '../lib/balances';
 import { computePatternMetrics } from '../lib/patternMetrics';
 import { useRecurring } from '../lib/recurringOverrides';
+import { changedRules, useRules } from '../lib/rules';
 import type { Load } from '../lib/useTransactions';
 import {
-  DEFAULT_FILTERS,
   SAMPLE_PATTERNS,
   buildPatterns,
+  filtersFromRules,
   sampleScope,
   sampleTransactionsFor,
   type Bubble,
@@ -334,15 +335,23 @@ function Segmented<T extends string | number>({
 
 export default function PatternsTab({ load }: { load: Load }) {
   const mobile = useMobile();
-  const cfg = mobile ? LAYOUTS.mobile : LAYOUTS.desktop;
+  // The person's Rules: the period and minimum Patterns opens with, how many circles it draws, and what counts as a bill.
+  const rules = useRules();
+  const baseCfg = mobile ? LAYOUTS.mobile : LAYOUTS.desktop;
+  const cfg = useMemo(() => ({ ...baseCfg, maxCircles: Math.min(baseCfg.maxCircles, rules.maxCircles) }), [baseCfg, rules.maxCircles]);
   const live = load.state === 'live';
   const [view, setView] = useState<View>('all');
   const [query, setQuery] = useState('');
-  const [filters, setFilters] = useState<PatternFilters>(DEFAULT_FILTERS);
+  const [filters, setFilters] = useState<PatternFilters>(() => filtersFromRules(rules));
   const [filterOpen, setFilterOpen] = useState(false);
   const filterRef = useRef<HTMLDivElement>(null);
   const phoneFrame = usePhoneFrame();
   const [selected, setSelected] = useState<Bubble | null>(null);
+
+  // A changed default period or minimum in Rules becomes the filter again.
+  useEffect(() => {
+    setFilters((f) => (f.days === rules.defaultDays && f.minAmount === rules.minMonthly ? f : { ...f, days: rules.defaultDays, minAmount: rules.minMonthly }));
+  }, [rules.defaultDays, rules.minMonthly]);
 
   // Close the popover on an outside click or Escape.
   useEffect(() => {
@@ -373,9 +382,9 @@ export default function PatternsTab({ load }: { load: Load }) {
   const data = useMemo(
     () =>
       load.state === 'live' && recurring
-        ? buildPatterns(load.allTransactions, load.allAccounts, filters, recurring)
+        ? buildPatterns(load.allTransactions, load.allAccounts, filters, recurring, rules)
         : SAMPLE_PATTERNS,
-    [load, filters, recurring],
+    [load, filters, recurring, rules],
   );
 
   const pool = useMemo(() => {
@@ -419,15 +428,20 @@ export default function PatternsTab({ load }: { load: Load }) {
     return { metrics, periodRows: pick(metrics.periodRows), historyRows: pick(metrics.historyRows) };
   }, [selected, load, data]);
 
+  // Filters count as active when they differ from what Rules set, since that is where Reset goes back to.
   const activeFilters =
-    (filters.days !== 30 ? 1 : 0) + (filters.account !== 'all' ? 1 : 0) + (filters.minAmount > 0 ? 1 : 0) + (filters.categories.length ? 1 : 0);
+    (filters.days !== rules.defaultDays ? 1 : 0) +
+    (filters.account !== 'all' ? 1 : 0) +
+    (filters.minAmount !== rules.minMonthly ? 1 : 0) +
+    (filters.categories.length ? 1 : 0);
+  const customRules = changedRules(rules).length;
 
   const caption =
     load.state === 'loading'
       ? ''
       : load.state === 'sample'
         ? load.note
-        : `Last ${filters.days} days, averaged per month · ${load.bank}${data.hasCredit ? ' · credit cards included' : ''}.`;
+        : `Last ${filters.days} days, averaged per month · ${load.bank}${data.hasCredit ? ' · credit cards included' : ''}${customRules ? ` · ${customRules} custom ${customRules === 1 ? 'rule' : 'rules'} applied` : ''}.`;
 
   const countFor = (id: View) =>
     id === 'bills' ? data.bills.length : id === 'merchants' ? data.merchants.length : id === 'categories' ? data.categories.length : data.bills.length + data.merchants.length;
@@ -522,7 +536,7 @@ export default function PatternsTab({ load }: { load: Load }) {
     <div className="flex items-center justify-between border-t border-line pt-3">
       <button
         type="button"
-        onClick={() => setFilters(DEFAULT_FILTERS)}
+        onClick={() => setFilters(filtersFromRules(rules))}
         disabled={activeFilters === 0}
         className="cursor-pointer text-sm text-muted hover:text-ink disabled:cursor-default disabled:opacity-40"
       >

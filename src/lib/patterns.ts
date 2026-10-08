@@ -1,5 +1,6 @@
 import { faviconUrl } from './favicon';
 import { analyze, merchantOf, type Analysis, type Recurring } from './recurring';
+import { getRules, type Rules } from './rules';
 import type { LinkedAccount, Txn } from './wallex';
 
 // Turns transactions into the circles on the Patterns page: bills, merchants and categories,
@@ -15,6 +16,13 @@ export interface PatternFilters {
 }
 
 export const DEFAULT_FILTERS: PatternFilters = { days: 30, account: 'all', categories: [], minAmount: 0 };
+
+// The filters Patterns opens with: the standard ones, with the period and minimum the person chose in Rules.
+export const filtersFromRules = (rules: Rules): PatternFilters => ({
+  ...DEFAULT_FILTERS,
+  days: rules.defaultDays,
+  minAmount: rules.minMonthly,
+});
 
 export interface Bubble {
   key: string;
@@ -95,8 +103,6 @@ const SHORT_NAMES: Record<string, string> = {
 };
 export const categoryName = (label: string) => SHORT_NAMES[label] ?? label;
 
-const BILL_CATEGORIES = new Set(['RENT_AND_UTILITIES', 'LOAN_PAYMENTS', 'GOVERNMENT_AND_NON_PROFIT']);
-
 // Moving money between your own accounts is not spending. Zelle, cash and card payments are.
 const OWN_MONEY = new Set([
   'TRANSFER_OUT_ACCOUNT_TRANSFER',
@@ -136,6 +142,7 @@ export interface PatternScope {
   toMonthly: number; // multiplier from period dollars to dollars per month
   creditIds: Set<string>;
   hasCredit: boolean;
+  rules: Rules; // the person's Rules every figure was worked out with
   accountOk: (t: Txn) => boolean;
   inView: (t: Txn) => boolean; // in the chosen accounts and the picked period
   isSpending: (t: Txn) => boolean; // money out that is really spending
@@ -157,13 +164,27 @@ export const isMoneyIn = (t: Txn, scope: PatternScope) =>
   !IN_OWN_MONEY.has(t.categoryDetailKey) &&
   t.categoryKey !== 'LOAN_PAYMENTS';
 
-// The part of money in that the bank tags as income (pay). Patterns' "Monthly Income" is this, so the two
-// screens are built from one definition: Overview shows the whole and how much of it is pay.
-export const isIncome = (t: Txn, scope: PatternScope) => isMoneyIn(t, scope) && t.categoryKey === 'INCOME';
+// The part of money in that counts as income: the pay the bank tags as income, or, if the Rules say so, all of it.
+// Patterns' "Monthly Income" is this, so the two screens are built from one definition: Overview shows the whole
+// and how much of it is pay.
+export const isIncome = (t: Txn, scope: PatternScope) =>
+  isMoneyIn(t, scope) && (scope.rules.incomeFrom === 'all' || t.categoryKey === 'INCOME');
+
+// A transaction's merchant key is looked up often (every spending check), so it is worked out once per transaction.
+const merchantKeys = new WeakMap<Txn, string>();
+const merchantKeyOf = (t: Txn) => {
+  let key = merchantKeys.get(t);
+  if (key === undefined) {
+    key = merchantOf(t).key;
+    merchantKeys.set(t, key);
+  }
+  return key;
+};
 
 // Moving money between your own accounts is not spending, and neither is paying a card whose own
-// purchases are already counted.
-export function makeScope(txns: Txn[], accounts: LinkedAccount[], filters: PatternFilters): PatternScope {
+// purchases are already counted (unless the Rules say to count those payments too). Merchants the person ignored
+// are not spending either.
+export function makeScope(txns: Txn[], accounts: LinkedAccount[], filters: PatternFilters, rules: Rules = getRules()): PatternScope {
   const days = filters.days;
   const credit = accounts.filter((a) => a.type === 'credit');
   const creditIds = new Set(credit.map((a) => a.id));
@@ -195,6 +216,9 @@ export function makeScope(txns: Txn[], accounts: LinkedAccount[], filters: Patte
     return named.length ? named.some((m) => creditMasks.has(m)) : hasCredit;
   };
   const cardPurchasesInView = hasCredit && filters.account !== 'checking';
+  // Merchants the person asked to leave out. Looked up by the same key the circles use.
+  const ignored = new Set(rules.ignoredMerchants);
+  const isIgnored = (t: Txn) => ignored.size > 0 && ignored.has(merchantKeyOf(t));
 
   return {
     days,
@@ -208,12 +232,14 @@ export function makeScope(txns: Txn[], accounts: LinkedAccount[], filters: Patte
     toMonthly: 30 / effectiveDays,
     creditIds,
     hasCredit,
+    rules,
     accountOk,
     inView: (t) => accountOk(t) && t.date >= start,
     isSpending: (t) =>
       t.amount < 0 &&
       !OWN_MONEY.has(t.categoryDetailKey) &&
-      !(cardPurchasesInView && t.categoryDetailKey === 'LOAN_PAYMENTS_CREDIT_CARD_PAYMENT' && paysLinkedCard(t)),
+      !(!rules.countCardPayments && cardPurchasesInView && t.categoryDetailKey === 'LOAN_PAYMENTS_CREDIT_CARD_PAYMENT' && paysLinkedCard(t)) &&
+      !isIgnored(t),
   };
 }
 
@@ -270,8 +296,10 @@ export function buildPatterns(
   accounts: LinkedAccount[],
   filters: PatternFilters,
   analysis?: Analysis, // the Recurring tab's analysis, so both screens agree on what is a bill
+  rules: Rules = getRules(),
 ): PatternData {
-  const scope = makeScope(txns, accounts, filters);
+  const scope = makeScope(txns, accounts, filters, rules);
+  const billCategories = new Set(rules.billCategories);
   const { creditIds, hasCredit, toMonthly, inView, isSpending } = scope;
 
   const windowed = txns.filter(inView);
@@ -317,7 +345,7 @@ export function buildPatterns(
     const cat = dominant(g);
     const recurringBill =
       rec && (rec.kind === 'bill' || rec.kind === 'debt' || rec.kind === 'installment') && rec.confidence !== 'habit';
-    const isBill = recurringBill || BILL_CATEGORIES.has(cat) || /INSURANCE/.test([...g.categories.keys()].join(' '));
+    const isBill = recurringBill || billCategories.has(cat) || /INSURANCE/.test([...g.categories.keys()].join(' '));
     const bubble: Bubble = {
       key: g.key,
       name: g.name,

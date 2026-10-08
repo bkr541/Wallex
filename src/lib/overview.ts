@@ -1,5 +1,6 @@
 import { categoryName, epochDay, isIncome, isMoneyIn, isoDaysAgo, isoFromEpochDay, makeScope, DEFAULT_FILTERS, type PatternScope } from './patterns';
 import { projectNext, stepSchedule, type Analysis, type Recurring } from './recurring';
+import { getRules, type Rules } from './rules';
 import type { LinkedAccount, Txn } from './wallex';
 
 // The numbers behind the Overview screen. Everything here is plain calculation (no wording or
@@ -19,8 +20,8 @@ export const OVERVIEW_PERIODS: { days: OverviewDays; button: string; phrase: str
 ];
 
 // All linked accounts, over the last `days` days.
-export const overviewScope = (txns: Txn[], accounts: LinkedAccount[], days: OverviewDays): PatternScope =>
-  makeScope(txns, accounts, { ...DEFAULT_FILTERS, days, account: 'all' });
+export const overviewScope = (txns: Txn[], accounts: LinkedAccount[], days: OverviewDays, rules: Rules = getRules()): PatternScope =>
+  makeScope(txns, accounts, { ...DEFAULT_FILTERS, days, account: 'all' }, rules);
 
 // ---------------------------------------------------------------------------------------------
 // Current position

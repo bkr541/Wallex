@@ -1,7 +1,8 @@
 import { DEFAULTS, getAppearance, hydrateAppearance } from './appearance';
-import { flushCloudWrites, loadCloudSnapshot, syncPlaidSettings, syncProfile, syncRecurringOverride, syncUserSettings } from './cloud';
+import { flushCloudWrites, loadCloudSnapshot, syncPlaidSettings, syncProfile, syncRecurringOverride, syncRules, syncUserSettings } from './cloud';
 import { hydrateOnboarding } from './onboarding';
 import { getProfile, hydrateProfile } from './profile';
+import { getRules, hydrateRules, rulesAreDefault } from './rules';
 import { getOverrides, hydrateOverrides, type Override } from './recurringOverrides';
 import { getMobileView, hydrateMobileView } from './viewState';
 import { wallex, type PlaidSettings } from './wallex';
@@ -69,6 +70,14 @@ export async function hydrateCloudUser(userId: string, email: string) {
     if (Object.keys(localNotifications).length) await syncUserSettings({ notification_preferences: localNotifications });
     else localStorage.setItem('wallex-notification-preferences', JSON.stringify(snapshot.settings.notification_preferences ?? {}));
     hydrateOnboarding(email, snapshot.settings.onboarding_completed);
+  }
+
+  // Rules: the account's copy wins, unless it has none yet and this computer does.
+  if (snapshot.rules !== undefined) {
+    const remoteHasRules = !!snapshot.rules && Object.keys(snapshot.rules).length > 0;
+    const local = getRules();
+    if (!remoteHasRules && !rulesAreDefault(local)) await syncRules(local);
+    else if (remoteHasRules) hydrateRules(snapshot.rules);
   }
 
   const localOverrides = getOverrides();

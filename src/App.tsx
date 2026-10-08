@@ -13,11 +13,13 @@ import { accountLabel, useTransactions } from './lib/useTransactions';
 import { NAV, TABS } from './lib/pages';
 import { ListIcon } from './components/NavIcons';
 import AppearanceTab from './pages/AppearanceTab';
+import RulesTab from './pages/RulesTab';
 import OnboardingTab from './pages/OnboardingTab';
 import PageHeader from './components/PageHeader';
 import CardsTab from './pages/CardsTab';
 import LoginTab from './pages/LoginTab';
 import LoginHeroTab from './pages/LoginHeroTab';
+import PatternsMockTab from './pages/PatternsMockTab';
 import AccountTab from './pages/AccountTab';
 import CalendarTab from './pages/CalendarTab';
 import PatternDetailTab from './pages/PatternDetailTab';
@@ -231,6 +233,8 @@ function Shell() {
             <AccountTab onConnectionChange={refresh} onRefresh={refresh} refreshing={refreshing} />
           ) : activeId === 'settings' && activeTab === 'Appearance' ? (
             <AppearanceTab />
+          ) : activeId === 'settings' && activeTab === 'Rules' ? (
+            <RulesTab load={load} />
           ) : activeId === 'settings' && activeTab === 'Setup' ? (
             <SetupTab onConnectionChange={refresh} />
           ) : activeId === 'transactions' && activeTab === 'Checking' ? (
@@ -241,6 +245,8 @@ function Shell() {
             <CalendarTab load={load} />
           ) : activeId === 'scratchpad' && activeTab === 'Login' ? (
             <LoginTab />
+          ) : activeId === 'scratchpad' && activeTab === 'Patterns' ? (
+            <PatternsMockTab />
           ) : activeId === 'scratchpad' && activeTab === 'Login Hero' ? (
             <LoginHeroTab />
           ) : activeId === 'scratchpad' && activeTab === 'UI Cards' ? (
