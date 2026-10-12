@@ -1,17 +1,8 @@
-export interface PlaidSettings {
-  environment: string;
-  clientId: string;
-  secret: string; // blank keeps the saved secret
-  products: string[];
-  countries: string[];
-  language: string;
-  webhookUrl: string;
-  redirectUri: string;
-}
-
-export interface Status extends Omit<PlaidSettings, 'secret'> {
-  hasSecret: boolean;
-  bankId: string;
+// What the server says about the person's bank connections. Nothing secret ever reaches the app: the Plaid keys and
+// each bank's access token live on the server.
+export interface Status {
+  configured: boolean; // the server has its Plaid keys
+  environment: string; // sandbox or production
   connections: { itemId: string; institutionName: string }[]; // every bank linked through Plaid
 }
 
@@ -75,17 +66,7 @@ export interface ConnectResult {
 
 type Result<T> = { ok: true; data: T } | { ok: false; error: string };
 
-interface WallexBridge {
-  getStatus(): Promise<Result<Status>>;
-  saveSettings(payload: { settings: PlaidSettings; bankId: string }): Promise<Result<void>>;
-  syncConnections(authToken?: string, cloudConfig?: { url?: string; key?: string }): Promise<Result<void>>;
-  connect(payload: { settings: PlaidSettings; bank?: Bank; authToken?: string; cloudConfig?: { url?: string; key?: string } }): Promise<Result<ConnectResult>>;
-  disconnect(itemId?: string, authToken?: string, cloudConfig?: { url?: string; key?: string }): Promise<Result<void>>;
-  getTransactions(): Promise<Result<TransactionsResult>>;
-  onAuthCallback(cb: (payload: AuthCallback) => void): void;
-}
-
-// What a confirmation or password-reset email link carries, handed over by the desktop app.
+// What a confirmation or password-reset email link carries.
 export interface AuthCallback {
   access_token?: string;
   refresh_token?: string;
@@ -95,65 +76,148 @@ export interface AuthCallback {
   error_description?: string;
 }
 
+// The few things only the desktop app can do. Everything else (banks, transactions) goes through the server.
+interface DesktopBridge {
+  platform: string;
+  // Opens Plaid Link in its own window, for banks that sign in by redirecting (OAuth).
+  runLink(linkToken: string, redirectUri?: string): Promise<Result<LinkOutcome>>;
+  onAuthCallback(cb: (payload: AuthCallback) => void): void;
+}
+
+export type LinkOutcome = { cancelled: true } | { cancelled?: false; publicToken: string; institution?: { institution_id?: string; name?: string } };
+
 declare global {
   interface Window {
-    wallex?: Partial<WallexBridge>;
+    wallex?: Partial<DesktopBridge>;
   }
 }
 
-const NOT_DESKTOP = 'Bank linking is only available in the Wallex desktop app.';
-const cloudConfig = {
-  url: import.meta.env.VITE_SUPABASE_URL as string | undefined,
-  key: import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined,
+export const isDesktop = () => typeof window !== 'undefined' && Boolean(window.wallex?.platform);
+
+const NOT_SIGNED_IN = 'Sign in to use your banks.';
+
+// Calls the `plaid` function on the server as the signed-in person. Errors come back as readable sentences.
+async function call<T>(body: Record<string, unknown>): Promise<Result<T>> {
+  if (!supabase) return { ok: false, error: NOT_SIGNED_IN };
+  const { data, error } = await supabase.functions.invoke('plaid', { body });
+  if (error) {
+    let message = 'Wallex could not reach its bank service. Try again in a moment.';
+    const ctx = (error as { context?: Response }).context;
+    if (ctx && typeof ctx.json === 'function') {
+      try {
+        const detail = await ctx.json();
+        if (detail?.error) message = detail.error;
+      } catch {
+        // Keep the general message.
+      }
+    }
+    return { ok: false, error: message };
+  }
+  if (data?.error) return { ok: false, error: data.error };
+  return { ok: true, data: data as T };
+}
+
+const PENDING_LINK = 'wallex-plaid-link';
+
+// Starting a link: on the server, a sandbox bank is linked straight away; otherwise it hands back a Link token, which is
+// opened here (a window of the desktop app, or Plaid Link in the page), and the result is exchanged on the server.
+async function linkBank(bank?: Bank): Promise<Result<ConnectResult>> {
+  const started = await call<{ mode: 'done' | 'link'; connected?: boolean; institutionName?: string; linkToken?: string; redirectUri?: string }>({
+    action: 'start',
+    bank,
+    client: isDesktop() ? 'desktop' : 'web',
+  });
+  if (!started.ok) return started;
+  if (started.data.mode === 'done') return { ok: true, data: { connected: Boolean(started.data.connected), institutionName: started.data.institutionName } };
+
+  const { linkToken, redirectUri } = started.data;
+  if (!linkToken) return { ok: false, error: 'The bank service did not return a link.' };
+
+  let outcome: LinkOutcome;
+  if (isDesktop() && window.wallex?.runLink) {
+    const r = await window.wallex.runLink(linkToken, redirectUri);
+    if (!r.ok) return r;
+    outcome = r.data;
+  } else {
+    // A bank that signs in elsewhere sends the person back to this page; the token is kept so Link can pick up where it left off.
+    try {
+      localStorage.setItem(PENDING_LINK, JSON.stringify({ linkToken, at: Date.now() }));
+    } catch {
+      // Without storage, OAuth banks cannot resume; others still work.
+    }
+    try {
+      outcome = await openPlaidLink(linkToken);
+    } catch (err) {
+      return { ok: false, error: err instanceof Error ? err.message : 'Could not open Plaid Link.' };
+    }
+  }
+  return finishLink(outcome);
+}
+
+async function finishLink(outcome: LinkOutcome): Promise<Result<ConnectResult>> {
+  try {
+    localStorage.removeItem(PENDING_LINK);
+  } catch {
+    // Nothing to clear.
+  }
+  if (outcome.cancelled) return { ok: true, data: { connected: false, cancelled: true } };
+  const done = await call<{ itemId: string; institutionName: string }>({ action: 'exchange', publicToken: outcome.publicToken, institution: outcome.institution });
+  if (!done.ok) return done;
+  return { ok: true, data: { connected: true, institutionName: done.data.institutionName } };
+}
+
+export const wallex = {
+  // Banks are reached through the server, so this is true wherever the app can sign in.
+  available: () => Boolean(supabase),
+  getStatus: (): Promise<Result<Status>> => call<Status>({ action: 'status' }),
+  connect: (payload: { bank: Bank }): Promise<Result<ConnectResult>> => linkBank(payload.bank),
+  // Link another bank: Plaid starts at its own list of institutions.
+  connectAnother: (): Promise<Result<ConnectResult>> => linkBank(),
+  disconnect: (itemId?: string): Promise<Result<void>> => call<void>({ action: 'disconnect', itemId }),
+  getTransactions: (): Promise<Result<TransactionsResult>> => call<TransactionsResult>({ action: 'transactions' }),
+
+  // Picks up a bank sign-in that sent the person back to the page (the URL carries oauth_state_id). Returns null when
+  // there is nothing to resume.
+  resumeLink: async (): Promise<Result<ConnectResult> | null> => {
+    if (typeof window === 'undefined' || isDesktop() || !new URLSearchParams(window.location.search).has('oauth_state_id')) return null;
+    let pending: { linkToken?: string; at?: number } | null = null;
+    try {
+      pending = JSON.parse(localStorage.getItem(PENDING_LINK) ?? 'null');
+    } catch {
+      pending = null;
+    }
+    const clean = () => window.history.replaceState({}, '', window.location.pathname);
+    if (!pending?.linkToken || !pending.at || Date.now() - pending.at > 30 * 60_000) {
+      clean();
+      return { ok: false, error: 'That bank sign-in took too long. Start linking again.' };
+    }
+    const received = window.location.href;
+    clean();
+    try {
+      return finishLink(await openPlaidLink(pending.linkToken, received));
+    } catch (err) {
+      return { ok: false, error: err instanceof Error ? err.message : 'Could not finish linking.' };
+    }
+  },
+
+  // The details from a confirmation or password-reset email link. The desktop app hands them over; on the web the
+  // link lands on the page itself, with the details in the address.
+  onAuthCallback: (cb: (payload: AuthCallback) => void) => {
+    if (isDesktop()) return window.wallex?.onAuthCallback?.(cb);
+    if (typeof window === 'undefined') return;
+    const params = new URLSearchParams(window.location.hash.replace(/^#/, ''));
+    if (!params.has('access_token') && !params.has('error')) return;
+    window.history.replaceState({}, '', window.location.pathname + window.location.search);
+    cb({
+      access_token: params.get('access_token') ?? undefined,
+      refresh_token: params.get('refresh_token') ?? undefined,
+      type: params.get('type') ?? undefined,
+      error: params.get('error') ?? undefined,
+      error_code: params.get('error_code') ?? undefined,
+      error_description: params.get('error_description') ?? undefined,
+    });
+  },
 };
 
-// Thin wrappers so the UI works (with a clear message) when opened in a plain browser.
-export const wallex = {
-  available: () => typeof window !== 'undefined' && Boolean(window.wallex?.getStatus),
-  getStatus: (): Promise<Result<Status>> =>
-    window.wallex?.getStatus?.() ?? Promise.resolve({ ok: false, error: NOT_DESKTOP }),
-  saveSettings: (payload: { settings: PlaidSettings; bankId: string }): Promise<Result<void>> =>
-    window.wallex?.saveSettings?.(payload) ?? Promise.resolve({ ok: false, error: NOT_DESKTOP }),
-  syncConnections: async (): Promise<Result<void>> => {
-    if (!window.wallex?.syncConnections) return { ok: false, error: NOT_DESKTOP };
-    const { data } = await supabase!.auth.getSession();
-    return window.wallex.syncConnections(data.session?.access_token, cloudConfig);
-  },
-  connect: async (payload: { settings: PlaidSettings; bank: Bank }): Promise<Result<ConnectResult>> => {
-    if (!window.wallex?.connect) return { ok: false, error: NOT_DESKTOP };
-    const { data } = await supabase!.auth.getSession();
-    await syncPlaidSettings(payload.settings, payload.bank.id);
-    return window.wallex.connect({ ...payload, authToken: data.session?.access_token, cloudConfig });
-  },
-  connectAnother: async (): Promise<Result<ConnectResult>> => {
-    if (!window.wallex?.connect) return { ok: false, error: NOT_DESKTOP };
-    const status = await wallex.getStatus();
-    if (!status.ok) return status;
-    if (!status.data.clientId || !status.data.hasSecret) {
-      return { ok: false, error: 'Add your Plaid credentials in Settings → Setup before linking another bank.' };
-    }
-    const settings: PlaidSettings = {
-      environment: status.data.environment,
-      clientId: status.data.clientId,
-      secret: '',
-      products: status.data.products,
-      countries: status.data.countries,
-      language: status.data.language,
-      webhookUrl: status.data.webhookUrl,
-      redirectUri: status.data.redirectUri,
-    };
-    const { data } = await supabase!.auth.getSession();
-    await syncPlaidSettings(settings, status.data.bankId);
-    return window.wallex.connect({ settings, authToken: data.session?.access_token, cloudConfig });
-  },
-  disconnect: async (itemId?: string): Promise<Result<void>> => {
-    if (!window.wallex?.disconnect) return { ok: false, error: NOT_DESKTOP };
-    const { data } = await supabase!.auth.getSession();
-    return window.wallex.disconnect(itemId, data.session?.access_token, cloudConfig);
-  },
-  getTransactions: (): Promise<Result<TransactionsResult>> =>
-    window.wallex?.getTransactions?.() ?? Promise.resolve({ ok: false, error: NOT_DESKTOP }),
-  onAuthCallback: (cb: (payload: AuthCallback) => void) => window.wallex?.onAuthCallback?.(cb),
-};
 import { supabase } from './supabase';
-import { syncPlaidSettings } from './cloud';
+import { openPlaidLink } from './plaidLink';

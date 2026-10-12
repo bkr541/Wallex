@@ -1,8 +1,6 @@
 const { app, BrowserWindow, ipcMain, shell } = require('electron');
 const path = require('path');
-const config = require('./config.cjs');
-const cloud = require('./supabase.cjs');
-const plaid = require('./plaid.cjs');
+const { runLink } = require('./link.cjs');
 const authServer = require('./authServer.cjs');
 
 const RENDERER_URL = process.env.ELECTRON_RENDERER_URL;
@@ -49,25 +47,11 @@ const handle = (channel, fn) =>
     }
   });
 
-handle('wallex:status', () => plaid.getStatus());
-handle('wallex:save-settings', ({ settings, bankId }) => config.saveSettings({ ...settings, bankId }));
-handle('wallex:sync-connections', async (authToken, cloudConfig) => {
-  const connections = config.getConnections();
-  for (const connection of connections) await cloud.storePlaidItem(authToken, connection, cloudConfig);
+// Plaid Link opens in its own window. The Link token comes from the server, so no Plaid key or bank token is ever held here.
+handle('wallex:run-link', async (linkToken, redirectUri) => {
+  if (typeof linkToken !== 'string' || !linkToken) throw new Error('Missing the Plaid link token.');
+  return runLink(linkToken, typeof redirectUri === 'string' && redirectUri ? redirectUri : undefined);
 });
-handle('wallex:connect', async ({ settings, bank, authToken, cloudConfig }) => {
-  config.saveSettings({ ...settings, bankId: bank?.id || config.getSettings().bankId });
-  const result = await plaid.connect(bank);
-  if (result.connected) await cloud.storePlaidItem(authToken, result, cloudConfig);
-  const { accessToken: _accessToken, ...safe } = result;
-  return safe;
-});
-handle('wallex:disconnect', async (itemId, authToken, cloudConfig) => {
-  const ids = itemId ? [itemId] : plaid.getStatus().connections.map((connection) => connection.itemId);
-  for (const id of ids) await cloud.deletePlaidItem(authToken, id, cloudConfig);
-  return plaid.disconnect(itemId);
-});
-handle('wallex:transactions', () => plaid.getTransactions());
 
 // An email link was opened in the browser: hand what it carried to the app and bring the window forward. If the
 // window is not ready yet, keep it until the app asks.

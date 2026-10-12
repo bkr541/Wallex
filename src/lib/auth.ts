@@ -2,7 +2,7 @@ import { useSyncExternalStore } from 'react';
 import type { AuthError, Session, User } from '@supabase/supabase-js';
 import { EMPTY_PROFILE, getProfile, saveProfile } from './profile';
 import { supabase } from './supabase';
-import { wallex, type AuthCallback } from './wallex';
+import { isDesktop, wallex, type AuthCallback } from './wallex';
 
 // Who is signed in. The app shows the sign-in screen until there is a session, and keeps that session between
 // launches. Everything that talks to Supabase Auth lives here, with its errors turned into plain sentences.
@@ -121,8 +121,9 @@ const needClient = () => fail('Wallex is not connected to its sign-in service. R
 
 /* ---------------------------------------------------------------------------------------------- actions */
 
-// The page the app serves itself for email links (see electron/authServer.cjs).
-const LINK_LANDING = 'http://127.0.0.1:54719';
+// Where email links send the person. The desktop app serves a small page for this itself (see electron/authServer.cjs); on
+// the web it is the site. Either way the address must be allowed under Authentication → URL Configuration in Supabase.
+const LINK_LANDING = isDesktop() ? 'http://127.0.0.1:54719' : `${window.location.origin}/`;
 
 export async function signIn(email: string, password: string): Promise<{ ok: true } | { ok: false; error: string; unverified?: boolean }> {
   if (!supabase) return needClient();

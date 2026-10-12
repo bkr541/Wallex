@@ -34,6 +34,7 @@ import { ViewModeProvider } from './lib/viewMode';
 import AuthScreen from './components/auth/AuthScreen';
 import AppOnboarding from './components/onboarding/AppOnboarding';
 import { useAuth } from './lib/auth';
+import { wallex } from './lib/wallex';
 import { completeOnboarding, needsOnboarding } from './lib/onboarding';
 import { hydrateCloudUser } from './lib/cloudBootstrap';
 import type { TxFilter } from './lib/txFilter';
@@ -56,6 +57,25 @@ function Shell() {
     if (recurringFilter) setRecurringStart((r) => ({ filter: recurringFilter, nonce: r.nonce + 1 }));
   };
   const { load, refreshing, refresh } = useTransactions();
+
+  // A bank that signs in on its own site (Chase and other OAuth banks) sends the person back to the page; finish linking it.
+  const [linkNotice, setLinkNotice] = useState<string | null>(null);
+  useEffect(() => {
+    let current = true;
+    wallex.resumeLink().then((result) => {
+      if (!current || !result) return;
+      if (!result.ok) return setLinkNotice(result.error);
+      if (result.data.connected) {
+        setLinkNotice(`Connected ${result.data.institutionName || 'your bank'}.`);
+        refresh();
+        setActiveId('settings');
+        setActiveTabs((prev) => ({ ...prev, settings: 'Account' }));
+      }
+    });
+    return () => {
+      current = false;
+    };
+  }, [refresh]);
 
   // The launch loader stays up while the data loads, then counts up to the available balance before it leaves.
   // With no bank linked there is no balance, so it leaves as soon as loading is over.
@@ -295,6 +315,12 @@ function Shell() {
       >
         <ListIcon className="h-5 w-5" />
       </button>
+
+      {linkNotice && (
+        <button type="button" onClick={() => setLinkNotice(null)} className="fixed top-4 left-1/2 z-50 -translate-x-1/2 cursor-pointer rounded-full border border-line bg-card px-5 py-2.5 font-support text-sm shadow-[0_12px_30px_rgba(0,0,0,0.5)]" aria-live="polite">
+          {linkNotice} <span className="ml-2 text-muted">Dismiss</span>
+        </button>
+      )}
 
       <ViewToggle />
     </div>

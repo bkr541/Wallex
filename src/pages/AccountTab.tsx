@@ -266,7 +266,7 @@ function Banks({ onConnectionChange }: { onConnectionChange?: () => void }) {
               description="Linked through Plaid"
               trigger="Unlink…"
               title={`Unlink ${b.institutionName || 'this bank'}?`}
-              body="Wallex stops reading its accounts and transactions. Your saved Plaid credentials are kept, so you can connect again in Setup."
+              body="Wallex stops reading its accounts and transactions, and the connection is closed at Plaid. You can link it again in Setup."
               confirm="Unlink"
               onConfirm={() => unlink(b.itemId, b.institutionName || 'the bank')}
               confirmDisabled={busy}
@@ -281,7 +281,7 @@ function Banks({ onConnectionChange }: { onConnectionChange?: () => void }) {
         </div>
       ) : (
         <p className="font-support text-sm text-muted">
-          {banks === undefined ? 'Checking…' : wallex.available() ? 'No bank is linked. Connect one in Settings → Setup.' : 'Open the Wallex desktop app to see linked banks.'}
+          {banks === undefined ? 'Checking…' : 'No bank is linked. Connect one in Settings → Setup.'}
         </p>
       )}
       <Notice text={notice} />

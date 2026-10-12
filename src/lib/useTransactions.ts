@@ -27,12 +27,7 @@ export function useTransactions() {
     setRefreshing(false);
 
     if (!res.ok) {
-      // Outside the desktop app there is nothing to connect to, so just show the samples.
-      return setLoad({
-        state: 'sample',
-        note: wallex.available() ? res.error : 'Showing sample data. Open the Wallex desktop app to connect your bank.',
-        isError: wallex.available(),
-      });
+      return setLoad({ state: 'sample', note: res.error, isError: true });
     }
     const data = res.data;
     if (!data.connected) {

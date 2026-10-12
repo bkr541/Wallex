@@ -4,7 +4,6 @@ import type { Appearance } from './appearance';
 import type { Override } from './recurringOverrides';
 import type { Rules } from './rules';
 import type { Goal } from './goals';
-import type { PlaidSettings } from './wallex';
 
 const QUEUE_KEY = 'wallex-cloud-write-queue';
 
@@ -25,8 +24,7 @@ type QueuedWrite =
   | { kind: 'rules'; userId: string; data: Rules }
   | { kind: 'goals'; userId: string; data: Goal[] }
   | { kind: 'override-upsert'; userId: string; recurringId: string; data: Override }
-  | { kind: 'override-delete'; userId: string; recurringId: string }
-  | { kind: 'plaid-settings'; userId: string; bankId: string; data: PlaidSettings };
+  | { kind: 'override-delete'; userId: string; recurringId: string };
 
 export interface CloudSnapshot {
   profile: {
@@ -51,15 +49,6 @@ export interface CloudSnapshot {
   // The saved goals; undefined when the table has no goals column yet.
   goals?: unknown[] | null;
   overrides: Array<{ recurring_id: string; label: string | null; kind: Override['kind'] | null; hide_reason: Override['hide'] | null }>;
-  plaidSettings: {
-    environment: string;
-    bank_id: string | null;
-    products: string[];
-    country_codes: string[];
-    language: string;
-    webhook_url: string | null;
-    redirect_uri: string | null;
-  } | null;
 }
 
 function readQueue(): QueuedWrite[] {
@@ -125,16 +114,8 @@ async function execute(write: QueuedWrite): Promise<boolean> {
   } else if (write.kind === 'override-delete') {
     ({ error } = await supabase.from('recurring_overrides').delete().eq('user_id', write.userId).eq('recurring_id', write.recurringId));
   } else {
-    ({ error } = await supabase.from('plaid_settings').upsert({
-      user_id: write.userId,
-      environment: write.data.environment,
-      bank_id: write.bankId,
-      products: write.data.products,
-      country_codes: write.data.countries,
-      language: write.data.language,
-      webhook_url: write.data.webhookUrl || null,
-      redirect_uri: write.data.redirectUri || null,
-    }));
+    // A write from an older version (Plaid settings) that nothing reads any more: drop it.
+    return true;
   }
   if (error) console.error(`Wallex cloud write failed (${write.kind}):`, error.message);
   return !error;
@@ -170,11 +151,6 @@ export async function syncRecurringOverride(recurringId: string, data: Override 
   await send(data ? { kind: 'override-upsert', userId: id, recurringId, data } : { kind: 'override-delete', userId: id, recurringId });
 }
 
-export async function syncPlaidSettings(data: PlaidSettings, bankId: string) {
-  const id = await userId();
-  if (id) await send({ kind: 'plaid-settings', userId: id, bankId, data });
-}
-
 export async function flushCloudWrites(activeUserId: string) {
   const pending = readQueue();
   const keep: QueuedWrite[] = [];
@@ -185,17 +161,16 @@ export async function flushCloudWrites(activeUserId: string) {
 }
 
 export async function loadCloudSnapshot(activeUserId: string): Promise<CloudSnapshot> {
-  if (!supabase) return { profile: null, settings: null, overrides: [], plaidSettings: null };
-  const [profile, settings, overrides, plaidSettings] = await Promise.all([
+  if (!supabase) return { profile: null, settings: null, overrides: [] };
+  const [profile, settings, overrides] = await Promise.all([
     supabase.from('profiles').select('first_name,last_name,preferred_name,phone,photo_data').eq('user_id', activeUserId).maybeSingle(),
     supabase.from('user_settings').select('theme,accent,text_size,reduce_motion,view_mode,overview_closed,notification_preferences,onboarding_completed').eq('user_id', activeUserId).maybeSingle(),
     supabase.from('recurring_overrides').select('recurring_id,label,kind,hide_reason').eq('user_id', activeUserId),
-    supabase.from('plaid_settings').select('environment,bank_id,products,country_codes,language,webhook_url,redirect_uri').eq('user_id', activeUserId).maybeSingle(),
   ]);
   // Read on its own: a missing rules column must not stop the rest of the account from loading.
   const rules = await supabase.from('user_settings').select('rules').eq('user_id', activeUserId).maybeSingle();
   const goals = await supabase.from('user_settings').select('goals').eq('user_id', activeUserId).maybeSingle();
-  const errors = [profile.error, settings.error, overrides.error, plaidSettings.error].filter(Boolean);
+  const errors = [profile.error, settings.error, overrides.error].filter(Boolean);
   if (errors.length) throw new Error(errors.map((error) => error!.message).join(' '));
   return {
     profile: profile.data as CloudSnapshot['profile'],
@@ -203,6 +178,5 @@ export async function loadCloudSnapshot(activeUserId: string): Promise<CloudSnap
     goals: goals.error ? undefined : ((goals.data as { goals?: unknown[] } | null)?.goals ?? null),
     rules: rules.error ? undefined : ((rules.data as { rules?: Record<string, unknown> } | null)?.rules ?? null),
     overrides: (overrides.data ?? []) as CloudSnapshot['overrides'],
-    plaidSettings: plaidSettings.data as CloudSnapshot['plaidSettings'],
   };
 }

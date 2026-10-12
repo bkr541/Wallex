@@ -178,7 +178,6 @@ function ConnectStep({ back, onContinue }: { back: () => void; onContinue: () =>
       setLoading(false);
       if (!result.ok) return setMessage({ kind: 'error', text: result.error });
       setStatus(result.data);
-      setBankId(BANKS.some((bank) => bank.id === result.data.bankId) ? result.data.bankId : BANKS[0].id);
       setLinked(result.data.connections.map((connection) => connection.institutionName).filter(Boolean));
     });
     return () => {
@@ -187,26 +186,14 @@ function ConnectStep({ back, onContinue }: { back: () => void; onContinue: () =>
   }, []);
 
   const bank = BANKS.find((candidate) => candidate.id === bankId) ?? BANKS[0];
-  const configured = Boolean(status?.clientId.trim() && status.hasSecret && status.products.length && status.countries.length);
+  const configured = Boolean(status?.configured);
 
   const connect = async () => {
     if (!status || !configured || busy) return;
     setBusy(true);
     setSuccess(null);
-    setMessage(status.environment === 'sandbox' ? null : { kind: 'info', text: 'Plaid Link opened in a secure window. Finish signing in there.' });
-    const result = await wallex.connect({
-      settings: {
-        environment: status.environment,
-        clientId: status.clientId,
-        secret: '',
-        products: status.products,
-        countries: status.countries,
-        language: status.language,
-        webhookUrl: status.webhookUrl,
-        redirectUri: status.redirectUri,
-      },
-      bank,
-    });
+    setMessage(status.environment === 'sandbox' ? null : { kind: 'info', text: 'Plaid Link is open. Finish signing in there.' });
+    const result = await wallex.connect({ bank });
     setBusy(false);
     if (!result.ok) return setMessage({ kind: 'error', text: result.error });
     if (!result.data.connected) return setMessage({ kind: 'info', text: 'Connection cancelled. Nothing was changed.' });
@@ -242,7 +229,7 @@ function ConnectStep({ back, onContinue }: { back: () => void; onContinue: () =>
             {busy ? 'Opening Plaid…' : linked.length ? 'Link Another Account' : 'Link Account With Plaid'}
           </button>
           {!loading && !configured && (
-            <p className="mt-3 font-support text-xs text-amber-300">Plaid must be configured before an account can be linked. Add the application credentials in Settings → Setup.</p>
+            <p className="mt-3 font-support text-xs text-amber-300">Bank linking is not set up on the server yet. Its Plaid keys need to be added there before an account can be linked.</p>
           )}
           {message && <p role={message.kind === 'error' ? 'alert' : 'status'} className={`mt-3 font-support text-xs ${message.kind === 'error' ? 'text-red-300' : 'text-muted'}`}>{message.text}</p>}
         </section>
