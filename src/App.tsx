@@ -24,6 +24,7 @@ import AccountTab from './pages/AccountTab';
 import CalendarTab from './pages/CalendarTab';
 import PatternDetailTab from './pages/PatternDetailTab';
 import OverviewTab from './pages/OverviewTab';
+import ForecastTab from './pages/ForecastTab';
 import LoadingLogo from './components/LoadingLogo';
 import { cashPosition } from './lib/overview';
 import ViewToggle from './components/ViewToggle';
@@ -223,7 +224,9 @@ function Shell() {
           role="tabpanel"
           className={`@container ${tabs.length > 0 ? (mobile ? 'mt-4' : 'mt-6') : mobile ? 'mt-5' : 'mt-12'} min-h-0 flex-1 overflow-y-auto ${mobile ? 'mx-4' : ''}`}
         >
-          {activeId === 'overview' ? (
+          {activeId === 'overview' && activeTab === 'Forecast' ? (
+            <ForecastTab load={load} />
+          ) : activeId === 'overview' ? (
             <OverviewTab load={load} onNavigate={goTo} />
           ) : activeId === 'patterns' ? (
             <PatternsTab load={load} />
