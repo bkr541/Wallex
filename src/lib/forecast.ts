@@ -368,12 +368,14 @@ export function monthEndForecast(f: Forecast, savedPerDay = 0): MonthEndForecast
   return { point, daysLeft, vsLast };
 }
 
-// The cash now, less the bills due in the next 30 days. It counts nothing that has not been seen: not the pay
-// coming in, and not the everyday spending, so it does not promise more than is there.
+// The cash now, plus the pay expected in the next 30 days, less the bills due in that time. Everyday spending is not
+// taken out, so this is what is left for it once the known money in and out is settled.
 export function safeToSpend(f: Forecast) {
-  const due = f.events.filter((e) => e.kind === 'bill' && e.day <= 30);
-  const bills = due.reduce((s, e) => s + e.amount, 0);
-  return { amount: f.cash - bills, bills, count: due.length };
+  const bills = f.events.filter((e) => e.kind === 'bill' && e.day <= 30);
+  const pay = f.events.filter((e) => e.kind === 'income' && e.day <= 30);
+  const billTotal = bills.reduce((s, e) => s + e.amount, 0);
+  const incomeTotal = pay.reduce((s, e) => s + e.amount, 0);
+  return { amount: f.cash + incomeTotal - billTotal, bills: billTotal, count: bills.length, income: incomeTotal, incomeCount: pay.length };
 }
 
 // The bills in the next 7 days, one bar a day starting today.

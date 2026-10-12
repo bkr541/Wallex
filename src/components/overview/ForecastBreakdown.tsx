@@ -24,12 +24,13 @@ interface Content {
 }
 
 // Bills only, from the events the forecast already holds.
-function billRows(f: Forecast, within: (day: number, date: string) => boolean, runningFrom: number | null): LedgerRow[] {
+function billRows(f: Forecast, within: (day: number, date: string) => boolean, runningFrom: number | null, withPay = false): LedgerRow[] {
   const rows: LedgerRow[] = [];
   let balance = runningFrom ?? 0;
-  for (const e of f.events.filter((x) => x.kind === 'bill' && within(x.day, x.date))) {
-    balance -= e.amount;
-    rows.push({ id: e.id, kind: 'bill', date: e.date, label: e.name, logos: e.logos, approx: e.approx, amount: -e.amount, balance });
+  for (const e of f.events.filter((x) => (x.kind === 'bill' || (withPay && x.kind === 'income')) && within(x.day, x.date))) {
+    const amount = e.kind === 'income' ? e.amount : -e.amount;
+    balance += amount;
+    rows.push({ id: e.id, kind: e.kind, date: e.date, label: e.name, logos: e.logos, approx: e.approx, amount, balance });
   }
   return rows;
 }
@@ -40,8 +41,8 @@ function content(detail: ForecastDetail, f: Forecast, days: number): Content {
     const start: LedgerRow = { id: 'start', kind: 'start', date: f.today, label: 'Cash available today', amount: f.cash, balance: f.cash };
     return {
       title: 'Safe to Spend',
-      lead: 'The cash you have now, less every bill expected in the next 30 days. Pay you expect and everyday spending are not counted, so this never promises more than is there.',
-      rows: [start, ...billRows(f, (day) => day <= 30, f.cash)],
+      lead: 'The cash you have now, plus the pay expected in the next 30 days, less every bill due in that time. Everyday spending is not taken out, so this is what is left for it.',
+      rows: [start, ...billRows(f, (day) => day <= 30, f.cash, true)],
       showBalance: true,
       total: { label: 'Safe to spend', value: safe.amount },
     };

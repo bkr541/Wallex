@@ -205,7 +205,11 @@ export default function ForecastTab({ load }: { load: Load }) {
           onClick={() => pick('safe')}
           value={signed(safe.amount)}
           tone={safe.amount < 0 ? 'text-red-300' : ''}
-          sub={safe.count ? `After ${money(safe.bills)} in ${safe.count} ${safe.count === 1 ? 'bill' : 'bills'} due in 30 days` : 'No bills expected in the next 30 days'}
+          sub={
+            safe.count || safe.incomeCount
+              ? `${money(safe.income)} in pay, less ${money(safe.bills)} in ${safe.count} ${safe.count === 1 ? 'bill' : 'bills'}, over 30 days`
+              : 'No pay or bills expected in the next 30 days'
+          }
         />
         <Stat
           icon="calendar-check"
