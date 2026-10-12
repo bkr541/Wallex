@@ -41,6 +41,7 @@ export interface ForecastEvent {
   logos: string[];
   amount: number; // always positive
   approx: boolean;
+  billKind?: string; // for a bill, what the Recurring tab calls it (bill, subscription, debt...)
 }
 
 export interface ForecastPoint {
@@ -258,7 +259,7 @@ export function buildForecast(
   const dayIndex = (date: string) => Math.min(HORIZON, Math.max(1, epochDay(date) - todayDay));
   const events: ForecastEvent[] = [];
   for (const b of bills) {
-    events.push({ id: `bill-${b.id}`, date: b.date, day: dayIndex(b.date), kind: 'bill', name: b.name, logos: b.logos, amount: b.amount, approx: b.amountApprox });
+    events.push({ id: `bill-${b.id}`, date: b.date, day: dayIndex(b.date), kind: 'bill', name: b.name, logos: b.logos, amount: b.amount, approx: b.amountApprox, billKind: b.kind });
   }
   for (const p of paydays) {
     for (const [i, s] of p.schedules.entries()) {
@@ -386,3 +387,67 @@ export function nextSeven(f: Forecast) {
 
 // How much a day a what-if saves: a monthly saving spread over the days, never more than is spent on everyday things.
 export const savedPerDay = (f: Forecast, monthlySaving: number) => Math.min(Math.max(0, monthlySaving) / 30.4375, f.everyday.perDay);
+
+// ---------------------------------------------------------------------------------------------
+// The working behind a balance
+// ---------------------------------------------------------------------------------------------
+
+export interface LedgerRow {
+  id: string;
+  kind: 'start' | 'income' | 'bill' | 'everyday';
+  date: string; // the day, or the first day of a stretch of everyday spending
+  endDate?: string; // the last day of that stretch
+  span?: number; // days in that stretch
+  label: string;
+  logos?: string[];
+  approx?: boolean;
+  amount: number; // signed: money in is positive, money out negative; the start row holds the cash itself
+  balance: number; // the balance after this line
+  lowest?: boolean; // the lowest point of the range
+}
+
+// Every line that takes the balance from today's cash to the balance at the end of `days`, in date order, with the
+// running balance after each. Everyday spending is shown as one line for each stretch between two events, so the
+// rows add up exactly to the figure the forecast shows. With `stopAtLowest`, it ends at the lowest point.
+export function ledger(f: Forecast, days: number, stopAtLowest = false): LedgerRow[] {
+  const todayDay = epochDay(f.today);
+  const last = Math.max(0, Math.min(HORIZON, days));
+  const lowDay = f.points.filter((p) => p.day >= 0 && p.day <= last).reduce((m, p) => (p.balance < m.balance ? p : m)).day;
+  const end = stopAtLowest ? lowDay : last;
+
+  let balance = f.cash;
+  const rows: LedgerRow[] = [{ id: 'start', kind: 'start', date: f.today, label: 'Cash available today', amount: f.cash, balance, lowest: stopAtLowest && lowDay === 0 }];
+  type Span = { from: number; to: number; sum: number };
+  let span = null as Span | null;
+  const flush = (lowest = false) => {
+    if (!span) return;
+    balance -= span.sum;
+    rows.push({
+      id: `everyday-${span.from}`,
+      kind: 'everyday',
+      date: isoFromEpochDay(todayDay + span.from),
+      endDate: isoFromEpochDay(todayDay + span.to),
+      span: span.to - span.from + 1,
+      label: 'Everyday spending',
+      amount: -span.sum,
+      balance,
+      lowest,
+    });
+    span = null;
+  };
+
+  for (let d = 1; d <= end; d++) {
+    const today = f.events.filter((e) => e.day === d).sort((a, b) => (a.kind === b.kind ? 0 : a.kind === 'income' ? -1 : 1));
+    if (today.length) flush();
+    for (const e of today) {
+      balance += e.kind === 'income' ? e.amount : -e.amount;
+      rows.push({ id: e.id, kind: e.kind, date: e.date, label: e.name, logos: e.logos, approx: e.approx, amount: e.kind === 'income' ? e.amount : -e.amount, balance });
+    }
+    const spend = f.everyday.byWeekday[weekdayOf(todayDay + d)];
+    const cur = span as Span | null;
+    span = cur ? { ...cur, to: d, sum: cur.sum + spend } : { from: d, to: d, sum: spend };
+    if (stopAtLowest && d === lowDay) flush(true);
+  }
+  flush();
+  return rows;
+}

@@ -1,5 +1,7 @@
 import { useMemo, useState } from 'react';
-import { motion } from 'motion/react';
+import { AnimatePresence, motion } from 'motion/react';
+import ForecastBreakdown, { type ForecastDetail } from '../components/overview/ForecastBreakdown';
+import { Bars, Sparkline } from '../components/overview/MiniVisuals';
 import ForecastChart from '../components/overview/ForecastChart';
 import PlumpIcon, { type PlumpName } from '../components/PlumpIcon';
 import SectionTitle from '../components/SectionTitle';
@@ -40,9 +42,15 @@ function Card({ className = '', children }: { className?: string; children: Reac
   return <div className={`rounded-2xl border border-line bg-card/60 p-4 @3xl:p-5 ${className}`}>{children}</div>;
 }
 
-function Stat({ icon, label, value, sub, tone = '', visual }: { icon: PlumpName; label: string; value: string; sub: React.ReactNode; tone?: string; visual?: React.ReactNode }) {
+function Stat({ icon, label, value, sub, tone = '', visual, active, onClick }: { icon: PlumpName; label: string; value: string; sub: React.ReactNode; tone?: string; visual?: React.ReactNode; active: boolean; onClick: () => void }) {
   return (
-    <Card className="flex min-w-0 flex-col justify-between gap-3">
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={active}
+      title="See how this is worked out"
+      className={`flex min-w-0 cursor-pointer flex-col justify-between gap-3 rounded-2xl border p-4 text-left transition-colors @3xl:p-5 ${active ? 'border-accent bg-accent-soft' : 'border-line bg-card/60 hover:border-muted'}`}
+    >
       <div className="flex flex-col gap-2 @3xl:flex-row @3xl:items-start @3xl:justify-between @3xl:gap-3">
         <div className="min-w-0">
           <p className="flex items-center gap-2 font-support text-xs text-muted">
@@ -54,30 +62,7 @@ function Stat({ icon, label, value, sub, tone = '', visual }: { icon: PlumpName;
         {visual && <div className="shrink-0 @3xl:pt-1">{visual}</div>}
       </div>
       <p className="font-support text-xs leading-snug text-muted">{sub}</p>
-    </Card>
-  );
-}
-
-function Sparkline({ values, color = 'var(--accent)' }: { values: number[]; color?: string }) {
-  if (values.length < 2) return null;
-  const lo = Math.min(...values);
-  const hi = Math.max(...values);
-  const pts = values.map((v, i) => `${(i / (values.length - 1)) * 76},${26 - ((v - lo) / (hi - lo || 1)) * 24}`).join(' ');
-  return (
-    <svg width="80" height="30" viewBox="-2 -2 80 30" aria-hidden="true">
-      <polyline points={pts} fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
-}
-
-function Bars({ bars }: { bars: { amount: number }[] }) {
-  const max = Math.max(1, ...bars.map((b) => b.amount));
-  return (
-    <div className="flex h-[30px] items-end gap-[3px]" aria-hidden="true">
-      {bars.map((b, i) => (
-        <motion.span key={i} className={`w-[5px] origin-bottom rounded-sm ${b.amount > 0 ? 'bg-red-400' : 'bg-line'}`} style={{ height: `${Math.max(b.amount > 0 ? 18 : 8, (b.amount / max) * 100)}%` }} initial={{ scaleY: 0 }} animate={{ scaleY: 1 }} transition={{ duration: 0.4, delay: i * 0.04 }} />
-      ))}
-    </div>
+    </button>
   );
 }
 
@@ -165,6 +150,9 @@ export default function ForecastTab({ load }: { load: Load }) {
   const live = load.state === 'live';
   const analysis = useRecurring(live ? load.allTransactions : null, live ? load.allAccounts : undefined);
   const [days, setDays] = useState<ForecastDays>(30);
+  // Which card's working is showing; null shows the usual forecast.
+  const [detail, setDetail] = useState<ForecastDetail | null>(null);
+  const pick = (d: ForecastDetail) => setDetail((cur) => (cur === d ? null : d));
 
   const forecast = useMemo(
     () => (live && analysis ? buildForecast(load.allTransactions, load.allAccounts, analysis, localToday(), rules) : null),
@@ -213,6 +201,8 @@ export default function ForecastTab({ load }: { load: Load }) {
         <Stat
           icon="wallet"
           label="Safe to Spend"
+          active={detail === 'safe'}
+          onClick={() => pick('safe')}
           value={signed(safe.amount)}
           tone={safe.amount < 0 ? 'text-red-300' : ''}
           sub={safe.count ? `After ${money(safe.bills)} in ${safe.count} ${safe.count === 1 ? 'bill' : 'bills'} due in 30 days` : 'No bills expected in the next 30 days'}
@@ -220,6 +210,8 @@ export default function ForecastTab({ load }: { load: Load }) {
         <Stat
           icon="calendar-check"
           label="Projected Month-End"
+          active={detail === 'monthend'}
+          onClick={() => pick('monthend')}
           value={signed(month.point.balance)}
           tone={month.point.balance < 0 ? 'text-red-300' : ''}
           visual={<Sparkline values={monthSpark} />}
@@ -231,16 +223,25 @@ export default function ForecastTab({ load }: { load: Load }) {
                 : `In ${month.daysLeft} ${month.daysLeft === 1 ? 'day' : 'days'}`
           }
         />
-        <Stat icon="circle-clock" label="Expected Next 7 Days" value={money(week.total)} visual={<Bars bars={week.bars} />} sub={week.count ? `${week.count} upcoming ${week.count === 1 ? 'payment' : 'payments'}` : 'No payments expected'} />
+        <Stat icon="circle-clock" label="Expected Next 7 Days" active={detail === 'week'} onClick={() => pick('week')} value={money(week.total)} visual={<Bars bars={week.bars} />} sub={week.count ? `${week.count} upcoming ${week.count === 1 ? 'payment' : 'payments'}` : 'No payments expected'} />
         <Stat
           icon="graph-bar-increase"
           label="Lowest Balance"
+          active={detail === 'lowest'}
+          onClick={() => pick('lowest')}
           value={signed(range.lowest.balance)}
           tone={lowTone}
           sub={range.lowest.day === 0 ? `Today, within ${days} days` : `Around ${shortDate(range.lowest.date)}`}
         />
       </div>
 
+      <AnimatePresence mode="wait" initial={false}>
+        {detail ? (
+          <motion.div key={detail} initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -14 }} transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}>
+            <ForecastBreakdown detail={detail} forecast={f} days={days} onBack={() => setDetail(null)} />
+          </motion.div>
+        ) : (
+          <motion.div key="forecast" className="flex flex-col gap-5" initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -14 }} transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}>
       <Card>
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
@@ -308,6 +309,9 @@ export default function ForecastTab({ load }: { load: Load }) {
           {custom > 0 && <li>{custom} custom {custom === 1 ? 'rule is' : 'rules are'} changing these figures. See Settings → Rules.</li>}
         </ul>
       </Card>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

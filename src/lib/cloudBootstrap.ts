@@ -1,7 +1,8 @@
 import { DEFAULTS, getAppearance, hydrateAppearance } from './appearance';
-import { flushCloudWrites, loadCloudSnapshot, syncPlaidSettings, syncProfile, syncRecurringOverride, syncRules, syncUserSettings } from './cloud';
+import { flushCloudWrites, loadCloudSnapshot, syncPlaidSettings, syncProfile, syncGoals, syncRecurringOverride, syncRules, syncUserSettings } from './cloud';
 import { hydrateOnboarding } from './onboarding';
 import { getProfile, hydrateProfile } from './profile';
+import { getGoals, hydrateGoals } from './goals';
 import { getRules, hydrateRules, rulesAreDefault } from './rules';
 import { getOverrides, hydrateOverrides, type Override } from './recurringOverrides';
 import { getMobileView, hydrateMobileView } from './viewState';
@@ -78,6 +79,14 @@ export async function hydrateCloudUser(userId: string, email: string) {
     const local = getRules();
     if (!remoteHasRules && !rulesAreDefault(local)) await syncRules(local);
     else if (remoteHasRules) hydrateRules(snapshot.rules);
+  }
+
+  // Goals: the account's copy wins, unless it has none yet and this computer does.
+  if (snapshot.goals !== undefined) {
+    const remoteHas = Array.isArray(snapshot.goals) && snapshot.goals.length > 0;
+    const local = getGoals();
+    if (!remoteHas && local.length > 0) await syncGoals(local);
+    else if (remoteHas) hydrateGoals(snapshot.goals);
   }
 
   const localOverrides = getOverrides();
