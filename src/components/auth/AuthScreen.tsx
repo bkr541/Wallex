@@ -71,13 +71,16 @@ export default function AuthScreen() {
 
   // The password checklist stays out of the way until the person clicks into the field or has typed something.
   const [pwFocused, setPwFocused] = useState(false);
+  // "The passwords do not match" waits for the person to press the button; after that it follows what they type.
+  const [triedConfirm, setTriedConfirm] = useState(false);
   const [values, setValues] = useState<Record<Key, string>>({ first: '', last: '', email: '', password: '', confirm: '' });
   const [touched, setTouched] = useState<Partial<Record<Key, boolean>>>({});
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
   const [exists, setExists] = useState(false);
-  const [showPw, setShowPw] = useState(false);
+  // Each password field is revealed on its own.
+  const [revealed, setRevealed] = useState<Partial<Record<Key, boolean>>>({});
   const [cooldownEnd, setCooldownEnd] = useState(0);
   const [now, setNow] = useState(Date.now());
 
@@ -103,7 +106,7 @@ export default function AuthScreen() {
     }
     return values.confirm && values.confirm === values.password ? null : 'The passwords do not match';
   };
-  const shown = (k: Key) => (touched[k] ? errorFor(k) : null);
+  const shown = (k: Key) => (k === 'confirm' ? (triedConfirm ? errorFor(k) : null) : touched[k] ? errorFor(k) : null);
   const keys = FIELDS_FOR[step];
 
   const go = (next: Step) => {
@@ -112,7 +115,8 @@ export default function AuthScreen() {
     setError(null);
     setInfo(null);
     setExists(false);
-    setShowPw(false);
+    setRevealed({});
+    setTriedConfirm(false);
     clearNotice();
   };
   const set = (k: Key, v: string) => {
@@ -125,6 +129,7 @@ export default function AuthScreen() {
     e?.preventDefault();
     if (busy) return;
     setTouched(Object.fromEntries(keys.map((k) => [k, true])));
+    if (keys.includes('confirm') && passwordError(values.password) === null) setTriedConfirm(true);
     if (!keys.every((k) => errorFor(k) === null)) return;
     setBusy(true);
     setError(null);
@@ -200,7 +205,7 @@ export default function AuthScreen() {
         key={k}
         label={f.label}
         icon={f.icon}
-        type={isPw && showPw ? 'text' : f.type}
+        type={isPw && revealed[k] ? 'text' : f.type}
         autoComplete={k === 'password' && step === 'login' ? 'current-password' : f.auto}
         value={values[k]}
         placeholder={k === 'password' && step === 'login' ? 'Your password' : f.placeholder}
@@ -212,10 +217,20 @@ export default function AuthScreen() {
         }}
         error={shown(k)}
         autoFocus={k === keys[0]}
-        trailing={isPw ? <RevealButton shown={showPw} onClick={() => setShowPw((s) => !s)} className="h-8 w-8 shrink-0" /> : undefined}
+        trailing={isPw ? <RevealButton shown={Boolean(revealed[k])} onClick={() => setRevealed((r) => ({ ...r, [k]: !r[k] }))} className="h-8 w-8 shrink-0" /> : undefined}
       />
     );
   };
+
+  const noticeBox = (spacing: string) =>
+    auth.notice && (
+      <div role="status" className={`${spacing} flex items-start gap-3 rounded-xl border px-4 py-3 font-support text-sm ${auth.notice.kind === 'error' ? 'border-red-400/40 bg-red-400/10 text-red-200' : 'border-accent/40 bg-accent-soft'}`}>
+        <span className="flex-1">{auth.notice.text}</span>
+        <button type="button" aria-label="Dismiss" onClick={clearNotice} className="cursor-pointer opacity-70 hover:opacity-100">
+          <X className="h-4 w-4" />
+        </button>
+      </div>
+    );
 
   const cta: Record<Step, string> = {
     login: 'Log in',
@@ -312,21 +327,13 @@ export default function AuthScreen() {
                   </button>
                 )}
 
-                {auth.notice && (
-                  <div role="status" className={`mb-5 flex items-start gap-3 rounded-xl border px-4 py-3 font-support text-sm ${auth.notice.kind === 'error' ? 'border-red-400/40 bg-red-400/10 text-red-200' : 'border-accent/40 bg-accent-soft'}`}>
-                    <span className="flex-1">{auth.notice.text}</span>
-                    <button type="button" aria-label="Dismiss" onClick={clearNotice} className="cursor-pointer opacity-70 hover:opacity-100">
-                      <X className="h-4 w-4" />
-                    </button>
-                  </div>
-                )}
+                {/* On the check-your-email screens the notice sits under the buttons, where the person is looking. */}
+                {step !== 'verify' && step !== 'forgot-sent' && noticeBox('mb-5')}
 
-                {(step === 'verify' || step === 'forgot-sent') && (
-                  <span className="mb-5 flex h-14 w-14 items-center justify-center rounded-full bg-accent-soft text-accent">
-                    <Mail className="h-7 w-7" />
-                  </span>
-                )}
-                <h2 className="text-3xl font-semibold tracking-tight capitalize">{COPY[step].title}</h2>
+                <h2 className="flex items-center gap-3 text-3xl font-semibold tracking-tight capitalize">
+                  {(step === 'verify' || step === 'forgot-sent') && <Mail className="h-8 w-8 shrink-0 text-accent" aria-hidden="true" />}
+                  {COPY[step].title}
+                </h2>
 
                 {step === 'verify' && (
                   <p className="mt-2 mb-6 font-support text-sm leading-relaxed text-muted">
@@ -434,6 +441,7 @@ export default function AuthScreen() {
                         Use a different email
                       </button>
                     </div>
+                    {noticeBox('mt-5')}
                   </div>
                 )}
 
@@ -444,6 +452,7 @@ export default function AuthScreen() {
                     <button type="button" onClick={resend} disabled={busy || wait > 0} className="cursor-pointer font-support text-sm text-muted underline-offset-2 transition-colors hover:text-ink hover:underline disabled:cursor-default disabled:no-underline disabled:opacity-60">
                       {wait > 0 ? `Send again in ${wait}s` : 'Send the link again'}
                     </button>
+                    {noticeBox('mt-5')}
                   </div>
                 )}
               </motion.div>

@@ -121,9 +121,12 @@ const needClient = () => fail('Wallex is not connected to its sign-in service. R
 
 /* ---------------------------------------------------------------------------------------------- actions */
 
-// Where email links send the person. The desktop app serves a small page for this itself (see electron/authServer.cjs); on
-// the web it is the site. Either way the address must be allowed under Authentication → URL Configuration in Supabase.
-const LINK_LANDING = isDesktop() ? 'http://127.0.0.1:54719' : `${window.location.origin}/`;
+// Where email links send the person. It is always the website, so a link opens from any device: someone can create an
+// account on the desktop app and confirm it from their phone. The desktop app learns the site's address from
+// VITE_SITE_URL; without one it falls back to a small page it serves on its own computer (electron/authServer.cjs), which
+// only works on that same computer. The address must be allowed under Authentication → URL Configuration in Supabase.
+const SITE_URL = (import.meta.env.VITE_SITE_URL as string | undefined)?.trim().replace(/\/+$/, '');
+const LINK_LANDING = isDesktop() ? (SITE_URL ? `${SITE_URL}/` : 'http://127.0.0.1:54719') : `${window.location.origin}/`;
 
 export async function signIn(email: string, password: string): Promise<{ ok: true } | { ok: false; error: string; unverified?: boolean }> {
   if (!supabase) return needClient();
