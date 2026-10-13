@@ -5,6 +5,7 @@ import SectionTitle from '../components/SectionTitle';
 import { useCalendarEvents, WEEKDAYS, type CalEvent } from '../components/calendar/data';
 import { Cluster, DayList, NavButtons, useCal } from '../components/calendar/Variants';
 import { money } from '../lib/patternFormat';
+import { useMobile } from '../lib/viewMode';
 import type { Load } from '../lib/useTransactions';
 
 const MONTH_SHORT = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -14,6 +15,7 @@ const total = (list: CalEvent[]) => list.reduce((s, e) => s + e.amount, 0);
 // The Schedule page: a month where each merchant's round logo stands in for the day number on the days a payment lands,
 // with the day you pick listed beside it (below it on a phone) and what is coming up next.
 export default function ScheduleTab({ load }: { load: Load }) {
+  const mobile = useMobile();
   const { events, sample } = useCalendarEvents(load);
   const cal = useCal(events);
 
@@ -34,11 +36,12 @@ export default function ScheduleTab({ load }: { load: Load }) {
   if (load.state === 'loading') return null;
 
   return (
+    // On a phone the calendar runs edge to edge: no tinted card, no side padding, and it sits close under the header.
     <div className="@container w-full pb-10">
-      <div className="grid grid-cols-1 gap-5 px-1 @3xl:grid-cols-[minmax(0,1.7fr)_minmax(0,1fr)] @3xl:items-start">
+      <div className={`grid grid-cols-1 gap-5 @3xl:grid-cols-[minmax(0,1.7fr)_minmax(0,1fr)] @3xl:items-start ${mobile ? '' : 'px-1'}`}>
         {/* The month */}
-        <div className="overflow-hidden rounded-[28px] border border-line" style={{ background: 'linear-gradient(180deg, color-mix(in srgb, var(--accent) 30%, var(--canvas)) 0%, var(--canvas) 36%)' }}>
-          <div className="flex items-center justify-between gap-2 px-5 pt-5 @3xl:px-7 @3xl:pt-6">
+        <div className={mobile ? '' : 'overflow-hidden rounded-[28px] border border-line'} style={mobile ? undefined : { background: 'linear-gradient(180deg, color-mix(in srgb, var(--accent) 30%, var(--canvas)) 0%, var(--canvas) 36%)' }}>
+          <div className={`flex items-center justify-between gap-2 px-5 @3xl:px-7 @3xl:pt-6 ${mobile ? 'pt-0' : 'pt-5'}`}>
             <h2 className="text-2xl font-semibold tracking-tight whitespace-nowrap @3xl:text-4xl">{cal.label} <span className="font-normal text-muted">{cal.year}</span></h2>
             <span className="flex items-center gap-2">
               <button type="button" onClick={cal.goToday} className="cursor-pointer rounded-full border border-ink/30 bg-canvas/30 px-4 py-2 text-sm font-medium transition-colors hover:border-ink/60">Today</button>
@@ -46,16 +49,16 @@ export default function ScheduleTab({ load }: { load: Load }) {
             </span>
           </div>
 
-          <div className="mt-3 flex flex-wrap gap-2 px-5 @3xl:px-7">
-            <span className="rounded-full border border-line bg-surface px-3 py-1 font-support text-xs text-ink/80"><b className="font-semibold text-ink">{money(total(due))}</b> still due</span>
-            <span className="rounded-full border border-line bg-surface px-3 py-1 font-support text-xs text-ink/80"><b className="font-semibold text-accent">{money(total(paid))}</b> paid</span>
-            <span className="rounded-full border border-line bg-surface px-3 py-1 font-support text-xs text-ink/80"><b className="font-semibold text-ink">{inMonth.length}</b> {inMonth.length === 1 ? 'payment' : 'payments'}</span>
+          <div className={`mt-3 flex gap-2 px-5 @3xl:px-7 ${mobile ? 'flex-nowrap gap-1.5 px-3' : 'flex-wrap'}`}>
+            <span className={`rounded-full border border-line bg-surface font-support text-ink/80 whitespace-nowrap ${mobile ? 'px-2.5 py-1 text-[11px]' : 'px-3 py-1 text-xs'}`}><b className="font-semibold text-ink">{money(total(due))}</b> still due</span>
+            <span className={`rounded-full border border-line bg-surface font-support text-ink/80 whitespace-nowrap ${mobile ? 'px-2.5 py-1 text-[11px]' : 'px-3 py-1 text-xs'}`}><b className="font-semibold text-accent">{money(total(paid))}</b> paid</span>
+            <span className={`rounded-full border border-line bg-surface font-support text-ink/80 whitespace-nowrap ${mobile ? 'px-2.5 py-1 text-[11px]' : 'px-3 py-1 text-xs'}`}><b className="font-semibold text-ink">{inMonth.length}</b> {inMonth.length === 1 ? 'payment' : 'payments'}</span>
           </div>
 
-          <div className="mt-4 grid grid-cols-7 px-2 text-center font-support text-xs text-muted @3xl:px-5">
+          <div className={`mt-4 grid grid-cols-7 text-center font-support text-xs text-muted @3xl:px-5 ${mobile ? 'px-0' : 'px-2'}`}>
             {WEEKDAYS.map((d) => <span key={d} className="py-2">{d}</span>)}
           </div>
-          <motion.div key={`${cal.year}-${cal.month}`} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25 }} className="grid grid-cols-7 gap-y-1 px-2 pb-4 @3xl:px-5 @3xl:pb-6">
+          <motion.div key={`${cal.year}-${cal.month}`} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25 }} className={`grid grid-cols-7 gap-y-1 pb-4 @3xl:px-5 @3xl:pb-6 ${mobile ? 'px-0' : 'px-2'}`}>
             {cal.cells.map((c) => {
               const list = c.inMonth ? cal.map[c.iso] ?? [] : [];
               const on = cal.sel === c.iso;
@@ -80,7 +83,7 @@ export default function ScheduleTab({ load }: { load: Load }) {
         </div>
 
         {/* The day, and what is next */}
-        <div className="space-y-5">
+        <div className={`space-y-5 ${mobile ? 'px-4' : ''}`}>
           <div className="rounded-2xl border border-line bg-card/60 p-5">
             {cal.sel ? (
               <DayList iso={cal.sel} list={cal.map[cal.sel] ?? []} />

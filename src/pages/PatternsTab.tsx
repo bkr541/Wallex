@@ -95,7 +95,7 @@ const ICONS: Record<string, LucideIcon | 'chase'> = {
 // Desktop is a wide diagram; the phone view is a tall one with fewer, slightly larger circles.
 const LAYOUTS = {
   desktop: { aspect: 1.5, dMin: 19, dMax: 40, centerD: 54, maxCircles: 14 },
-  mobile: { aspect: 0.72, dMin: 18, dMax: 30, centerD: 34, maxCircles: 12 },
+  mobile: { aspect: 0.58, dMin: 19, dMax: 31, centerD: 36, maxCircles: 12 },
 };
 type LayoutConfig = (typeof LAYOUTS)['desktop'];
 
@@ -700,9 +700,11 @@ export default function PatternsTab({ load }: { load: Load }) {
         </div>
       </div>
 
+      {/* On a phone the summary lines are left out for now, so the circles get the room; only a problem message stays. */}
+      {(!mobile || (load.state === 'sample' && load.isError)) && (
       <div className="mt-4 flex w-full flex-wrap items-baseline justify-between gap-2 px-4 font-support text-sm">
         <p className={load.state === 'sample' && load.isError ? 'text-red-400' : 'text-muted'}>{caption}</p>
-        {!empty && base > 0 && (
+        {!empty && !mobile && base > 0 && (
           <p>
             <span className="text-muted">{viewLabel}: </span>
             <span className="font-semibold">{money(total)}</span>
@@ -714,6 +716,7 @@ export default function PatternsTab({ load }: { load: Load }) {
           </p>
         )}
       </div>
+      )}
 
       {empty ? (
         <p className="px-4 py-10 font-support text-sm text-muted">

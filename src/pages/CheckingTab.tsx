@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import { RefreshCw, X } from 'lucide-react';
+import { useMobile } from '../lib/viewMode';
 import type { Txn } from '../lib/wallex';
 import TransactionTable from '../components/TransactionTable';
 import { withBalances } from '../lib/balances';
@@ -62,6 +63,7 @@ export default function CheckingTab({
   filter?: TxFilter | null;
   onClearFilter?: () => void;
 }) {
+  const mobile = useMobile();
   const rows = useMemo(
     () =>
       load.state === 'live'
@@ -108,6 +110,7 @@ export default function CheckingTab({
             </span>
           )}
         </p>
+        {!mobile && (
         <button
           type="button"
           onClick={onRefresh}
@@ -118,6 +121,7 @@ export default function CheckingTab({
         >
           <RefreshCw className={`h-5 w-5 ${refreshing ? 'animate-spin' : ''}`} />
         </button>
+        )}
       </div>
 
       <TransactionTable rows={shown} showEmpty={load.state === 'live'} />

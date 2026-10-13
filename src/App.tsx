@@ -30,6 +30,7 @@ import LoadingLogo from './components/LoadingLogo';
 import { cashPosition } from './lib/overview';
 import ViewToggle from './components/ViewToggle';
 import { useIsAdmin } from './lib/admin';
+import { RefreshCw } from 'lucide-react';
 import { useFramedView, useMobileView } from './lib/viewState';
 import { ViewModeProvider } from './lib/viewMode';
 import AuthScreen from './components/auth/AuthScreen';
@@ -216,7 +217,24 @@ function Shell() {
           mobile ? 'inset-x-0 top-0 bottom-[calc(6rem+env(safe-area-inset-bottom))]' : 'inset-y-0 right-8 left-32 pt-6 pb-8'
         }`}
       >
-        <PageHeader page={activePage} compact={mobile} />
+        <PageHeader
+          page={activePage}
+          compact={mobile}
+          action={
+            mobile && activeId === 'transactions' && activeTab === 'Checking' ? (
+              <button
+                type="button"
+                onClick={refresh}
+                disabled={refreshing}
+                aria-label="Refresh transactions"
+                title="Refresh"
+                className="flex h-11 w-11 cursor-pointer items-center justify-center rounded-full border border-line bg-card/80 text-ink backdrop-blur transition-colors hover:border-accent hover:text-accent disabled:cursor-default disabled:opacity-60"
+              >
+                <RefreshCw className={`h-5 w-5 ${refreshing ? 'animate-spin' : ''}`} />
+              </button>
+            ) : undefined
+          }
+        />
 
         {tabs.length > 0 && (
         <div
@@ -252,7 +270,7 @@ function Shell() {
 
         <div
           role="tabpanel"
-          className={`@container ${tabs.length > 0 ? (mobile ? 'mt-4' : 'mt-6') : mobile ? 'mt-5' : 'mt-12'} min-h-0 flex-1 overflow-y-auto ${mobile ? 'mx-4' : ''}`}
+          className={`@container ${tabs.length > 0 ? (mobile ? 'mt-4' : 'mt-6') : mobile ? (activeId === 'schedule' ? 'mt-2' : 'mt-5') : 'mt-12'} min-h-0 flex-1 overflow-y-auto ${mobile && activeId !== 'schedule' ? 'mx-4' : ''}`}
         >
           {activeId === 'overview' && activeTab === 'Forecast' ? (
             <ForecastTab load={load} />
