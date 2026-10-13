@@ -22,6 +22,7 @@ import {
 } from '../lib/recurringFormat';
 import { SAMPLE_ANALYSIS } from '../lib/recurringSample';
 import { useMobile } from '../lib/viewMode';
+import { useIsAdmin } from '../lib/admin';
 import type { LinkedAccount, Txn } from '../lib/wallex';
 
 const GRID = 'grid grid-cols-[2.4fr_1.6fr_1.1fr_1.3fr] gap-4 px-4';
@@ -139,6 +140,8 @@ function Detail({
   const [mode, setMode] = useState<null | 'rename' | 'confirm' | 'dismiss'>(null);
   const [label, setLabel] = useState(r.name);
   const [showAll, setShowAll] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const admin = useIsAdmin();
 
   const next = nextText(r);
   const charges = showAll ? r.charges : r.charges.slice(0, 6);
@@ -188,14 +191,8 @@ function Detail({
             </Field>
           )}
           {r.usage && (
-            <Field label="Usage on top" hint={`${r.usage.count} extra charges, about ${fmt(Math.round(r.usage.perMonth))} a month`}>
-              {r.usage.combinedMonthly !== null ? (
-                <>
-                  Recently about <span className="font-medium">{fmt(Math.round(r.usage.combinedMonthly))} / month</span> in total
-                </>
-              ) : (
-                <span className="text-muted">Variable</span>
-              )}
+            <Field label="Extra charges" hint={`${r.usage.count} charges averaging ${fmt(Math.round(r.usage.avg))}. Not included in the monthly impact above.`}>
+              <span className="font-medium">~{fmt(Math.round(r.usage.perMonth))} / month</span>
             </Field>
           )}
         </div>
@@ -308,11 +305,25 @@ function Detail({
               );
             })}
           </div>
-          {r.charges.length > 6 && (
-            <button type="button" onClick={() => setShowAll((v) => !v)} className="mt-2 cursor-pointer text-sm text-muted hover:text-ink">
-              {showAll ? 'Show Fewer' : `Show All ${r.charges.length}`}
-            </button>
-          )}
+          <div className="mt-2 flex flex-wrap items-center gap-x-5 gap-y-1">
+            {r.charges.length > 6 && (
+              <button type="button" onClick={() => setShowAll((v) => !v)} className="cursor-pointer text-sm text-muted hover:text-ink">
+                {showAll ? 'Show Fewer' : `Show All ${r.charges.length}`}
+              </button>
+            )}
+            {admin && (
+              <button
+                type="button"
+                onClick={() => {
+                  const rows = r.charges.map((t) => [t.date, (-t.amount).toFixed(2), t.accountId.slice(0, 4), t.details.find((d) => d.label === 'Bank Description')?.value ?? t.merchant].join('\t'));
+                  void navigator.clipboard?.writeText(['date\tamount\taccount\tdescription', ...rows].join('\n')).then(() => setCopied(true));
+                }}
+                className="cursor-pointer text-sm text-muted hover:text-ink"
+              >
+                {copied ? `Copied ${r.charges.length} charges` : 'Copy all charges (developer)'}
+              </button>
+            )}
+          </div>
         </div>
       )}
 

@@ -736,8 +736,14 @@ export function analyze(transactions: Txn[], today = localToday(), creditIds: Se
     // Builds one relationship from a set of patterns. A billing wrapper with several price points is built
     // once per price point, so different services behind one descriptor are not lumped together.
     const build = (id: string, name: string, pats: Pattern[], from: Occ[], extra: typeof variable): Recurring => {
-      const best = [...pats].sort((a, b) => b.count - a.count)[0];
       const sortedPatterns = [...pats].sort((a, b) => b.count - a.count);
+      // A pattern that stopped long ago (an old pay schedule, a plan that was replaced) is history. Only the ones still
+      // happening count toward what is paid each month, what is due next, and how the relationship is described.
+      const isLive = (p: Pattern) => latestDay - p.lastDay <= Math.max(p.periodDays * 1.6, 20);
+      const liveAll = sortedPatterns.filter(isLive);
+      const live = liveAll.length ? liveAll : sortedPatterns;
+      const ended = liveAll.length ? sortedPatterns.filter((p) => !isLive(p)) : [];
+      const best = live[0];
       let confidence: Confidence;
       if (resolved.aggregator) confidence = 'review';
       else if ((explicit && best.count >= 2) || (best.count >= 3 && best.fixed && best.spread <= 6)) confidence = 'confirmed';
@@ -749,26 +755,35 @@ export function analyze(transactions: Txn[], today = localToday(), creditIds: Se
       const finalKind: Kind = resolved.aggregator ? 'aggregator' : kind;
 
       const amountLabel =
-        pats.length === 1
+        live.length === 1
           ? range(best.amountMin, best.amountMax) + (extra ? ' + usage' : '')
-          : [...new Set(sortedPatterns.map((p) => range(p.amountMin, p.amountMax)))].join(' · ');
-      const cadences = new Set(sortedPatterns.map((p) => p.cadence));
+          : [...new Set(live.map((p) => range(p.amountMin, p.amountMax)))].join(' · ');
+      const cadences = new Set(live.map((p) => p.cadence));
       const cadence: RecurringCadence = cadences.size === 1 ? best.cadence : 'mixed';
+      // Several monthly patterns on different days are one thing paid a few times a month (payday, say).
+      const allMonthly = live.length > 1 && live.every((p) => p.cadence === 'monthly' && p.day);
       const cadenceLabel =
-        pats.length === 1 ? cadenceText(best) : `${pats.length} patterns · ${[...new Set(sortedPatterns.map(cadenceText))].join(', ')}`;
+        live.length === 1
+          ? cadenceText(best)
+          : allMonthly
+            ? `${live.length === 2 ? 'Twice' : `${live.length} times`} a month · ${[...live].sort((a, b) => (a.day ?? 0) - (b.day ?? 0)).map(cadenceText).join(', ')}`
+            : `${live.length} patterns · ${[...new Set(live.map(cadenceText))].join(', ')}`;
 
       const lastSeen = Math.max(...from.map((o) => o.day));
-      const expectedGap = Math.min(...pats.map((p) => p.nextDay - p.lastDay));
-      const active = latestDay - lastSeen <= expectedGap * 1.6;
+      const active = liveAll.length > 0;
 
       const notes: string[] = [];
       if (explicit) notes.push('The bank tags these charges as recurring card purchases.');
-      for (const p of sortedPatterns) {
+      for (const p of live) {
         const when = p.cadence === 'monthly' && p.day ? `around the ${ordinal(p.day)} of the month` : p.cadence;
         const how = p.fixed ? `a steady ${money(p.typical)}` : `${range(p.amountMin, p.amountMax)}`;
         notes.push(`${p.count} charges ${when}, ${how}.`);
       }
-      if (pats.length > 1) notes.unshift(`${pats.length} separate recurring patterns detected. These could be two plans, an add-on, or two billing relationships.`);
+      if (live.length > 1) notes.unshift(allMonthly ? `Charged ${live.length === 2 ? 'twice' : `${live.length} times`} a month, on different days.` : `${live.length} separate recurring patterns detected. These could be two plans, an add-on, or two billing relationships.`);
+      for (const p of ended) {
+        const when = p.cadence === 'monthly' && p.day ? `around the ${ordinal(p.day)} of the month` : p.cadence;
+        notes.push(`Earlier, ${p.count} charges ${when} of ${range(p.amountMin, p.amountMax)}, last on ${shortDate(p.lastDay)}. Not counted: it has stopped.`);
+      }
       if (extra) {
         notes.push(
           `Also ${extra.count} extra charges averaging ${money(Math.round(extra.avg * 100) / 100)} (about ${money(Math.round(extra.perMonth))}/month). Treated as variable usage, not part of the fixed charge.`,
@@ -778,24 +793,24 @@ export function analyze(transactions: Txn[], today = localToday(), creditIds: Se
 
       // A price that changed and stayed changed is what you pay now, so it drives the estimates and forecast.
       const priceChange =
-        pats.length === 1 && !resolved.aggregator && ['bill', 'subscription', 'usage'].includes(finalKind) ? detectPriceChange(best.occ) : null;
+        live.length === 1 && !resolved.aggregator && ['bill', 'subscription', 'usage'].includes(finalKind) ? detectPriceChange(best.occ) : null;
       const current = (p: Pattern) => (priceChange && p === best ? priceChange.current : p.typical);
 
-      const monthly = resolved.aggregator || !active ? null : sortedPatterns.reduce((s, p) => s + current(p) * p.perMonth, 0);
-      const allFixed = sortedPatterns.every((p) => p.fixed) || !!priceChange;
+      const monthly = resolved.aggregator || !active ? null : live.reduce((s, p) => s + current(p) * p.perMonth, 0);
+      const allFixed = live.every((p) => p.fixed) || !!priceChange;
       const annual =
-        monthly === null ? null : cadence === 'annual' && pats.length === 1 ? current(best) : monthly * 12;
+        monthly === null ? null : cadence === 'annual' && live.length === 1 ? current(best) : monthly * 12;
       const amountKind: AmountKind = extra
         ? 'usage'
-        : pats.length > 1
-          ? new Set(sortedPatterns.map((p) => range(p.amountMin, p.amountMax))).size > 1
+        : live.length > 1
+          ? new Set(live.map((p) => range(p.amountMin, p.amountMax))).size > 1
             ? 'multiple'
             : 'fixed'
           : best.fixed
             ? 'fixed'
             : 'range';
 
-      const schedule: ScheduledPayment[] = sortedPatterns.map((p) => ({
+      const schedule: ScheduledPayment[] = (active ? live : []).map((p) => ({
         next: nextChargeDate(p),
         periodDays: p.periodDays,
         day: p.cadence === 'monthly' ? p.day : null,
@@ -846,9 +861,9 @@ export function analyze(transactions: Txn[], today = localToday(), creditIds: Se
         notes,
         cadence,
         amountKind: priceChange && amountKind === 'range' ? 'fixed' : amountKind,
-        typical: pats.length === 1 ? current(best) : null,
+        typical: live.length === 1 ? current(best) : null,
         annual,
-        annualApprox: annual !== null && (!allFixed || !!extra || pats.length > 1),
+        annualApprox: annual !== null && (!allFixed || !!extra || live.length > 1),
         usage: extra
           ? { count: extra.count, avg: extra.avg, perMonth: extra.perMonth, combinedMonthly: monthly === null ? null : monthly + extra.perMonth }
           : null,
