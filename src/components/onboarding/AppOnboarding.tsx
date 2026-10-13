@@ -111,7 +111,7 @@ function ProfileStep({
           <p className="mb-2 font-support text-[10px] font-semibold tracking-[0.2em] text-muted uppercase">Profile Image (Optional)</p>
           <PhotoDropZone photo={draft.photo} error={photoError} onFile={pick} onRemove={() => set('photo', null)} />
         </div>
-        <div className="grid grid-cols-1 gap-x-6 gap-y-6 @xl:grid-cols-2">
+        <div className="grid grid-cols-2 gap-x-4 gap-y-6 @3xl:gap-x-6">
           <UnderlineField
             label="First Name"
             icon="user-face-male"
