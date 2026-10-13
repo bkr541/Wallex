@@ -345,13 +345,27 @@ export default function AuthScreen() {
                         {field('email')}
                         {field('password')}
                         <PasswordChecklist value={values.password} className="-mt-2" />
-                        {field('confirm')}
+                        {/* Confirming only makes sense once the password itself is strong enough. */}
+                        <AnimatePresence initial={false}>
+                          {passwordError(values.password) === null && (
+                            <motion.div key="confirm" initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }} className="overflow-hidden">
+                              {field('confirm')}
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
                       </>
                     ) : step === 'newpassword' ? (
                       <>
                         {field('password')}
                         <PasswordChecklist value={values.password} className="-mt-2" />
-                        {field('confirm')}
+                        {/* Confirming only makes sense once the password itself is strong enough. */}
+                        <AnimatePresence initial={false}>
+                          {passwordError(values.password) === null && (
+                            <motion.div key="confirm" initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }} className="overflow-hidden">
+                              {field('confirm')}
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
                       </>
                     ) : (
                       keys.map(field)
