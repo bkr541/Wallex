@@ -1,4 +1,5 @@
 import { useSyncExternalStore } from 'react';
+import { useIsAdmin } from './admin';
 import { syncUserSettings } from './cloud';
 
 // Whether the app is shown as a desktop window or inside a phone-sized frame. Remembered between launches, and shared
@@ -37,12 +38,15 @@ export function hydrateMobileView(next: boolean) {
   listeners.forEach((l) => l());
 }
 
+// The phone frame is a developer tool, so everyone else always gets the desktop layout, whatever was saved.
 export function useMobileView(): boolean {
-  return useSyncExternalStore(
+  const admin = useIsAdmin();
+  const stored = useSyncExternalStore(
     (cb) => {
       listeners.add(cb);
       return () => listeners.delete(cb);
     },
     () => mobile,
   );
+  return stored && admin;
 }

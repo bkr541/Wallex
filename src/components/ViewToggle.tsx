@@ -1,9 +1,11 @@
 import { Monitor, Smartphone } from 'lucide-react';
+import { useIsAdmin } from '../lib/admin';
 import { setMobileView, useMobileView } from '../lib/viewState';
 
-// The round button in the bottom-right corner that switches between the desktop window and a phone-sized frame.
+// The round button in the bottom-right corner that switches between the desktop window and a phone-sized frame. Developer / admin accounts only.
 export default function ViewToggle({ className = 'right-5' }: { className?: string }) {
   const mobile = useMobileView();
+  if (!useIsAdmin()) return null;
   return (
     <button
       type="button"

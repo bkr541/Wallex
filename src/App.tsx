@@ -29,6 +29,7 @@ import InsightsTab from './pages/InsightsTab';
 import LoadingLogo from './components/LoadingLogo';
 import { cashPosition } from './lib/overview';
 import ViewToggle from './components/ViewToggle';
+import { useIsAdmin } from './lib/admin';
 import { useMobileView } from './lib/viewState';
 import { ViewModeProvider } from './lib/viewMode';
 import AuthScreen from './components/auth/AuthScreen';
@@ -57,6 +58,12 @@ function Shell() {
     if (recurringFilter) setRecurringStart((r) => ({ filter: recurringFilter, nonce: r.nonce + 1 }));
   };
   const { load, refreshing, refresh } = useTransactions();
+
+  // The Scratchpad and the phone view are for developer / admin accounts. Anyone else is sent back if they end up there.
+  const isAdmin = useIsAdmin();
+  useEffect(() => {
+    if (!isAdmin && activeId === 'scratchpad') setActiveId('overview');
+  }, [isAdmin, activeId]);
 
   // A bank that signs in on its own site (Chase and other OAuth banks) sends the person back to the page; finish linking it.
   const [linkNotice, setLinkNotice] = useState<string | null>(null);
@@ -298,7 +305,8 @@ function Shell() {
       </main>
     </div>
 
-      {/* Scratchpad is for trying things out, so it lives down here beside the view switch, not in the navigation. */}
+      {/* Scratchpad is for trying things out, so it lives down here beside the view switch, not in the navigation. Developer / admin accounts only. */}
+      {isAdmin && (
       <button
         type="button"
         onClick={() => {
@@ -315,6 +323,7 @@ function Shell() {
       >
         <ListIcon className="h-5 w-5" />
       </button>
+      )}
 
       {linkNotice && (
         <button type="button" onClick={() => setLinkNotice(null)} className="fixed top-4 left-1/2 z-50 -translate-x-1/2 cursor-pointer rounded-full border border-line bg-card px-5 py-2.5 font-support text-sm shadow-[0_12px_30px_rgba(0,0,0,0.5)]" aria-live="polite">
