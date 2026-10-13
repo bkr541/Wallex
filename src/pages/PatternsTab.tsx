@@ -95,7 +95,7 @@ const ICONS: Record<string, LucideIcon | 'chase'> = {
 // Desktop is a wide diagram; the phone view is a tall one with fewer, slightly larger circles.
 const LAYOUTS = {
   desktop: { aspect: 1.5, dMin: 19, dMax: 40, centerD: 54, maxCircles: 14 },
-  mobile: { aspect: 0.58, dMin: 19, dMax: 31, centerD: 36, maxCircles: 12 },
+  mobile: { aspect: 0.6, dMin: 12.5, dMax: 21, centerD: 28.8, maxCircles: 12 },
 };
 type LayoutConfig = (typeof LAYOUTS)['desktop'];
 
@@ -735,6 +735,8 @@ export default function PatternsTab({ load }: { load: Load }) {
             ? {
                 width: 'calc(var(--app-w) - 2rem)',
                 height: `calc((var(--app-w) - 2rem) / ${cfg.aspect})`,
+                // The page scrolls, so the diagram keeps its full height instead of being squeezed into the screen.
+                flexShrink: 0,
               }
             : {
                 height: `max(520px, min(calc(var(--app-h) - 20rem), calc((var(--app-w) - 12rem) / ${cfg.aspect})))`,
