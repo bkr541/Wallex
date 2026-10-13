@@ -26,6 +26,7 @@ import PatternDetailTab from './pages/PatternDetailTab';
 import OverviewTab from './pages/OverviewTab';
 import ForecastTab from './pages/ForecastTab';
 import InsightsTab from './pages/InsightsTab';
+import GoalsTab from './pages/GoalsTab';
 import LoadingLogo from './components/LoadingLogo';
 import { cashPosition } from './lib/overview';
 import ViewToggle from './components/ViewToggle';
@@ -278,6 +279,8 @@ function Shell() {
         >
           {activeId === 'overview' && activeTab === 'Forecast' ? (
             <ForecastTab load={load} />
+          ) : activeId === 'overview' && activeTab === 'Goals' ? (
+            <GoalsTab />
           ) : activeId === 'overview' && activeTab === 'Insights' ? (
             <InsightsTab load={load} onNavigate={goTo} />
           ) : activeId === 'overview' ? (

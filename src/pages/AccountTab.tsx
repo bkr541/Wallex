@@ -357,7 +357,6 @@ function About() {
   return (
     <Group id="about" title="About" icon="text-box-1">
       <InfoRow title="Version" value={__APP_VERSION__}>{null}</InfoRow>
-      <p className="font-support text-xs text-muted">Icons: Streamline Plump, CC BY 4.0.</p>
     </Group>
   );
 }
