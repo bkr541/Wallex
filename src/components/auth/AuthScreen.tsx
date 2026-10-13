@@ -1,4 +1,6 @@
 import { useEffect, useState } from 'react';
+import PasswordChecklist from './PasswordChecklist';
+import { passwordError } from '../../lib/passwordRules';
 import { AnimatePresence, motion } from 'motion/react';
 import { ArrowLeft, Loader2, Mail, X } from 'lucide-react';
 import { asset } from '../../assets';
@@ -37,7 +39,7 @@ const FIELD: Record<Key, { label: string; icon: PlumpName; placeholder: string; 
   first: { label: 'First name', icon: 'user-face-male', placeholder: 'Ada', type: 'text', auto: 'given-name' },
   last: { label: 'Last name', icon: 'user-face-male', placeholder: 'Lovelace', type: 'text', auto: 'family-name' },
   email: { label: 'Email', icon: 'mail-send', placeholder: 'you@example.com', type: 'email', auto: 'email' },
-  password: { label: 'Password', icon: 'padlock-key', placeholder: 'At least 8 characters', type: 'password', auto: 'new-password' },
+  password: { label: 'Password', icon: 'padlock-key', placeholder: 'Create a password', type: 'password', auto: 'new-password' },
   confirm: { label: 'Confirm password', icon: 'padlock-key', placeholder: 'Type it again', type: 'password', auto: 'new-password' },
 };
 
@@ -47,7 +49,7 @@ const COPY: Record<Step, { title: string; sub: string }> = {
   verify: { title: 'Check your email', sub: '' },
   forgot: { title: 'Reset your password', sub: 'Enter your email and we will send you a link to choose a new one.' },
   'forgot-sent': { title: 'Check your email', sub: '' },
-  newpassword: { title: 'Choose a new password', sub: 'Use at least 8 characters. You will be signed in once it is saved.' },
+  newpassword: { title: 'Choose a new password', sub: 'Make it strong. You will be signed in once it is saved.' },
 };
 
 const FIELDS_FOR: Record<Step, Key[]> = {
@@ -95,7 +97,7 @@ export default function AuthScreen() {
     if (k === 'email') return EMAIL.test(v) ? null : 'Enter an email like name@example.com';
     if (k === 'password') {
       if (step === 'login') return values.password ? null : 'Enter your password';
-      return values.password.length >= 8 ? null : 'Use at least 8 characters';
+      return passwordError(values.password);
     }
     return values.confirm && values.confirm === values.password ? null : 'The passwords do not match';
   };
@@ -342,6 +344,13 @@ export default function AuthScreen() {
                         </div>
                         {field('email')}
                         {field('password')}
+                        <PasswordChecklist value={values.password} className="-mt-2" />
+                        {field('confirm')}
+                      </>
+                    ) : step === 'newpassword' ? (
+                      <>
+                        {field('password')}
+                        <PasswordChecklist value={values.password} className="-mt-2" />
                         {field('confirm')}
                       </>
                     ) : (

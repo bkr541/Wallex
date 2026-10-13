@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { passwordError } from '../../lib/passwordRules';
 import { Eye, EyeOff } from 'lucide-react';
 
 // What every login mockup shares: the fields, the checks and the log in / sign up switch. How each one
@@ -48,7 +49,7 @@ export function useAuthForm() {
     if (k === 'first') return v ? null : 'Enter your first name';
     if (k === 'last') return v ? null : 'Enter your last name';
     if (k === 'email') return EMAIL.test(v) ? null : 'Enter an email like name@example.com';
-    if (k === 'password') return mode === 'login' ? (values.password ? null : 'Enter your password') : values.password.length >= 8 ? null : 'Use at least 8 characters';
+    if (k === 'password') return mode === 'login' ? (values.password ? null : 'Enter your password') : passwordError(values.password);
     return values.confirm && values.confirm === values.password ? null : 'The passwords do not match';
   };
   const fields = FIELDS[mode];

@@ -87,7 +87,7 @@ function describe(err: AuthError | Error | { message?: string; code?: string; na
     case 'email_exists':
       return 'An account with this email already exists. Try logging in instead.';
     case 'weak_password':
-      return 'That password is too easy to guess. Try a longer one with letters and numbers.';
+      return 'That password does not meet the requirements. Use 8 or more characters with an uppercase letter, a number and a special character.';
     case 'same_password':
       return 'Choose a password you have not used on this account before.';
     case 'over_email_send_rate_limit':

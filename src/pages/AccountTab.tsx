@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
+import PasswordChecklist from '../components/auth/PasswordChecklist';
+import { passwordError } from '../lib/passwordRules';
 import { AnimatePresence, motion } from 'motion/react';
 import { Check, Download, LogOut, Plus, RefreshCw } from 'lucide-react';
 import DestructiveAction from '../components/DestructiveAction';
@@ -136,8 +138,8 @@ function SignIn() {
   const emailError = newEmail.trim() && EMAIL.test(newEmail.trim()) ? null : 'Enter an email like name@example.com';
   const pwError = !pw.current
     ? 'Enter your current password'
-    : pw.next.length < 8
-      ? 'Use at least 8 characters'
+    : passwordError(pw.next)
+      ? passwordError(pw.next)
       : pw.next !== pw.again
         ? "The two passwords don't match"
         : null;
@@ -196,7 +198,8 @@ function SignIn() {
             <form onSubmit={savePassword} noValidate className="space-y-3">
               <div className="grid grid-cols-1 gap-x-8 gap-y-5 @3xl:grid-cols-3">
                 <UnderlineField label="Current password" icon="padlock-key" type="password" value={pw.current} autoComplete="current-password" onChange={(e) => setPw({ ...pw, current: e.target.value })} placeholder="••••••••" />
-                <UnderlineField label="New password" icon="padlock-key" type="password" value={pw.next} autoComplete="new-password" onChange={(e) => setPw({ ...pw, next: e.target.value })} placeholder="At least 8 characters" />
+                <UnderlineField label="New password" icon="padlock-key" type="password" value={pw.next} autoComplete="new-password" onChange={(e) => setPw({ ...pw, next: e.target.value })} placeholder="Create a strong password" />
+                <PasswordChecklist value={pw.next} />
                 <UnderlineField label="Confirm new password" icon="padlock-key" type="password" value={pw.again} autoComplete="new-password" onChange={(e) => setPw({ ...pw, again: e.target.value })} placeholder="Repeat it" />
               </div>
               <div className="flex flex-wrap items-center gap-3">
