@@ -345,10 +345,11 @@ function evalPattern(occ: Occ[], opts: { minCount: number; allowVariable: boolea
   if (hits === 0 || hits / (hits + misses) < 0.7) return null;
 
   const amounts = sorted.map((o) => o.amount);
-  const typical = median(amounts);
   const amountMin = Math.min(...amounts);
   const amountMax = Math.max(...amounts);
-  const fixed = amountMax - amountMin <= Math.max(0.75, 0.05 * typical);
+  const fixed = amountMax - amountMin <= Math.max(0.75, 0.05 * median(amounts));
+  // A steady amount is its middle value; one that drifts is what it has lately been, not an average of years ago.
+  const typical = fixed ? median(amounts) : median(amounts.slice(-4));
 
   // Weekly and biweekly patterns are common by coincidence, so they must have a steady amount.
   if (!fixed && (!opts.allowVariable || cadence.name === 'weekly' || cadence.name === 'biweekly')) return null;
@@ -383,13 +384,13 @@ function evalPattern(occ: Occ[], opts: { minCount: number; allowVariable: boolea
 
 // Collapses 3+ charges that land on the same day into one event with their combined amount.
 // Charges that merely share a day (two installments) are left alone.
-function mergeSameDay(occ: Occ[], eventOf: Map<Occ, Occ>): Occ[] {
+function mergeSameDay(occ: Occ[], eventOf: Map<Occ, Occ>, minGroup = 3): Occ[] {
   const byDay = new Map<number, Occ[]>();
   for (const o of occ) byDay.set(o.day, [...(byDay.get(o.day) ?? []), o]);
 
   const events: Occ[] = [];
   for (const group of byDay.values()) {
-    if (group.length < 3) {
+    if (group.length < minGroup) {
       group.forEach((o) => {
         eventOf.set(o, o);
         events.push(o);
@@ -595,9 +596,13 @@ export function analyze(transactions: Txn[], today = localToday(), creditIds: Se
     const allowVariable = resolved.known || explicit || achStyle || BILL_CATEGORIES.has(category);
     const trusted = resolved.known || explicit || achStyle;
 
-    // A batch of payments on one day (EarnIn repays several advances at once) is one event.
+    // A batch of payments on one day (EarnIn repays several advances at once) is one event. A merchant that does this on most of its
+    // days is a batch payer: even two charges on one day are then one payment, so every payday counts once.
+    const dayCounts = new Map<number, number>();
+    for (const o of occ) dayCounts.set(o.day, (dayCounts.get(o.day) ?? 0) + 1);
+    const batchy = dayCounts.size >= 4 && [...dayCounts.values()].filter((n) => n >= 3).length / dayCounts.size >= 0.5;
     const eventOf = new Map<Occ, Occ>();
-    const events = mergeSameDay(occ, eventOf);
+    const events = mergeSameDay(occ, eventOf, batchy ? 2 : 3);
 
     const patterns: Pattern[] = [];
     const used = new Set<Occ>();
@@ -617,7 +622,7 @@ export function analyze(transactions: Txn[], today = localToday(), creditIds: Se
 
     const minWhole = trusted ? 2 : 3;
     const whole = evalPattern(events, { minCount: minWhole, allowVariable });
-    const wholeSplit = whole && whole.cadence !== 'monthly' ? monthlySplit(events, minWhole) : null;
+    const wholeSplit = !whole || whole.cadence !== 'monthly' ? monthlySplit(events, minWhole) : null;
 
     if (wholeSplit) {
       wholeSplit.forEach((p) => patterns.push(p));
@@ -757,7 +762,9 @@ export function analyze(transactions: Txn[], today = localToday(), creditIds: Se
       const amountLabel =
         live.length === 1
           ? range(best.amountMin, best.amountMax) + (extra ? ' + usage' : '')
-          : [...new Set(live.map((p) => range(p.amountMin, p.amountMax)))].join(' · ');
+          : live.every((p) => !p.fixed)
+            ? `About ${money(Math.round(live.reduce((s, p) => s + p.typical, 0) / live.length))} each time`
+            : [...new Set(live.map((p) => range(p.amountMin, p.amountMax)))].join(' · ');
       const cadences = new Set(live.map((p) => p.cadence));
       const cadence: RecurringCadence = cadences.size === 1 ? best.cadence : 'mixed';
       // Several monthly patterns on different days are one thing paid a few times a month (payday, say).
@@ -776,13 +783,14 @@ export function analyze(transactions: Txn[], today = localToday(), creditIds: Se
       if (explicit) notes.push('The bank tags these charges as recurring card purchases.');
       for (const p of live) {
         const when = p.cadence === 'monthly' && p.day ? `around the ${ordinal(p.day)} of the month` : p.cadence;
-        const how = p.fixed ? `a steady ${money(p.typical)}` : `${range(p.amountMin, p.amountMax)}`;
-        notes.push(`${p.count} charges ${when}, ${how}.`);
+        const how = p.fixed ? `a steady ${money(p.typical)}` : `${range(p.amountMin, p.amountMax)}, lately about ${money(Math.round(p.typical))}`;
+        notes.push(`${p.count} ${batchy ? 'paydays' : 'charges'} ${when}, ${how}.`);
       }
+      if (batchy) notes.unshift('Each payday is several smaller payments on the same day. They are counted together as one payment.');
       if (live.length > 1) notes.unshift(allMonthly ? `Charged ${live.length === 2 ? 'twice' : `${live.length} times`} a month, on different days.` : `${live.length} separate recurring patterns detected. These could be two plans, an add-on, or two billing relationships.`);
       for (const p of ended) {
         const when = p.cadence === 'monthly' && p.day ? `around the ${ordinal(p.day)} of the month` : p.cadence;
-        notes.push(`Earlier, ${p.count} charges ${when} of ${range(p.amountMin, p.amountMax)}, last on ${shortDate(p.lastDay)}. Not counted: it has stopped.`);
+        notes.push(`Earlier, ${p.count} ${batchy ? 'paydays' : 'charges'} ${when} of ${range(p.amountMin, p.amountMax)}, last on ${shortDate(p.lastDay)}. Not counted: it has stopped.`);
       }
       if (extra) {
         notes.push(
@@ -846,7 +854,9 @@ export function analyze(transactions: Txn[], today = localToday(), creditIds: Se
         firstDate: [...from].sort((a, b) => a.day - b.day)[0].t.date,
         lastCharge: (() => {
           const latest = [...from].sort((a, b) => b.day - a.day)[0];
-          return { date: latest.t.date, amount: latest.amount };
+          // For a batch payer the last payment is the whole day's total.
+          const amount = batchy ? from.filter((o) => o.day === latest.day).reduce((s, o) => s + o.amount, 0) : latest.amount;
+          return { date: latest.t.date, amount };
         })(),
         id,
         name,
