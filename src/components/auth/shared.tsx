@@ -17,8 +17,8 @@ export interface FieldDef {
 }
 
 const ALL: Record<FieldKey, FieldDef> = {
-  first: { key: 'first', label: 'First name', placeholder: 'Ada', type: 'text', autoComplete: 'given-name' },
-  last: { key: 'last', label: 'Last name', placeholder: 'Lovelace', type: 'text', autoComplete: 'family-name' },
+  first: { key: 'first', label: 'First name', placeholder: 'Robin', type: 'text', autoComplete: 'given-name' },
+  last: { key: 'last', label: 'Last name', placeholder: 'Banks', type: 'text', autoComplete: 'family-name' },
   email: { key: 'email', label: 'Email', placeholder: 'you@example.com', type: 'email', autoComplete: 'email' },
   password: { key: 'password', label: 'Password', placeholder: 'At least 8 characters', type: 'password', autoComplete: 'current-password' },
   confirm: { key: 'confirm', label: 'Confirm password', placeholder: 'Type it again', type: 'password', autoComplete: 'new-password' },

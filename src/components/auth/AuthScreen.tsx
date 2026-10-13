@@ -36,8 +36,8 @@ const keepFocus = { onMouseDown: (e: React.MouseEvent) => e.preventDefault() };
 const COOLDOWN_S = 60; // Supabase allows one email a minute to the same address
 
 const FIELD: Record<Key, { label: string; icon: PlumpName; placeholder: string; type: 'text' | 'email' | 'password'; auto: string }> = {
-  first: { label: 'First name', icon: 'user-face-male', placeholder: 'Ada', type: 'text', auto: 'given-name' },
-  last: { label: 'Last name', icon: 'user-face-male', placeholder: 'Lovelace', type: 'text', auto: 'family-name' },
+  first: { label: 'First name', icon: 'user-face-male', placeholder: 'Robin', type: 'text', auto: 'given-name' },
+  last: { label: 'Last name', icon: 'user-face-male', placeholder: 'Banks', type: 'text', auto: 'family-name' },
   email: { label: 'Email', icon: 'mail-send', placeholder: 'you@example.com', type: 'email', auto: 'email' },
   password: { label: 'Password', icon: 'padlock-key', placeholder: 'Create a password', type: 'password', auto: 'new-password' },
   confirm: { label: 'Confirm password', icon: 'padlock-key', placeholder: 'Type it again', type: 'password', auto: 'new-password' },
@@ -69,6 +69,8 @@ export default function AuthScreen() {
   // Opening a reset link takes over the screen, whatever step it was on.
   const step: Step = auth.recovering ? 'newpassword' : stepState;
 
+  // The password checklist stays out of the way until the person clicks into the field or has typed something.
+  const [pwFocused, setPwFocused] = useState(false);
   const [values, setValues] = useState<Record<Key, string>>({ first: '', last: '', email: '', password: '', confirm: '' });
   const [touched, setTouched] = useState<Partial<Record<Key, boolean>>>({});
   const [busy, setBusy] = useState(false);
@@ -203,7 +205,11 @@ export default function AuthScreen() {
         value={values[k]}
         placeholder={k === 'password' && step === 'login' ? 'Your password' : f.placeholder}
         onChange={(e) => set(k, e.target.value)}
-        onBlur={() => values[k] && setTouched((c) => ({ ...c, [k]: true }))}
+        onFocus={() => k === 'password' && setPwFocused(true)}
+        onBlur={() => {
+          if (k === 'password') setPwFocused(false);
+          if (values[k]) setTouched((c) => ({ ...c, [k]: true }));
+        }}
         error={shown(k)}
         autoFocus={k === keys[0]}
         trailing={isPw ? <RevealButton shown={showPw} onClick={() => setShowPw((s) => !s)} className="h-8 w-8 shrink-0" /> : undefined}
@@ -344,7 +350,13 @@ export default function AuthScreen() {
                         </div>
                         {field('email')}
                         {field('password')}
-                        <PasswordChecklist value={values.password} className="-mt-2" />
+                        <AnimatePresence initial={false}>
+                          {(pwFocused || values.password !== '') && (
+                            <motion.div key="rules" initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }} className="-mt-2 overflow-hidden">
+                              <PasswordChecklist value={values.password} className="pt-1 pb-1" />
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
                         {/* Confirming only makes sense once the password itself is strong enough. */}
                         <AnimatePresence initial={false}>
                           {passwordError(values.password) === null && (
@@ -357,7 +369,13 @@ export default function AuthScreen() {
                     ) : step === 'newpassword' ? (
                       <>
                         {field('password')}
-                        <PasswordChecklist value={values.password} className="-mt-2" />
+                        <AnimatePresence initial={false}>
+                          {(pwFocused || values.password !== '') && (
+                            <motion.div key="rules" initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }} className="-mt-2 overflow-hidden">
+                              <PasswordChecklist value={values.password} className="pt-1 pb-1" />
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
                         {/* Confirming only makes sense once the password itself is strong enough. */}
                         <AnimatePresence initial={false}>
                           {passwordError(values.password) === null && (
