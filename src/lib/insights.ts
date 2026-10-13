@@ -71,8 +71,8 @@ export type CategoryPeriod = 'month' | 'last-month' | '30' | '90';
 export const CATEGORY_PERIODS: { id: CategoryPeriod; label: string }[] = [
   { id: 'month', label: 'This month' },
   { id: 'last-month', label: 'Last month' },
-  { id: '30', label: 'Last 30 days' },
-  { id: '90', label: 'Last 90 days' },
+  { id: '30', label: '30 days' },
+  { id: '90', label: '90 days' },
 ];
 
 export interface CategoryRow {

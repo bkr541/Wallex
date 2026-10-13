@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
+import RangeTabs from '../components/overview/RangeTabs';
 import ForecastBreakdown, { type ForecastDetail } from '../components/overview/ForecastBreakdown';
 import { Bars, Sparkline } from '../components/overview/MiniVisuals';
 import ForecastChart from '../components/overview/ForecastChart';
@@ -248,17 +249,11 @@ export default function ForecastTab({ load }: { load: Load }) {
           <motion.div key="forecast" className="flex flex-col gap-5" initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -14 }} transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}>
       <Card>
         <div className="flex flex-wrap items-start justify-between gap-3">
-          <div>
+          <div className={mobile ? "w-full" : ""}>
             <SectionTitle as="h3" icon="graph-bar-increase" className="text-lg font-semibold">Projected Cash Flow</SectionTitle>
             <p className="mt-1 font-support text-xs text-muted">Your estimated balance from the pay, bills and everyday spending Wallex expects.</p>
           </div>
-          <div role="tablist" aria-label="Forecast range" className="flex gap-1 rounded-xl bg-surface p-1">
-            {forecastDays.map((d) => (
-              <button key={d} type="button" role="tab" aria-selected={days === d} onClick={() => setDays(d)} className={`cursor-pointer rounded-lg px-3 py-1 text-sm transition-colors ${days === d ? 'bg-accent font-semibold text-canvas' : 'text-muted hover:text-ink'}`}>
-                {d}D
-              </button>
-            ))}
-          </div>
+          <RangeTabs label="Forecast range" full={mobile} value={days} onChange={setDays} options={forecastDays.map((d) => ({ value: d, label: `${d}D` }))} />
         </div>
         <div className="mt-4">
           <ForecastChart forecast={f} days={days} mobile={mobile} />

@@ -1,5 +1,5 @@
-import { useEffect, useId, useMemo, useRef, useState } from 'react';
-import { AnimatePresence, motion } from 'motion/react';
+import { useId, useMemo, useState } from 'react';
+import { motion } from 'motion/react';
 import {
   ArrowDownRight,
   ArrowUpRight,
@@ -9,7 +9,6 @@ import {
   CalendarClock,
   Car,
   Check,
-  ChevronDown,
   ChevronRight,
   Clapperboard,
   Hammer,
@@ -31,6 +30,8 @@ import {
 } from 'lucide-react';
 import MerchantLogo from '../components/MerchantLogo';
 import { Bars, Ring, Sparkline } from '../components/overview/MiniVisuals';
+import RangeTabs from '../components/overview/RangeTabs';
+import { useMobile } from '../lib/viewMode';
 import PlumpIcon, { type PlumpName } from '../components/PlumpIcon';
 import SectionTitle from '../components/SectionTitle';
 import { buildForecast, monthEndForecast, nextSeven, safeToSpend } from '../lib/forecast';
@@ -122,9 +123,10 @@ function InfoTip({ text }: { text: string }) {
 }
 
 function Headline({ icon, label, tip, value, tone = '', sub, visual, onOpen }: { icon: PlumpName; label: string; tip: string; value: string; tone?: string; sub: React.ReactNode; visual: React.ReactNode; onOpen: () => void }) {
+  const mobile = useMobile();
   return (
     <div className="group relative flex min-w-0 flex-col justify-between gap-3 rounded-2xl border border-line bg-card/60 p-4 transition-colors focus-within:border-muted hover:border-muted @3xl:p-5">
-      <div className="flex flex-col gap-2 @3xl:flex-row @3xl:items-start @3xl:justify-between @3xl:gap-3">
+      <div className={`flex gap-2 ${mobile ? 'flex-row items-start justify-between gap-3' : 'flex-col @3xl:flex-row @3xl:items-start @3xl:justify-between @3xl:gap-3'}`}>
         <div className="min-w-0">
           <p className="flex items-center gap-2 font-support text-xs text-muted">
             <PlumpIcon name={icon} className="h-4 w-4 shrink-0" />
@@ -299,47 +301,9 @@ function GoalsPanel({ today }: { today: string }) {
 
 /* ============================================================================================ PAGE */
 
-function PeriodMenu({ value, onChange }: { value: CategoryPeriod; onChange: (v: CategoryPeriod) => void }) {
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    if (!open) return;
-    const close = (e: PointerEvent) => ref.current && !ref.current.contains(e.target as Node) && setOpen(false);
-    const key = (e: KeyboardEvent) => e.key === 'Escape' && setOpen(false);
-    document.addEventListener('pointerdown', close);
-    document.addEventListener('keydown', key);
-    return () => {
-      document.removeEventListener('pointerdown', close);
-      document.removeEventListener('keydown', key);
-    };
-  }, [open]);
-  const current = CATEGORY_PERIODS.find((p) => p.id === value)!;
-  return (
-    <div ref={ref} className="relative">
-      <button type="button" aria-haspopup="listbox" aria-expanded={open} onClick={() => setOpen((o) => !o)} className="flex cursor-pointer items-center gap-2 rounded-xl border border-line bg-surface px-3 py-1.5 text-sm">
-        {current.label}
-        <ChevronDown className={`h-4 w-4 text-muted transition-transform ${open ? 'rotate-180' : ''}`} />
-      </button>
-      <AnimatePresence>
-        {open && (
-          <motion.ul role="listbox" initial={{ opacity: 0, scale: 0.95, y: -6 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: -6 }} transition={{ duration: 0.15 }} className="absolute top-full right-0 z-20 mt-2 w-40 origin-top-right rounded-xl border border-line bg-card p-1.5 shadow-[0_18px_40px_rgba(0,0,0,0.35)]">
-            {CATEGORY_PERIODS.map((p) => (
-              <li key={p.id}>
-                <button type="button" role="option" aria-selected={p.id === value} onClick={() => { onChange(p.id); setOpen(false); }} className="flex w-full cursor-pointer items-center justify-between rounded-lg px-2.5 py-2 text-left text-sm hover:bg-surface">
-                  {p.label}
-                  {p.id === value && <Check className="h-4 w-4 text-accent" />}
-                </button>
-              </li>
-            ))}
-          </motion.ul>
-        )}
-      </AnimatePresence>
-    </div>
-  );
-}
-
 export default function InsightsTab({ load, onNavigate }: { load: Load; onNavigate: Navigate }) {
   const rules = useRules();
+  const mobile = useMobile();
   const live = load.state === 'live';
   const today = localToday();
   const analysis = useRecurring(live ? load.allTransactions : null, live ? load.allAccounts : undefined);
@@ -382,7 +346,7 @@ export default function InsightsTab({ load, onNavigate }: { load: Load; onNaviga
 
   return (
     <div className="flex flex-col gap-5 px-1 pb-10">
-      <div className="grid grid-cols-2 gap-3 @3xl:grid-cols-4 @3xl:gap-4">
+      <div className={`grid gap-3 @3xl:gap-4 ${mobile ? 'grid-cols-1' : 'grid-cols-2 @3xl:grid-cols-4'}`}>
         <Headline
           icon="wallet"
           label="Cash Available"
@@ -425,7 +389,7 @@ export default function InsightsTab({ load, onNavigate }: { load: Load; onNaviga
 
       <div className="grid grid-cols-1 gap-5 @3xl:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">
         <Panel>
-          <PanelTitle icon="lightbulb" aside={<button type="button" onClick={() => onNavigate('overview', 'Summary')} className="flex cursor-pointer items-center gap-1 rounded-lg border border-line px-3 py-1 font-support text-xs text-muted hover:text-ink">View all<ChevronRight className="h-3.5 w-3.5" /></button>}>Potential Savings Identified</PanelTitle>
+          <PanelTitle icon="lightbulb" aside={<button type="button" onClick={() => onNavigate('overview', 'Summary')} className="flex cursor-pointer items-center gap-1 rounded-lg border border-line px-3 py-1 font-support text-xs text-muted hover:text-ink">View all<ChevronRight className="h-3.5 w-3.5" /></button>}>Potential Savings</PanelTitle>
           <p className="mt-1 font-support text-xs text-muted">Based on your recent spending and subscriptions.</p>
           {ideaCount === 0 ? (
             <Empty>No spending in the areas Wallex can model yet, so there is nothing to suggest.</Empty>
@@ -517,7 +481,8 @@ export default function InsightsTab({ load, onNavigate }: { load: Load; onNaviga
         </Panel>
 
         <Panel>
-          <PanelTitle icon="layers-1" aside={<PeriodMenu value={period} onChange={setPeriod} />}>Top Categories</PanelTitle>
+          <PanelTitle icon="layers-1" aside={mobile ? undefined : <RangeTabs label="Period" value={period} onChange={setPeriod} options={CATEGORY_PERIODS.map((p) => ({ value: p.id, label: p.label }))} />}>Top Categories</PanelTitle>
+          {mobile && <div className="mt-3"><RangeTabs full label="Period" value={period} onChange={setPeriod} options={CATEGORY_PERIODS.map((p) => ({ value: p.id, label: p.label }))} /></div>}
           {categories && categories.rows.length > 0 ? (
             <>
               <ul className="mt-4 space-y-3.5">

@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { motion } from 'motion/react';
 import MerchantLogo from '../components/MerchantLogo';
 import SectionTitle from '../components/SectionTitle';
@@ -16,6 +16,7 @@ const total = (list: CalEvent[]) => list.reduce((s, e) => s + e.amount, 0);
 // with the day you pick listed beside it (below it on a phone) and what is coming up next.
 export default function ScheduleTab({ load }: { load: Load }) {
   const mobile = useMobile();
+  const detailRef = useRef<HTMLDivElement>(null);
   const { events, sample } = useCalendarEvents(load);
   const cal = useCal(events);
 
@@ -67,14 +68,18 @@ export default function ScheduleTab({ load }: { load: Load }) {
                   key={c.iso}
                   type="button"
                   disabled={!c.inMonth}
-                  onClick={() => cal.setSel(on ? null : c.iso)}
+                  onClick={() => {
+                    cal.setSel(on ? null : c.iso);
+                    // On a phone the day's details are below the calendar, so bring them into view.
+                    if (mobile && !on) window.setTimeout(() => detailRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 60);
+                  }}
                   aria-label={c.inMonth ? `${shortDate(c.iso)}${list.length ? `, ${list.length} payment${list.length === 1 ? '' : 's'}` : ''}` : undefined}
-                  className={`flex h-[58px] cursor-pointer items-center justify-center rounded-xl transition-colors disabled:cursor-default @3xl:h-[80px] ${on ? 'bg-accent-soft ring-2 ring-accent' : c.inMonth ? 'hover:bg-surface/60' : ''}`}
+                  className={`flex h-[58px] cursor-pointer items-center justify-center rounded-xl transition-colors disabled:cursor-default @3xl:h-[80px] ${on && !mobile ? 'bg-accent-soft ring-2 ring-accent' : c.inMonth && !mobile ? 'hover:bg-surface/60' : ''}`}
                 >
                   {!c.inMonth ? null : list.length ? (
-                    <span className="origin-center scale-100 @3xl:scale-125"><Cluster list={list} size={46} ring="var(--canvas)" /></span>
+                    <span className={`origin-center scale-100 @3xl:scale-125 ${mobile ? `rounded-full p-[3px] transition-shadow ${on ? 'bg-accent-soft ring-2 ring-accent' : ''}` : ''}`}><Cluster list={list} size={46} ring="var(--canvas)" /></span>
                   ) : (
-                    <span className={`text-lg tabular-nums @3xl:text-xl ${c.iso === cal.today ? 'flex h-9 w-9 items-center justify-center rounded-full bg-ink font-semibold text-canvas @3xl:h-10 @3xl:w-10' : 'text-ink/80'}`}>{c.day}</span>
+                    <span className={`text-lg tabular-nums @3xl:text-xl ${c.iso === cal.today ? 'flex h-9 w-9 items-center justify-center rounded-full bg-ink font-semibold text-canvas @3xl:h-10 @3xl:w-10' : mobile ? 'flex h-9 w-9 items-center justify-center rounded-full text-ink/80' : 'text-ink/80'} ${mobile && on ? 'ring-2 ring-accent' : ''}`}>{c.day}</span>
                   )}
                 </button>
               );
@@ -84,7 +89,7 @@ export default function ScheduleTab({ load }: { load: Load }) {
 
         {/* The day, and what is next */}
         <div className={`space-y-5 ${mobile ? 'px-4' : ''}`}>
-          <div className="rounded-2xl border border-line bg-card/60 p-5">
+          <div ref={detailRef} className="scroll-mt-2 rounded-2xl border border-line bg-card/60 p-5">
             {cal.sel ? (
               <DayList iso={cal.sel} list={cal.map[cal.sel] ?? []} />
             ) : (

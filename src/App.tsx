@@ -106,6 +106,7 @@ function Shell() {
   const activePage = NAV.find((item) => item.id === activeId)!;
   const tabs = activePage.tabs ?? TABS;
   const activeTab = activeTabs[activeId] ?? tabs[0];
+  const spreadTabs = mobile && activeId !== 'transactions';
 
   // Pages size themselves from --app-w / --app-h instead of the window, so they fit the phone frame too.
   const sizeVars = (
@@ -239,8 +240,11 @@ function Shell() {
         {tabs.length > 0 && (
         <div
           role="tablist"
-          className={`flex items-center justify-start gap-3 border-b border-line ${
-            mobile ? 'mx-4 mt-4 overflow-x-auto' : 'mt-6 w-full'
+          style={mobile ? { touchAction: 'pan-x', overscrollBehaviorX: 'contain', scrollbarWidth: 'none' } : undefined}
+          className={`flex items-center border-b border-line ${
+            // On a phone the tabs spread across the width, except where their names are too long to share it (Transactions),
+            // which scrolls sideways. The row never scrolls up and down.
+            mobile ? `mx-4 mt-4 overflow-x-auto overflow-y-hidden ${spreadTabs ? 'justify-between' : 'justify-start gap-3'}` : 'mt-6 w-full justify-start gap-3'
           }`}
         >
           {tabs.map((tab) => {
@@ -252,13 +256,13 @@ function Shell() {
                 role="tab"
                 aria-selected={selected}
                 onClick={() => setActiveTabs((prev) => ({ ...prev, [activeId]: tab }))}
-                className={`-mb-px shrink-0 cursor-pointer border-b-2 px-4 py-2 text-sm font-medium whitespace-nowrap transition-colors ${
+                className={`cursor-pointer py-2 text-sm font-medium whitespace-nowrap transition-colors ${spreadTabs ? 'flex-1 px-1 text-center' : 'shrink-0 px-4'} ${
                   selected
-                    ? 'border-accent text-ink'
-                    : 'border-transparent text-muted hover:text-ink'
+                    ? 'text-ink shadow-[inset_0_-2px_0_0_var(--accent)]'
+                    : 'text-muted hover:text-ink'
                 }`}
               >
-                <span className="flex items-center gap-2">
+                <span className={`flex items-center gap-2 ${spreadTabs ? 'justify-center' : ''}`}>
                   {tab === 'Checking' && <ChaseLogo className="h-4 w-4" />}
                   {tab === 'Checking' ? accountLabel(load) : tab}
                 </span>

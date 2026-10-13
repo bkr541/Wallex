@@ -228,7 +228,7 @@ const VIEWS: { id: View; label: string; dot?: string }[] = [
   { id: 'all', label: 'All' },
   { id: 'bills', label: 'Bills', dot: '#4fa3ff' },
   { id: 'merchants', label: 'Merchants', dot: '#a67cff' },
-  { id: 'categories', label: 'Categories', dot: 'var(--accent)' },
+  { id: 'categories', label: 'Types', dot: 'var(--accent)' },
 ];
 
 // The bubble fills with liquid up to its share of income, with two waves rolling along the surface. It sits behind the

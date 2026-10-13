@@ -1,0 +1,32 @@
+// A row of range buttons in one pill: the style the forecast uses for 7D / 30D / 60D / 90D. `full` stretches it across the
+// width it sits in, with the buttons sharing the space equally.
+export default function RangeTabs<T extends string | number>({
+  value,
+  onChange,
+  options,
+  label,
+  full = false,
+}: {
+  value: T;
+  onChange: (v: T) => void;
+  options: { value: T; label: string }[];
+  label: string;
+  full?: boolean;
+}) {
+  return (
+    <div role="tablist" aria-label={label} className={`flex gap-1 rounded-xl bg-surface p-1 ${full ? 'w-full' : ''}`}>
+      {options.map((o) => (
+        <button
+          key={String(o.value)}
+          type="button"
+          role="tab"
+          aria-selected={value === o.value}
+          onClick={() => onChange(o.value)}
+          className={`cursor-pointer rounded-lg px-3 py-1 text-sm whitespace-nowrap transition-colors ${full ? 'flex-1 px-1' : ''} ${value === o.value ? 'bg-accent font-semibold text-canvas' : 'text-muted hover:text-ink'}`}
+        >
+          {o.label}
+        </button>
+      ))}
+    </div>
+  );
+}

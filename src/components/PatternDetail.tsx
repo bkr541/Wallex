@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { motion } from 'motion/react';
 import { ChevronUp, ReceiptText } from 'lucide-react';
 import TransactionTable from './TransactionTable';
+import { useMobile } from '../lib/viewMode';
 import type { TxnWithBalance } from '../lib/balances';
 import type { Bubble } from '../lib/patterns';
 import type { PatternMetrics, TrendBucket } from '../lib/patternMetrics';
@@ -77,6 +78,7 @@ export default function PatternDetail({
   historyRows: TxnWithBalance[];
   onBack: () => void;
 }) {
+  const mobile = useMobile();
   const [scope, setScope] = useState<'period' | 'history'>('period');
   const m = metrics;
   const noun = bubble.noun;
@@ -104,7 +106,7 @@ export default function PatternDetail({
 
   return (
     <motion.div
-      className="w-full px-1 pt-8 pb-6"
+      className={`w-full px-1 pb-6 ${mobile ? 'pt-2' : 'pt-8'}`}
       initial="hidden"
       animate="show"
       exit="hidden"

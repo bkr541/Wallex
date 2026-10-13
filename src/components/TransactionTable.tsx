@@ -153,8 +153,8 @@ export default function TransactionTable({
                     transition={{ duration: 0.2 }}
                     className="overflow-hidden"
                   >
-                    <dl className="grid grid-cols-[repeat(auto-fill,minmax(15rem,1fr))] gap-x-8 gap-y-4 border-t border-line bg-surface/30 px-4 py-4">
-                      {[
+                    {(() => {
+                      const fields = [
                         ...(mobile
                           ? [
                               { label: 'Category', value: t.category },
@@ -165,13 +165,22 @@ export default function TransactionTable({
                             ]
                           : []),
                         ...t.details,
-                      ].map((d) => (
-                        <div key={d.label} className="min-w-0">
-                          <dt className="text-xs font-semibold tracking-wider text-muted uppercase">{d.label}</dt>
-                          <dd className="mt-1 font-support text-sm break-words select-text">{d.value}</dd>
-                        </div>
-                      ))}
-                    </dl>
+                      ];
+                      // On a phone the fields sit in two columns, with the two long ones, the bank's description and the
+                      // transaction ID, last and across the full width.
+                      const wide = mobile ? ['Bank Description', 'Transaction ID'] : [];
+                      const ordered = [...fields.filter((f) => !wide.includes(f.label)), ...wide.map((w) => fields.find((f) => f.label === w)).filter((f): f is { label: string; value: string } => Boolean(f))];
+                      return (
+                        <dl className={`grid gap-y-4 border-t border-line bg-surface/30 px-4 py-4 ${mobile ? 'grid-cols-2 gap-x-4' : 'grid-cols-[repeat(auto-fill,minmax(15rem,1fr))] gap-x-8'}`}>
+                          {ordered.map((d) => (
+                            <div key={d.label} className={`min-w-0 ${wide.includes(d.label) ? 'col-span-2' : ''}`}>
+                              <dt className="text-xs font-semibold tracking-wider text-muted uppercase">{d.label}</dt>
+                              <dd className="mt-1 font-support text-sm break-words select-text">{d.value}</dd>
+                            </div>
+                          ))}
+                        </dl>
+                      );
+                    })()}
                   </motion.div>
                 )}
               </AnimatePresence>

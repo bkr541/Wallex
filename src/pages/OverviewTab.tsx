@@ -88,7 +88,7 @@ function Segmented<T extends string | number>({
               {on && (
                 <motion.span
                   layoutId={thumb}
-                  className="absolute inset-x-1 -bottom-px h-0.5 rounded-full bg-accent"
+                  className="absolute inset-x-1 bottom-0 h-0.5 rounded-full bg-accent"
                   transition={{ type: 'spring', stiffness: 420, damping: 32 }}
                 />
               )}
@@ -400,11 +400,11 @@ export default function OverviewTab({
   else
     badges.push({
       value: `${savingsGood ? '+' : '-'}${percentText(Math.abs(flow.savingsRate))}`,
-      label: 'Savings Rate',
+      label: 'Rate',
       tone: savingsGood ? 'good' : 'bad',
       title: `Savings rate over the last ${periodLabel}`,
     });
-  if (flow.pending > 0) badges.push({ value: String(flow.pending), label: `Pending ${flow.pending === 1 ? 'Transaction' : 'Transactions'}`, tone: 'warn', title: 'Included in the figures above' });
+  if (flow.pending > 0) badges.push({ value: String(flow.pending), label: 'Pending', tone: 'warn', title: 'Included in the figures above' });
   if (scope.partial) badges.push({ value: String(scope.effectiveDays), label: 'Days Of History', tone: 'quiet', title: 'There is not a full period of history yet' });
   const VALUE_TONE = {
     good: 'text-accent',
