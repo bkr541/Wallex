@@ -81,7 +81,6 @@ function ProfileStep({
   const errors = {
     firstName: draft.firstName.trim() ? null : 'Enter your first name',
     lastName: draft.lastName.trim() ? null : 'Enter your last name',
-    preferredName: draft.preferredName.trim() ? null : 'Enter the name Wallex should use',
     phone: !draft.phone.trim() || PHONE.test(draft.phone.trim()) ? null : 'Use digits, spaces, + ( ) or -',
   };
   const valid = Object.values(errors).every((error) => error === null);
@@ -134,14 +133,12 @@ function ProfileStep({
             error={shown('lastName')}
           />
           <UnderlineField
-            label="Preferred Name"
+            label="Preferred Name (Optional)"
             icon="chat-bubble-text-square"
             value={draft.preferredName}
             onChange={(event) => set('preferredName', event.target.value)}
-            onBlur={() => touch('preferredName')}
-            placeholder="Ada"
-            hint={!shown('preferredName') ? 'The name Wallex uses throughout the app.' : undefined}
-            error={shown('preferredName')}
+            placeholder={draft.firstName.trim() || 'Robin'}
+            hint="The name Wallex uses throughout the app. Leave it blank to use your first name."
           />
           <UnderlineField
             label="Phone Number (Optional)"
@@ -386,9 +383,11 @@ export default function AppOnboarding({ email, onComplete }: { email: string; on
       email,
       firstName: draft.firstName.trim(),
       lastName: draft.lastName.trim(),
-      preferredName: draft.preferredName.trim(),
+      // Left blank, Wallex calls the person by their first name.
+      preferredName: draft.preferredName.trim() || draft.firstName.trim(),
       phone: draft.phone.trim(),
     });
+    if (!draft.preferredName.trim()) setDraft((p) => ({ ...p, preferredName: p.firstName.trim() }));
     go(1);
   };
   const launch = (notifications: Record<string, unknown>) => {
