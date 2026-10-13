@@ -88,6 +88,12 @@ body,
   background: var(--canvas);
 }
 
+/* The app's height: the part of the screen that is actually visible. On a phone that shrinks while the keyboard is open (see
+   main.tsx), so the page does not get pushed up and left there. */
+.app-h {
+  height: var(--vvh, 100dvh);
+}
+
 body {
   color: var(--text);
   -webkit-font-smoothing: antialiased;

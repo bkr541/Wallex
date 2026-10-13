@@ -255,10 +255,10 @@ export default function AuthScreen() {
 
   return (
     // In the phone view the screen sits in a phone-sized frame, which is also what the layout measures itself against.
-    <div className={`h-screen w-screen ${mobile ? 'flex items-center justify-center bg-[var(--backdrop)]' : ''}`}>
+    <div className={`app-h w-screen ${mobile ? 'flex items-center justify-center bg-[var(--backdrop)]' : ''}`}>
     <div
       className={`@container relative overflow-hidden bg-canvas text-ink select-none ${
-        mobile ? 'w-[390px] rounded-[44px] border border-line shadow-[0_30px_90px_rgba(0,0,0,0.7)]' : 'h-screen w-screen'
+        mobile ? 'w-[390px] rounded-[44px] border border-line shadow-[0_30px_90px_rgba(0,0,0,0.7)]' : 'app-h w-screen'
       }`}
       style={mobile ? { height: 'min(844px, calc(100vh - 3rem))' } : undefined}
     >

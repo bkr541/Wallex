@@ -108,13 +108,13 @@ function Shell() {
   const sizeVars = (
     mobile
       ? { '--app-w': '390px', '--app-h': 'min(844px, calc(100vh - 3rem))' }
-      : { '--app-w': '100vw', '--app-h': '100vh' }
+      : { '--app-w': '100vw', '--app-h': 'var(--vvh, 100dvh)' }
   ) as React.CSSProperties;
 
   return (
     <ViewModeProvider value={{ mobile, frame: frameEl }}>
     <div
-      className={`h-screen w-screen bg-canvas ${mobile ? 'flex items-center justify-center bg-[var(--backdrop)]' : ''}`}
+      className={`app-h w-screen bg-canvas ${mobile ? 'flex items-center justify-center bg-[var(--backdrop)]' : ''}`}
       style={sizeVars}
     >
       <div
@@ -126,7 +126,7 @@ function Shell() {
       className={`relative overflow-hidden bg-canvas font-sans text-ink select-none ${
         mobile
           ? 'w-[390px] rounded-[44px] border border-line shadow-[0_30px_90px_rgba(0,0,0,0.7)]'
-          : 'h-screen w-screen'
+          : 'app-h w-screen'
       }`}
       style={mobile ? { height: 'var(--app-h)' } : undefined}
     >
@@ -359,10 +359,10 @@ function SignedInApp({ userId, email }: { userId: string; email: string }) {
     };
   }, [userId, email, revision]);
 
-  if (cloudState === 'loading') return <div className="h-screen w-screen bg-canvas" />;
+  if (cloudState === 'loading') return <div className="app-h w-screen bg-canvas" />;
   if (cloudState === 'error') {
     return (
-      <div className="flex h-screen w-screen items-center justify-center bg-canvas p-8 text-center text-ink">
+      <div className="flex app-h w-screen items-center justify-center bg-canvas p-8 text-center text-ink">
         <div className="max-w-md rounded-2xl border border-line bg-card p-6">
           <h1 className="text-xl font-semibold">Wallex Could Not Load Your Data</h1>
           <p className="mt-2 font-support text-sm text-muted">{cloudError}</p>
@@ -388,10 +388,10 @@ function SignedInApp({ userId, email }: { userId: string; email: string }) {
 
 export default function App() {
   const auth = useAuth();
-  if (auth.status === 'loading') return <div className="h-screen w-screen bg-canvas" />;
+  if (auth.status === 'loading') return <div className="app-h w-screen bg-canvas" />;
   if (auth.status === 'unconfigured') {
     return (
-      <div className="flex h-screen w-screen items-center justify-center bg-canvas p-8 text-center">
+      <div className="flex app-h w-screen items-center justify-center bg-canvas p-8 text-center">
         <div className="max-w-md">
           <h1 className="text-2xl font-semibold tracking-tight">Wallex is not connected to its sign-in service</h1>
           <p className="mt-3 font-support text-sm text-muted">

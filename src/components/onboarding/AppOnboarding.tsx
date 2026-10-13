@@ -13,8 +13,8 @@ import {
   Sparkles,
 } from 'lucide-react';
 import { asset } from '../../assets';
+import LinkIllustration from './LinkIllustration';
 import { ACCENTS, TEXT_SIZES, setAppearance, useAppearance, type TextSize, type Theme } from '../../lib/appearance';
-import { BANKS } from '../../lib/banks';
 import { photoFromFile, saveProfile, useProfile, type Profile } from '../../lib/profile';
 import { wallex, type Status } from '../../lib/wallex';
 import { useMobileView } from '../../lib/viewState';
@@ -99,10 +99,10 @@ function ProfileStep({
   return (
     <div>
       <div className="mb-7">
-        <span className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-accent-soft text-accent">
-          <ShieldCheck className="h-6 w-6" />
-        </span>
-        <h1 className="text-3xl font-semibold tracking-tight">Your Profile</h1>
+        <h1 className="flex items-center gap-3 text-3xl font-semibold tracking-tight">
+          <ShieldCheck className="h-8 w-8 shrink-0 text-accent" aria-hidden="true" />
+          Your Profile
+        </h1>
         <p className="mt-2 max-w-2xl font-support text-sm text-muted">Tell Wallex what to call you. Your profile stays on this device.</p>
       </div>
 
@@ -138,7 +138,6 @@ function ProfileStep({
             value={draft.preferredName}
             onChange={(event) => set('preferredName', event.target.value)}
             placeholder={draft.firstName.trim() || 'Robin'}
-            hint="The name Wallex uses throughout the app. Leave it blank to use your first name."
           />
           <UnderlineField
             label="Phone Number (Optional)"
@@ -161,7 +160,6 @@ function ProfileStep({
 
 function ConnectStep({ back, onContinue }: { back: () => void; onContinue: () => void }) {
   const [status, setStatus] = useState<Status | null>(null);
-  const [bankId, setBankId] = useState(BANKS[0].id);
   const [linked, setLinked] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
@@ -182,7 +180,6 @@ function ConnectStep({ back, onContinue }: { back: () => void; onContinue: () =>
     };
   }, []);
 
-  const bank = BANKS.find((candidate) => candidate.id === bankId) ?? BANKS[0];
   const configured = Boolean(status?.configured);
 
   const connect = async () => {
@@ -190,11 +187,11 @@ function ConnectStep({ back, onContinue }: { back: () => void; onContinue: () =>
     setBusy(true);
     setSuccess(null);
     setMessage(status.environment === 'sandbox' ? null : { kind: 'info', text: 'Plaid Link is open. Finish signing in there.' });
-    const result = await wallex.connect({ bank });
+    const result = await wallex.connectAnother();
     setBusy(false);
     if (!result.ok) return setMessage({ kind: 'error', text: result.error });
     if (!result.data.connected) return setMessage({ kind: 'info', text: 'Connection cancelled. Nothing was changed.' });
-    const name = result.data.institutionName ?? bank.name;
+    const name = result.data.institutionName || 'Your bank';
     setLinked((list) => (list.includes(name) ? list : [...list, name]));
     setSuccess(name);
     setMessage(null);
@@ -203,50 +200,41 @@ function ConnectStep({ back, onContinue }: { back: () => void; onContinue: () =>
   return (
     <div>
       <div className="mb-7">
-        <span className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-accent-soft text-accent">
-          <Landmark className="h-6 w-6" />
-        </span>
-        <h1 className="text-3xl font-semibold tracking-tight">Connect Your Accounts</h1>
-        <p className="mt-2 max-w-2xl font-support text-sm text-muted">Link one or more financial institutions securely through Plaid. Wallex receives read-only balances and transactions.</p>
+        <h1 className="flex items-center gap-3 text-3xl font-semibold tracking-tight">
+          <Landmark className="h-8 w-8 shrink-0 text-accent" aria-hidden="true" />
+          Connect Your Accounts
+        </h1>
+        <p className="mt-2 max-w-2xl font-support text-sm text-muted">Link your banks through Plaid. Wallex reads balances and transactions only.</p>
       </div>
 
-      <div className="grid gap-5 @3xl:grid-cols-[1.1fr_0.9fr]">
-        <section className="rounded-2xl border border-line bg-surface/50 p-5">
-          <label htmlFor="onboarding-bank" className="font-support text-[10px] font-semibold tracking-[0.2em] text-muted uppercase">Financial Institution</label>
-          <select
-            id="onboarding-bank"
-            value={bankId}
-            onChange={(event) => setBankId(event.target.value)}
-            className="mt-2 w-full rounded-xl border border-line bg-card px-4 py-3 text-sm text-ink outline-none focus:border-accent"
-          >
-            {BANKS.map((option) => <option key={option.id} value={option.id}>{option.name}</option>)}
-          </select>
-          <button type="button" onClick={connect} disabled={loading || !configured || busy} className={`${primary} mt-4 w-full`}>
+      <LinkIllustration linked={linked.length} busy={busy} className="w-full" />
+
+      <div className="mx-auto mt-2 w-full max-w-md space-y-5">
+        <section>
+          <button type="button" onClick={connect} disabled={loading || !configured || busy} className={`${primary} w-full`}>
             {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Landmark className="h-4 w-4" />}
             {busy ? 'Opening Plaid…' : linked.length ? 'Link Another Account' : 'Link Account With Plaid'}
           </button>
           {!loading && !configured && (
-            <p className="mt-3 font-support text-xs text-amber-300">Bank linking is not set up on the server yet. Its Plaid keys need to be added there before an account can be linked.</p>
+            <p className="mt-3 text-center font-support text-xs text-amber-300">Bank linking is not set up on the server yet. Its Plaid keys need to be added there before an account can be linked.</p>
           )}
-          {message && <p role={message.kind === 'error' ? 'alert' : 'status'} className={`mt-3 font-support text-xs ${message.kind === 'error' ? 'text-red-300' : 'text-muted'}`}>{message.text}</p>}
+          {message && <p role={message.kind === 'error' ? 'alert' : 'status'} className={`mt-3 text-center font-support text-xs ${message.kind === 'error' ? 'text-red-300' : 'text-muted'}`}>{message.text}</p>}
         </section>
 
-        <section className="rounded-2xl border border-line bg-card p-5">
-          <p className="text-sm font-semibold">Connected Accounts</p>
-          <div className="mt-4 space-y-2">
-            {linked.length ? linked.map((name) => (
-              <div key={name} className="flex items-center gap-3 rounded-xl bg-surface px-3 py-2.5">
-                <span className="flex h-8 w-8 items-center justify-center rounded-full bg-accent-soft text-accent"><Check className="h-4 w-4" /></span>
-                <span className="text-sm font-medium">{name}</span>
-                <span className="ml-auto font-support text-xs text-accent">Linked</span>
-              </div>
-            )) : <p className="font-support text-sm text-muted">No accounts linked yet.</p>}
+        {linked.length > 0 && (
+          <div>
+            <p className="mb-3 text-sm font-semibold">Connected Accounts</p>
+            <div className="space-y-2">
+              {linked.map((name) => (
+                <div key={name} className="flex items-center gap-3 rounded-xl border border-line bg-surface px-3 py-2.5">
+                  <span className="flex h-8 w-8 items-center justify-center rounded-full bg-accent-soft text-accent"><Check className="h-4 w-4" /></span>
+                  <span className="text-sm font-medium">{name}</span>
+                  <span className="ml-auto font-support text-xs text-accent">Linked</span>
+                </div>
+              ))}
+            </div>
           </div>
-          <div className="mt-5 flex items-start gap-3 border-t border-line pt-4 font-support text-xs text-muted">
-            <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-accent" />
-            Plaid handles your credentials. Wallex cannot move money or make changes to your accounts.
-          </div>
-        </section>
+        )}
       </div>
 
       <AnimatePresence>
@@ -300,10 +288,10 @@ function PersonalizeStep({ back, onLaunch, launching }: { back: () => void; onLa
   return (
     <div>
       <div className="mb-7">
-        <span className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-accent-soft text-accent">
-          <Palette className="h-6 w-6" />
-        </span>
-        <h1 className="text-3xl font-semibold tracking-tight">Personalize Wallex</h1>
+        <h1 className="flex items-center gap-3 text-3xl font-semibold tracking-tight">
+          <Palette className="h-8 w-8 shrink-0 text-accent" aria-hidden="true" />
+          Personalize Wallex
+        </h1>
         <p className="mt-2 max-w-2xl font-support text-sm text-muted">Start with our recommended settings or make Wallex feel like yours before you launch.</p>
       </div>
 
@@ -402,12 +390,12 @@ export default function AppOnboarding({ email, onComplete }: { email: string; on
   };
 
   return (
-    <div className={`h-screen w-screen ${mobile ? 'flex items-center justify-center bg-[var(--backdrop)]' : ''}`}>
+    <div className={`app-h w-screen ${mobile ? 'flex items-center justify-center bg-[var(--backdrop)]' : ''}`}>
       <motion.div
         initial={{ opacity: 0, scale: 0.99 }}
         animate={launching ? { opacity: 0, scale: 0.985 } : { opacity: 1, scale: 1 }}
         transition={{ duration: launching ? 0.4 : 0.5, ease }}
-        className={`@container relative overflow-hidden bg-canvas text-ink select-none ${mobile ? 'h-[min(844px,calc(100vh-3rem))] w-[390px] rounded-[44px] border border-line shadow-[0_30px_90px_rgba(0,0,0,0.7)]' : 'h-screen w-screen'}`}
+        className={`@container relative overflow-hidden bg-canvas text-ink select-none ${mobile ? 'h-[min(844px,calc(100vh-3rem))] w-[390px] rounded-[44px] border border-line shadow-[0_30px_90px_rgba(0,0,0,0.7)]' : 'app-h w-screen'}`}
       >
         <div className="absolute inset-x-0 top-0 z-10 h-10" style={{ WebkitAppRegion: 'drag' } as React.CSSProperties} />
         <div className="flex h-full flex-col">
