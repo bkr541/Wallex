@@ -30,7 +30,7 @@ import LoadingLogo from './components/LoadingLogo';
 import { cashPosition } from './lib/overview';
 import ViewToggle from './components/ViewToggle';
 import { useIsAdmin } from './lib/admin';
-import { useMobileView } from './lib/viewState';
+import { useFramedView, useMobileView } from './lib/viewState';
 import { ViewModeProvider } from './lib/viewMode';
 import AuthScreen from './components/auth/AuthScreen';
 import AppOnboarding from './components/onboarding/AppOnboarding';
@@ -99,6 +99,8 @@ function Shell() {
   // Desktop layout, or a phone-sized frame. Remembered between launches.
   const [frameEl, setFrameEl] = useState<HTMLDivElement | null>(null);
   const mobile = useMobileView();
+  // On a wide screen the phone layout sits in a phone-shaped frame; on a real phone it fills the screen.
+  const framed = useFramedView();
 
   const activePage = NAV.find((item) => item.id === activeId)!;
   const tabs = activePage.tabs ?? TABS;
@@ -106,7 +108,7 @@ function Shell() {
 
   // Pages size themselves from --app-w / --app-h instead of the window, so they fit the phone frame too.
   const sizeVars = (
-    mobile
+    framed
       ? { '--app-w': '390px', '--app-h': 'min(844px, calc(100vh - 3rem))' }
       : { '--app-w': '100vw', '--app-h': 'var(--vvh, 100dvh)' }
   ) as React.CSSProperties;
@@ -114,7 +116,7 @@ function Shell() {
   return (
     <ViewModeProvider value={{ mobile, frame: frameEl }}>
     <div
-      className={`app-h w-screen bg-canvas ${mobile ? 'flex items-center justify-center bg-[var(--backdrop)]' : ''}`}
+      className={`app-h w-screen bg-canvas ${framed ? 'flex items-center justify-center bg-[var(--backdrop)]' : ''}`}
       style={sizeVars}
     >
       <div
@@ -124,11 +126,11 @@ function Shell() {
     <div
       ref={setFrameEl}
       className={`relative overflow-hidden bg-canvas font-sans text-ink select-none ${
-        mobile
+        framed
           ? 'w-[390px] rounded-[44px] border border-line shadow-[0_30px_90px_rgba(0,0,0,0.7)]'
           : 'app-h w-screen'
       }`}
-      style={mobile ? { height: 'var(--app-h)' } : undefined}
+      style={framed ? { height: 'var(--app-h)' } : undefined}
     >
       <header
         className="absolute inset-x-0 top-0 z-30 h-10"
@@ -148,7 +150,7 @@ function Shell() {
           showLoader ? 'pointer-events-none opacity-0' : 'opacity-100'
         } ${
           mobile
-            ? 'inset-x-3 bottom-3 justify-around rounded-[32px] p-2'
+            ? 'inset-x-3 bottom-[max(0.75rem,env(safe-area-inset-bottom))] justify-around rounded-[32px] p-2'
             : 'top-1/2 left-5 w-[68px] -translate-y-1/2 flex-col gap-2.5 rounded-[34px] p-[10px]'
         }`}
       >
@@ -211,7 +213,7 @@ function Shell() {
 
       <main
         className={`absolute z-20 flex flex-col ${
-          mobile ? 'inset-x-0 top-0 bottom-24' : 'inset-y-0 right-8 left-32 pt-6 pb-8'
+          mobile ? 'inset-x-0 top-0 bottom-[calc(6rem+env(safe-area-inset-bottom))]' : 'inset-y-0 right-8 left-32 pt-6 pb-8'
         }`}
       >
         <PageHeader page={activePage} compact={mobile} />

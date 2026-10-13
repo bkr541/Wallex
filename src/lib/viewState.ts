@@ -38,15 +38,41 @@ export function hydrateMobileView(next: boolean) {
   listeners.forEach((l) => l());
 }
 
-// The phone frame is a developer tool, so everyone else always gets the desktop layout, whatever was saved.
-export function useMobileView(): boolean {
-  const admin = useIsAdmin();
-  const stored = useSyncExternalStore(
+// A real phone: the screen is narrow, so the app uses its compact layout and fills the screen. This is decided by the
+// screen, not by the switch below.
+const SMALL = '(max-width: 767px)';
+const smallQuery = typeof window !== 'undefined' && window.matchMedia ? window.matchMedia(SMALL) : null;
+const subscribeSmall = (cb: () => void) => {
+  smallQuery?.addEventListener('change', cb);
+  return () => smallQuery?.removeEventListener('change', cb);
+};
+export const useSmallScreen = (): boolean => useSyncExternalStore(subscribeSmall, () => Boolean(smallQuery?.matches), () => false);
+
+// The switch's own setting, for the developer button.
+export function useStoredMobileView(): boolean {
+  return useSyncExternalStore(
     (cb) => {
       listeners.add(cb);
       return () => listeners.delete(cb);
     },
     () => mobile,
   );
-  return stored && admin;
+}
+
+// The compact layout: on a real phone, or when a developer / admin account has switched the view to phone. The phone
+// view is a developer tool, so everyone else on a wide screen always gets the desktop layout.
+export function useMobileView(): boolean {
+  const small = useSmallScreen();
+  const admin = useIsAdmin();
+  const stored = useStoredMobileView();
+  return small || (stored && admin);
+}
+
+// The compact layout drawn inside a phone-shaped frame on a wide screen (the developer preview). On a real phone the app
+// fills the screen with no frame.
+export function useFramedView(): boolean {
+  const small = useSmallScreen();
+  const admin = useIsAdmin();
+  const stored = useStoredMobileView();
+  return !small && stored && admin;
 }

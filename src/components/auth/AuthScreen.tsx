@@ -8,7 +8,7 @@ import type { PlumpName } from '../PlumpIcon';
 import BrandStage from './BrandStage';
 import UnderlineField from '../UnderlineField';
 import ViewToggle from '../ViewToggle';
-import { useMobileView } from '../../lib/viewState';
+import { useFramedView } from '../../lib/viewState';
 import { clearOnboardingPending, markOnboardingPending } from '../../lib/onboarding';
 import { RevealButton } from './shared';
 import {
@@ -64,7 +64,7 @@ const FIELDS_FOR: Record<Step, Key[]> = {
 
 export default function AuthScreen() {
   const auth = useAuth();
-  const mobile = useMobileView();
+  const framed = useFramedView();
   const [stepState, setStep] = useState<Step>('login');
   // Opening a reset link takes over the screen, whatever step it was on.
   const step: Step = auth.recovering ? 'newpassword' : stepState;
@@ -255,12 +255,12 @@ export default function AuthScreen() {
 
   return (
     // In the phone view the screen sits in a phone-sized frame, which is also what the layout measures itself against.
-    <div className={`app-h w-screen ${mobile ? 'flex items-center justify-center bg-[var(--backdrop)]' : ''}`}>
+    <div className={`app-h w-screen ${framed ? 'flex items-center justify-center bg-[var(--backdrop)]' : ''}`}>
     <div
       className={`@container relative overflow-hidden bg-canvas text-ink select-none ${
-        mobile ? 'w-[390px] rounded-[44px] border border-line shadow-[0_30px_90px_rgba(0,0,0,0.7)]' : 'app-h w-screen'
+        framed ? 'w-[390px] rounded-[44px] border border-line shadow-[0_30px_90px_rgba(0,0,0,0.7)]' : 'app-h w-screen'
       }`}
-      style={mobile ? { height: 'min(844px, calc(100vh - 3rem))' } : undefined}
+      style={framed ? { height: 'min(844px, calc(100vh - 3rem))' } : undefined}
     >
       <div className="grid h-full @3xl:grid-cols-[1fr_1.1fr]">
         {/* Brand panel: always dark with light text, so it reads the same in the light and dark theme and with any accent. */}

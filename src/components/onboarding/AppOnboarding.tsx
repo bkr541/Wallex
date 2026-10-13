@@ -17,7 +17,7 @@ import LinkIllustration from './LinkIllustration';
 import { ACCENTS, TEXT_SIZES, setAppearance, useAppearance, type TextSize, type Theme } from '../../lib/appearance';
 import { photoFromFile, saveProfile, useProfile, type Profile } from '../../lib/profile';
 import { wallex, type Status } from '../../lib/wallex';
-import { useMobileView } from '../../lib/viewState';
+import { useFramedView } from '../../lib/viewState';
 import { syncUserSettings } from '../../lib/cloud';
 import PhotoDropZone from '../PhotoDropZone';
 import UnderlineField from '../UnderlineField';
@@ -353,7 +353,7 @@ function PersonalizeStep({ back, onLaunch, launching }: { back: () => void; onLa
 }
 
 export default function AppOnboarding({ email, onComplete }: { email: string; onComplete: () => void }) {
-  const mobile = useMobileView();
+  const framed = useFramedView();
   const saved = useProfile();
   const [draft, setDraft] = useState<Profile>({ ...saved, email });
   const [step, setStep] = useState<Step>(0);
@@ -390,12 +390,12 @@ export default function AppOnboarding({ email, onComplete }: { email: string; on
   };
 
   return (
-    <div className={`app-h w-screen ${mobile ? 'flex items-center justify-center bg-[var(--backdrop)]' : ''}`}>
+    <div className={`app-h w-screen ${framed ? 'flex items-center justify-center bg-[var(--backdrop)]' : ''}`}>
       <motion.div
         initial={{ opacity: 0, scale: 0.99 }}
         animate={launching ? { opacity: 0, scale: 0.985 } : { opacity: 1, scale: 1 }}
         transition={{ duration: launching ? 0.4 : 0.5, ease }}
-        className={`@container relative overflow-hidden bg-canvas text-ink select-none ${mobile ? 'h-[min(844px,calc(100vh-3rem))] w-[390px] rounded-[44px] border border-line shadow-[0_30px_90px_rgba(0,0,0,0.7)]' : 'app-h w-screen'}`}
+        className={`@container relative overflow-hidden bg-canvas text-ink select-none ${framed ? 'h-[min(844px,calc(100vh-3rem))] w-[390px] rounded-[44px] border border-line shadow-[0_30px_90px_rgba(0,0,0,0.7)]' : 'app-h w-screen'}`}
       >
         <div className="absolute inset-x-0 top-0 z-10 h-10" style={{ WebkitAppRegion: 'drag' } as React.CSSProperties} />
         <div className="flex h-full flex-col">
