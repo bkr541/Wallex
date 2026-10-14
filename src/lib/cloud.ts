@@ -4,6 +4,7 @@ import type { Appearance } from './appearance';
 import type { Override } from './recurringOverrides';
 import type { Rules } from './rules';
 import type { Goal } from './goals';
+import type { DemoConfig } from './demo';
 
 const QUEUE_KEY = 'wallex-cloud-write-queue';
 
@@ -23,6 +24,7 @@ type QueuedWrite =
   | { kind: 'settings'; userId: string; data: SettingsPatch }
   | { kind: 'rules'; userId: string; data: Rules }
   | { kind: 'goals'; userId: string; data: Goal[] }
+  | { kind: 'demo'; userId: string; data: DemoConfig }
   | { kind: 'override-upsert'; userId: string; recurringId: string; data: Override }
   | { kind: 'override-delete'; userId: string; recurringId: string };
 
@@ -46,6 +48,8 @@ export interface CloudSnapshot {
   } | null;
   // The saved rules; undefined when the account's table has no rules column yet (the migration has not been applied).
   rules?: Record<string, unknown> | null;
+  // The demo-mode settings; undefined when the table has no demo column yet.
+  demo?: Record<string, unknown> | null;
   // The saved goals; undefined when the table has no goals column yet.
   goals?: unknown[] | null;
   overrides: Array<{ recurring_id: string; label: string | null; kind: Override['kind'] | null; hide_reason: Override['hide'] | null }>;
@@ -99,6 +103,8 @@ async function execute(write: QueuedWrite): Promise<boolean> {
     }));
   } else if (write.kind === 'settings') {
     ({ error } = await supabase.from('user_settings').upsert({ user_id: write.userId, ...write.data }));
+  } else if (write.kind === 'demo') {
+    ({ error } = await supabase.from('user_settings').upsert({ user_id: write.userId, demo: write.data }));
   } else if (write.kind === 'goals') {
     ({ error } = await supabase.from('user_settings').upsert({ user_id: write.userId, goals: write.data }));
   } else if (write.kind === 'rules') {
@@ -133,6 +139,11 @@ export async function syncProfile(profile: Profile) {
 export async function syncUserSettings(data: SettingsPatch) {
   const id = await userId();
   if (id) await send({ kind: 'settings', userId: id, data });
+}
+
+export async function syncDemo(data: DemoConfig) {
+  const id = await userId();
+  if (id) await send({ kind: 'demo', userId: id, data });
 }
 
 export async function syncGoals(data: Goal[]) {
@@ -170,11 +181,13 @@ export async function loadCloudSnapshot(activeUserId: string): Promise<CloudSnap
   // Read on its own: a missing rules column must not stop the rest of the account from loading.
   const rules = await supabase.from('user_settings').select('rules').eq('user_id', activeUserId).maybeSingle();
   const goals = await supabase.from('user_settings').select('goals').eq('user_id', activeUserId).maybeSingle();
+  const demo = await supabase.from('user_settings').select('demo').eq('user_id', activeUserId).maybeSingle();
   const errors = [profile.error, settings.error, overrides.error].filter(Boolean);
   if (errors.length) throw new Error(errors.map((error) => error!.message).join(' '));
   return {
     profile: profile.data as CloudSnapshot['profile'],
     settings: settings.data as CloudSnapshot['settings'],
+    demo: demo.error ? undefined : ((demo.data as { demo?: Record<string, unknown> } | null)?.demo ?? null),
     goals: goals.error ? undefined : ((goals.data as { goals?: unknown[] } | null)?.goals ?? null),
     rules: rules.error ? undefined : ((rules.data as { rules?: Record<string, unknown> } | null)?.rules ?? null),
     overrides: (overrides.data ?? []) as CloudSnapshot['overrides'],

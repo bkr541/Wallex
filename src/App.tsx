@@ -14,6 +14,7 @@ import { NAV, TABS } from './lib/pages';
 import { ListIcon } from './components/NavIcons';
 import AppearanceTab from './pages/AppearanceTab';
 import RulesTab from './pages/RulesTab';
+import DemoTab from './pages/DemoTab';
 import OnboardingTab from './pages/OnboardingTab';
 import PageHeader from './components/PageHeader';
 import CardsTab from './pages/CardsTab';
@@ -30,7 +31,7 @@ import GoalsTab from './pages/GoalsTab';
 import LoadingLogo from './components/LoadingLogo';
 import { cashPosition } from './lib/overview';
 import ViewToggle from './components/ViewToggle';
-import { useIsAdmin } from './lib/admin';
+import { useIsAdmin, useIsDemoDeveloper } from './lib/admin';
 import { RefreshCw, Search, X } from 'lucide-react';
 import { useFramedView, useMobileView } from './lib/viewState';
 import { ViewModeProvider } from './lib/viewMode';
@@ -67,7 +68,8 @@ function Shell() {
     if (tab) setActiveTabs((prev) => ({ ...prev, [page]: tab }));
     if (recurringFilter) setRecurringStart((r) => ({ filter: recurringFilter, nonce: r.nonce + 1 }));
   };
-  const { load, refreshing, refresh } = useTransactions();
+  const { load, refreshing, refresh, suppressedCount } = useTransactions();
+  const isDemoDeveloper = useIsDemoDeveloper();
 
   // The Scratchpad and the phone view are for developer / admin accounts. Anyone else is sent back if they end up there.
   const isAdmin = useIsAdmin();
@@ -115,7 +117,9 @@ function Shell() {
   const activePage = NAV.find((item) => item.id === activeId)!;
   // Transactions has one tab for each linked bank, then Recurring and Loans.
   const banks = bankNames(load);
-  const tabs = activeId === 'transactions' ? [...(banks.length ? banks : ['Checking']), 'Recurring', 'Loans'] : (activePage.tabs ?? TABS);
+  const baseTabs = activeId === 'transactions' ? [...(banks.length ? banks : ['Checking']), 'Recurring', 'Loans'] : (activePage.tabs ?? TABS);
+  // Settings has a Demo tab for the developer account only, between Rules and Setup.
+  const tabs = activeId === 'settings' && isDemoDeveloper ? baseTabs.flatMap((t) => (t === 'Setup' ? ['Demo', t] : [t])) : baseTabs;
   const stored = activeTabs[activeId];
   const activeTab = stored && tabs.includes(stored) ? stored : tabs[0];
   useEffect(() => {
@@ -321,6 +325,8 @@ function Shell() {
             <AppearanceTab />
           ) : activeId === 'settings' && activeTab === 'Rules' ? (
             <RulesTab load={load} />
+          ) : activeId === 'settings' && activeTab === 'Demo' && isDemoDeveloper ? (
+            <DemoTab suppressedCount={suppressedCount} />
           ) : activeId === 'settings' && activeTab === 'Setup' ? (
             <SetupTab onConnectionChange={refresh} />
           ) : onBankTab ? (

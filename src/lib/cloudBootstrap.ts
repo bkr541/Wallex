@@ -1,7 +1,8 @@
 import { DEFAULTS, getAppearance, hydrateAppearance } from './appearance';
-import { flushCloudWrites, loadCloudSnapshot, syncProfile, syncGoals, syncRecurringOverride, syncRules, syncUserSettings } from './cloud';
+import { flushCloudWrites, loadCloudSnapshot, syncProfile, syncDemo, syncGoals, syncRecurringOverride, syncRules, syncUserSettings } from './cloud';
 import { hydrateOnboarding } from './onboarding';
 import { getProfile, hydrateProfile } from './profile';
+import { getDemo, hydrateDemo } from './demo';
 import { getGoals, hydrateGoals } from './goals';
 import { getRules, hydrateRules, rulesAreDefault } from './rules';
 import { getOverrides, hydrateOverrides, type Override } from './recurringOverrides';
@@ -78,6 +79,14 @@ export async function hydrateCloudUser(userId: string, email: string) {
     const local = getRules();
     if (!remoteHasRules && !rulesAreDefault(local)) await syncRules(local);
     else if (remoteHasRules) hydrateRules(snapshot.rules);
+  }
+
+  // Demo mode: the account's copy wins, unless it has none yet and this computer does.
+  if (snapshot.demo !== undefined) {
+    const remoteHas = !!snapshot.demo && Object.keys(snapshot.demo).length > 0;
+    const local = getDemo();
+    if (!remoteHas && (local.enabled || local.conditions.length > 0)) await syncDemo(local);
+    else if (remoteHas) hydrateDemo(snapshot.demo);
   }
 
   // Goals: the account's copy wins, unless it has none yet and this computer does.

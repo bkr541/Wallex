@@ -1,4 +1,6 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useIsDemoDeveloper } from './admin';
+import { suppressed, useDemo } from './demo';
 import { wallex, type InstitutionStatus, type LinkedAccount, type Txn } from './wallex';
 
 export type Load =
@@ -18,7 +20,7 @@ export type Load =
     };
 
 export function useTransactions() {
-  const [load, setLoad] = useState<Load>({ state: 'loading' });
+  const [base, setLoad] = useState<Load>({ state: 'loading' });
   const [refreshing, setRefreshing] = useState(false);
 
   const refresh = useCallback(async () => {
@@ -60,7 +62,19 @@ export function useTransactions() {
     refresh();
   }, [refresh]);
 
-  return { load, refreshing, refresh };
+  // Demo mode: suppressed transactions are removed here, once, so no screen or calculation ever sees them.
+  const demo = useDemo();
+  const developer = useIsDemoDeveloper();
+  const load = useMemo<Load>(() => {
+    if (base.state !== 'live' || !developer) return base;
+    const names = new Map(base.allAccounts.map((a) => [a.id, a.name]));
+    const { kept, removed } = suppressed(base.allTransactions, demo, (id) => names.get(id) ?? '');
+    if (removed === 0) return base;
+    const shownIds = new Set(base.accounts.map((a) => a.id));
+    return { ...base, allTransactions: kept, transactions: kept.filter((t) => shownIds.has(t.accountId)) };
+  }, [base, demo, developer]);
+
+  return { load, refreshing, refresh, suppressedCount: base.state === 'live' && load.state === 'live' ? base.allTransactions.length - load.allTransactions.length : 0 };
 }
 
 // The name of the bank an account belongs to, and the banks that are linked, in the order they were found.

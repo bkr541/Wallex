@@ -26,17 +26,25 @@ const remember = (userId: string | null) => {
   }
 };
 
+// The one account allowed to use demo mode.
+export const DEMO_DEVELOPER_EMAIL = 'bkr_92_02@yahoo.com';
+
 let admin = false;
+let email = '';
 let current: string | null = null;
 const listeners = new Set<() => void>();
 const set = (next: boolean) => {
-  if (next === admin) return;
+  if (next === admin) {
+    listeners.forEach((l) => l());
+    return;
+  }
   admin = next;
   listeners.forEach((l) => l());
 };
 
-async function check(userId: string | null) {
+async function check(userId: string | null, userEmail = '') {
   current = userId;
+  email = userEmail.toLowerCase();
   if (!userId || !supabase) return set(false);
   // The hint from last time, until the database answers.
   if (remembered() === userId) set(true);
@@ -49,12 +57,25 @@ async function check(userId: string | null) {
 }
 
 if (supabase) {
-  supabase.auth.getSession().then(({ data }) => void check(data.session?.user.id ?? null));
+  supabase.auth.getSession().then(({ data }) => void check(data.session?.user.id ?? null, data.session?.user.email ?? ''));
   supabase.auth.onAuthStateChange((_event, session) => {
     const id = session?.user.id ?? null;
-    if (id !== current) void check(id);
+    if (id !== current) void check(id, session?.user.email ?? '');
   });
 }
+
+// Demo mode and its Demo tab: a developer account whose email is the developer's own.
+export const useIsDemoDeveloper = (): boolean => {
+  const isAdmin = useIsAdmin();
+  const who = useSyncExternalStore(
+    (cb) => {
+      listeners.add(cb);
+      return () => listeners.delete(cb);
+    },
+    () => email,
+  );
+  return isAdmin && who === DEMO_DEVELOPER_EMAIL;
+};
 
 export const useIsAdmin = (): boolean =>
   useSyncExternalStore(
