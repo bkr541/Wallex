@@ -12,18 +12,22 @@ export default function ExpandingSearch({
   placeholder,
   width = 240,
   size = SIZE,
+  onOpenChange,
 }: {
   value: string;
   onChange: (v: string) => void;
   placeholder: string;
   width?: number | '100%';
   size?: number; // the height, and the width while closed
+  onOpenChange?: (open: boolean) => void; // so a parent can make room while it is open
 }) {
   // Stays open while there is something typed, so a search can never be hiding behind a closed button.
   const [open, setOpen] = useState(value !== '');
   const input = useRef<HTMLInputElement>(null);
   useEffect(() => {
     if (open) input.current?.focus();
+    onOpenChange?.(open);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
   const close = () => {

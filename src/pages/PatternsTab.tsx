@@ -871,7 +871,7 @@ export default function PatternsTab({ load }: { load: Load }) {
       metrics={detailData.metrics}
       days={filters.days}
       hasIncome={hasIncome}
-      icon={<DiscIcon bubble={selected} px={mobile ? 44 : 56} />}
+      icon={<DiscIcon bubble={selected} px={mobile ? 54 : 60} />}
       periodRows={detailData.periodRows}
       historyRows={detailData.historyRows}
       onBack={() => setSelected(null)}

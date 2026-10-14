@@ -63,6 +63,12 @@ export function useTransactions() {
   return { load, refreshing, refresh };
 }
 
+// The name of the bank an account belongs to, and the banks that are linked, in the order they were found.
+export const bankOf = (a: LinkedAccount) => a.institution || 'Bank';
+export function bankNames(load: Load): string[] {
+  return load.state === 'live' ? [...new Set(load.allAccounts.map(bankOf))] : [];
+}
+
 // Text for the Checking tab: the linked account's name and last four digits, e.g. "TOTAL CHECKING ••6201".
 export function accountLabel(load: Load): string {
   if (load.state !== 'live' || load.accounts.length === 0) return 'Checking';

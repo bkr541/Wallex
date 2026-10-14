@@ -72,14 +72,15 @@ function Tile({
   active?: boolean;
   onClick?: () => void;
 }) {
+  const mobile = useMobile();
   const body = (
     <>
-      <p className="font-support text-xs text-muted">{label}</p>
-      <p className={`mt-1.5 text-2xl font-semibold tracking-tight @3xl:mt-2 @3xl:text-3xl ${tone}`}>{value}</p>
+      <p className={`font-support text-muted ${mobile ? 'truncate text-[10px]' : 'text-xs'}`}>{label}</p>
+      <p className={`font-semibold tracking-tight ${mobile ? 'mt-1 text-xl' : 'mt-1.5 text-2xl @3xl:mt-2 @3xl:text-3xl'} ${tone}`}>{value}</p>
       {detail && <p className="mt-1 truncate font-support text-[11px] text-muted" title={detail}>{detail}</p>}
     </>
   );
-  const cls = `rounded-2xl border bg-card p-3 text-left @3xl:p-4 ${active ? 'border-accent' : 'border-line'}`;
+  const cls = `min-w-0 rounded-2xl border bg-card text-left ${mobile ? 'p-2.5' : 'p-3 @3xl:p-4'} ${active ? 'border-accent' : 'border-line'}`;
   return onClick ? (
     <button type="button" onClick={onClick} aria-pressed={active} className={`${cls} cursor-pointer transition-colors hover:bg-surface/60`}>
       {body}
@@ -426,6 +427,8 @@ export default function RecurringTab({ load, initialFilter = 'all' }: { load: Lo
   const [filter, setFilter] = useState(initialFilter);
   const [status, setStatus] = useState<Confidence | null>(null);
   const [query, setQuery] = useState('');
+  // Whether the search is open: on a phone it takes over the row from the filter buttons.
+  const [searching, setSearching] = useState(false);
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
   const live = load.state === 'live';
@@ -511,6 +514,21 @@ export default function RecurringTab({ load, initialFilter = 'all' }: { load: Lo
         </p>
       )}
 
+      {mobile ? (
+        // On a phone the four counts share one row, and the monthly total and transaction count share the next.
+        <div className="space-y-2 px-4">
+          <div className="grid grid-cols-4 gap-2">
+            {tile('confirmed', 'Confirmed')}
+            {tile('likely', 'Likely')}
+            {tile('new', 'New')}
+            {tile('review', 'Review')}
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <Tile label="Est. Monthly" value={`$${Math.round(analysis.monthlyTotal).toLocaleString('en-US')}`} tone="" />
+            <Tile label="Transactions" value={transactionCount} detail={transactionRange} tone="text-sky-300" />
+          </div>
+        </div>
+      ) : (
       <div className="grid grid-cols-2 gap-3 px-4 @3xl:grid-cols-6">
         {tile('confirmed', 'Confirmed')}
         {tile('likely', 'Likely')}
@@ -523,9 +541,11 @@ export default function RecurringTab({ load, initialFilter = 'all' }: { load: Lo
           <Tile label="Transactions" value={transactionCount} detail={transactionRange} tone="text-sky-300" />
         </div>
       </div>
+      )}
 
-      <div className="mt-6 flex flex-wrap items-center justify-between gap-3 px-4">
-        <div role="tablist" className="flex flex-wrap gap-2">
+      <div className={`mt-6 flex items-center gap-3 px-4 ${mobile ? 'gap-2' : 'flex-wrap justify-between'}`}>
+        {!(mobile && searching) && (
+        <div role="tablist" className={mobile ? 'flex min-w-0 flex-1 gap-2 overflow-x-auto overflow-y-hidden [scrollbar-width:none]' : 'flex flex-wrap gap-2'} style={mobile ? { touchAction: 'pan-x' } : undefined}>
           {FILTERS.map((f) => {
             const count = analysis.items.filter(f.test).length;
             if (f.id === 'ended' && count === 0 && filter !== 'ended') return null;
@@ -537,7 +557,7 @@ export default function RecurringTab({ load, initialFilter = 'all' }: { load: Lo
                 role="tab"
                 aria-selected={selected}
                 onClick={() => setFilter(f.id)}
-                className={`cursor-pointer rounded-full px-3 py-1.5 text-sm transition-colors ${
+                className={`cursor-pointer rounded-full px-3 py-1.5 text-sm whitespace-nowrap transition-colors ${mobile ? 'shrink-0' : ''} ${
                   selected ? 'bg-accent text-canvas' : 'bg-surface text-muted hover:text-ink'
                 }`}
               >
@@ -551,7 +571,7 @@ export default function RecurringTab({ load, initialFilter = 'all' }: { load: Lo
               role="tab"
               aria-selected={showHidden}
               onClick={() => setFilter('hidden')}
-              className={`cursor-pointer rounded-full px-3 py-1.5 text-sm transition-colors ${
+              className={`cursor-pointer rounded-full px-3 py-1.5 text-sm whitespace-nowrap transition-colors ${mobile ? 'shrink-0' : ''} ${
                 showHidden ? 'bg-accent text-canvas' : 'bg-surface text-muted hover:text-ink'
               }`}
             >
@@ -559,8 +579,9 @@ export default function RecurringTab({ load, initialFilter = 'all' }: { load: Lo
             </button>
           )}
         </div>
-        <div className={mobile ? 'w-full' : ''}>
-          <ExpandingSearch value={query} onChange={setQuery} placeholder="Search recurring items" width={mobile ? '100%' : 260} />
+        )}
+        <div className={mobile ? (searching ? 'min-w-0 flex-1' : 'shrink-0') : ''}>
+          <ExpandingSearch value={query} onChange={setQuery} onOpenChange={setSearching} placeholder="Search recurring items" width={mobile ? '100%' : 260} />
         </div>
       </div>
 

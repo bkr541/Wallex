@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { motion } from 'motion/react';
-import { ChevronUp, ReceiptText } from 'lucide-react';
+import { AudioLines, CalendarDays, ChevronUp, ReceiptText } from 'lucide-react';
 import TransactionTable from './TransactionTable';
 import { useMobile } from '../lib/viewMode';
 import type { TxnWithBalance } from '../lib/balances';
@@ -28,10 +28,10 @@ const rise = {
 
 // A small row of bars, one per slice of the period. It is there to show the shape of the spending
 // (rising, falling, steady, spiky, occasional), so it carries no axes.
-function Spark({ buckets, rgb }: { buckets: TrendBucket[]; rgb: string }) {
+function Spark({ buckets, rgb, fill = false }: { buckets: TrendBucket[]; rgb: string; fill?: boolean }) {
   const max = Math.max(1, ...buckets.map((b) => b.amount ?? 0));
   return (
-    <div className="flex h-12 items-end gap-1" role="img" aria-label="Spending over the period">
+    <div className={`flex items-end gap-1 ${fill ? 'h-9 w-full' : 'h-12'}`} role="img" aria-label="Spending over the period">
       {buckets.map((b, i) => {
         const none = b.amount === null;
         const h = none ? 0 : Math.max(b.amount === 0 ? 0 : 8, (b.amount! / max) * 100);
@@ -39,7 +39,7 @@ function Spark({ buckets, rgb }: { buckets: TrendBucket[]; rgb: string }) {
           <div
             key={b.start}
             title={`${shortDate(b.start)} – ${shortDate(b.end)}: ${none ? 'no history yet' : money(b.amount ?? 0)}`}
-            className="flex h-full w-3 flex-col justify-end"
+            className={`flex h-full flex-col justify-end ${fill ? 'min-w-0 flex-1' : 'w-3'}`}
           >
             {none || b.amount === 0 ? (
               <span className="h-[3px] w-full rounded-full" style={{ background: none ? 'var(--line)' : `rgba(${rgb}, 0.3)` }} />
@@ -55,6 +55,34 @@ function Spark({ buckets, rgb }: { buckets: TrendBucket[]; rgb: string }) {
           </div>
         );
       })}
+    </div>
+  );
+}
+
+// The share of income (or of spending, with no income found) as a ring, with the figure in the middle.
+function ShareRing({ share, label }: { share: number; label: string }) {
+  const filled = Math.max(0.015, Math.min(1, share));
+  return (
+    <div className="relative h-[7.25rem] w-[7.25rem] shrink-0 @2xl:h-40 @2xl:w-40" role="img" aria-label={`${percentText(share)} ${label.toLowerCase()}`}>
+      <svg viewBox="0 0 120 120" className="absolute inset-0 h-full w-full -rotate-90" fill="none" aria-hidden="true">
+        <circle cx="60" cy="60" r="52" stroke="var(--line)" strokeOpacity="0.7" strokeWidth="9" />
+        <motion.circle
+          cx="60"
+          cy="60"
+          r="52"
+          stroke="var(--accent)"
+          strokeWidth="9"
+          strokeLinecap="round"
+          style={{ filter: 'drop-shadow(0 0 6px color-mix(in srgb, var(--accent) 55%, transparent))' }}
+          initial={{ pathLength: 0 }}
+          animate={{ pathLength: filled }}
+          transition={{ duration: 0.9, ease: [0.22, 1, 0.36, 1], delay: 0.2 }}
+        />
+      </svg>
+      <div className="absolute inset-[14%] flex flex-col items-center justify-center rounded-full bg-canvas/60 text-center">
+        <span className="text-2xl leading-none font-semibold tracking-tight @2xl:text-3xl">{percentText(share)}</span>
+        <span className="mt-1 font-support text-[9px] font-semibold tracking-[0.16em] text-muted uppercase">{label}</span>
+      </div>
     </div>
   );
 }
@@ -85,28 +113,33 @@ export default function PatternDetail({
   const period = periodText(days, m.effectiveDays, m.partial);
   const single = m.count === 1;
 
-  // The supporting facts that exist for this circle, in the grid beside the large figure. The rest are simply not shown.
+  // What sits beside the large figure and in the rows under it. Anything Wallex cannot work out is simply not shown.
   const change = changeText(m.change, days);
-  const facts: { label: string; value: string; note?: string; tone?: string }[] = [];
-  if (m.avgTransaction !== null) facts.push({ label: `Average ${singular(noun)}`, value: money(m.avgTransaction) });
-  if (m.perMonth !== null) facts.push({ label: 'How often', value: frequencyText(m.perMonth, noun) });
-  if (m.incomeShare !== null && hasIncome) facts.push({ label: 'Of monthly income', value: percentText(m.incomeShare) });
-  if (m.discretionaryShare !== null) facts.push({ label: 'Of discretionary spending', value: percentText(m.discretionaryShare) });
+  const ring =
+    m.incomeShare !== null && hasIncome
+      ? { share: m.incomeShare, label: 'Of income' }
+      : m.discretionaryShare !== null
+        ? { share: m.discretionaryShare, label: 'Of spending' }
+        : null;
+  const stats: { label: string; value: string; note?: string; tone?: string }[] = [];
+  if (m.avgTransaction !== null) stats.push({ label: `Average ${singular(noun)}`, value: money(m.avgTransaction) });
+  if (m.highestMonth) stats.push({ label: 'Highest month', value: money(m.highestMonth.amount), note: m.highestMonth.label });
   if (m.change.state === 'available') {
-    facts.push({
+    stats.push({
       label: 'Change',
       value: m.change.isNew ? 'New' : change.direction === 'flat' ? 'No change' : `${signed(m.change.delta)} · ${Math.round(Math.abs(m.change.pct ?? 0) * 100)}%`,
       note: change.detail,
-      tone: change.direction === 'up' ? 'text-amber-300' : change.direction === 'down' ? 'text-accent' : '',
+      tone: m.change.isNew ? 'text-yellow-300' : change.direction === 'up' ? 'text-amber-300' : change.direction === 'down' ? 'text-accent' : '',
     });
   }
-  if (m.highestMonth) facts.push({ label: 'Highest month', value: money(m.highestMonth.amount), note: m.highestMonth.label });
-  if (bubble.kind !== 'category' && m.credits > 0) facts.push({ label: 'Refunds', value: money(m.credits), note: 'Not subtracted from the total' });
+  const extras: { label: string; value: string; note?: string }[] = [];
+  if (m.incomeShare !== null && hasIncome && m.discretionaryShare !== null) extras.push({ label: 'Of discretionary spending', value: percentText(m.discretionaryShare) });
+  if (bubble.kind !== 'category' && m.credits > 0) extras.push({ label: 'Refunds', value: money(m.credits), note: 'Not subtracted from the total' });
   const rows = scope === 'period' ? periodRows : historyRows;
 
   return (
     <motion.div
-      className={`w-full px-1 pb-6 ${mobile ? 'pt-2' : 'pt-8'}`}
+      className={`w-full px-1 pb-6 ${mobile ? 'pt-3' : 'pt-8'}`}
       initial="hidden"
       animate="show"
       exit="hidden"
@@ -118,94 +151,132 @@ export default function PatternDetail({
           hidden: { opacity: 0, y: -20, transition: { duration: 0.2 } },
           show: { opacity: 1, y: 0, transition: { type: 'spring', stiffness: 240, damping: 26 } },
         }}
-        className="@container rounded-2xl border border-line bg-card/45 p-5 @2xl:p-6"
+        className="@container relative mt-5 rounded-3xl border border-line bg-card/45 px-5 pt-9 pb-5 @2xl:px-6"
       >
-        <div className="flex items-start justify-between gap-5">
-          <div className="flex min-w-0 items-center gap-3">
-            {icon}
-            <div className="min-w-0">
-              <h2 className="truncate text-xl font-semibold tracking-tight normal-case">{bubble.name}</h2>
-              <p className="mt-0.5 flex flex-wrap items-center gap-x-1.5 gap-y-1 font-support text-xs text-muted">
-                <span>{KIND_LABEL[bubble.kind]}</span>
-                {bubble.classLabel && (
-                  <>
-                    <span>·</span>
-                    <span>{bubble.classLabel}</span>
-                  </>
-                )}
-                <span>·</span>
-                <span>{plural(m.count, singular(noun))}</span>
-                <span className="ml-1 rounded-full border border-line px-2 py-0.5 text-[11px]">{bubble.badge}</span>
-              </p>
-            </div>
+        {/* Close: sits on the card's top edge. */}
+        <button
+          type="button"
+          onClick={onBack}
+          aria-label="Back to patterns"
+          title="Back to patterns"
+          className="absolute top-0 left-1/2 flex h-11 w-11 -translate-x-1/2 -translate-y-1/2 cursor-pointer items-center justify-center rounded-full border border-line bg-surface text-muted shadow-[0_6px_18px_rgba(0,0,0,0.45)] transition-colors hover:text-ink"
+        >
+          <ChevronUp className="h-5 w-5" />
+        </button>
+
+        <div className="flex min-w-0 items-center gap-3.5">
+          {icon}
+          <div className="min-w-0">
+            <h2 className="truncate text-[1.65rem] leading-tight font-semibold tracking-tight normal-case">{bubble.name}</h2>
+            <p className="mt-0.5 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 font-support text-[13px] text-muted">
+              <span>{KIND_LABEL[bubble.kind]}</span>
+              {bubble.classLabel && (
+                <>
+                  <span>·</span>
+                  <span>{bubble.classLabel}</span>
+                </>
+              )}
+              <span>·</span>
+              <span>{plural(m.count, singular(noun))}</span>
+              {noun !== 'transactions' && (
+                <>
+                  <span>·</span>
+                  <span>{plural(m.count, 'charge')}</span>
+                </>
+              )}
+            </p>
           </div>
-          <button
-            type="button"
-            onClick={onBack}
-            aria-label="Back to patterns"
-            title="Back to patterns"
-            className="flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center rounded-full border border-line bg-surface text-muted transition-colors hover:text-ink"
-          >
-            <ChevronUp className="h-4 w-4" />
-          </button>
         </div>
 
-        <div className="mt-6 grid gap-5 @2xl:grid-cols-[1.2fr_1fr]">
-          <div>
-            <p className="font-support text-xs font-semibold tracking-[0.18em] text-muted uppercase">Monthly Average</p>
-            <p className="mt-1 text-5xl leading-none font-semibold tracking-tight">
+        <div className="mt-6 flex items-center justify-between gap-4">
+          <div className="min-w-0">
+            <p className="font-support text-xs font-semibold tracking-[0.22em] text-muted uppercase">Monthly Average</p>
+            <p className="mt-1.5 text-[2.9rem] leading-none font-semibold tracking-tight whitespace-nowrap @2xl:text-6xl">
               <span className="text-accent">$</span>
               {money(m.monthly).replace(/^-?\$/, '')}
-              <span className="ml-1.5 font-support text-base font-normal text-muted">/ month</span>
+              <span className="ml-1 font-support text-base font-normal text-muted">/ month</span>
             </p>
-            <p className="mt-2 font-support text-sm text-muted">{money(m.total)} total in the {period}</p>
+            <p className="mt-2.5 font-support text-sm text-muted">{money(m.total)} spent in {period}</p>
             {bubble.recurringMonthly != null && Math.abs(bubble.recurringMonthly - m.monthly) > Math.max(1, m.monthly * 0.02) && (
               <p className="mt-1.5 font-support text-xs text-muted">Recurring estimates ~{money(bubble.recurringMonthly)} / month, from its usual charge</p>
             )}
             {m.partial && (
-              <p className="mt-1.5 font-support text-xs text-muted">
-                Only {m.effectiveDays} days of history so far, so this is an estimate from those days.
-              </p>
+              <p className="mt-1.5 font-support text-xs text-muted">Only {m.effectiveDays} days of history so far, so this is an estimate.</p>
             )}
           </div>
-
-          {facts.length > 0 && (
-            <div className="grid grid-cols-2 border-y border-line @2xl:border-y-0 @2xl:border-l @2xl:pl-5">
-              {facts.map((f) => (
-                <div key={f.label} className="border-line py-3 odd:pr-3 even:border-l even:pl-3 [&:nth-child(n+3)]:border-t">
-                  <p className="font-support text-[10px] font-semibold tracking-wider text-muted uppercase">{f.label}</p>
-                  <p className={`mt-1 text-sm font-semibold ${f.tone ?? ''}`}>{f.value}</p>
-                  {f.note && <p className="mt-0.5 font-support text-[11px] text-muted">{f.note}</p>}
-                </div>
-              ))}
-            </div>
-          )}
+          {ring && <ShareRing share={ring.share} label={ring.label} />}
         </div>
 
         {single && (
           <p className="mt-4 font-support text-sm text-muted">Only one {singular(noun)} in this period, so there is no pattern to measure yet.</p>
         )}
 
-        {m.trend.label && (
-          <div className="mt-4 flex flex-wrap items-center justify-between gap-x-6 gap-y-2 border-t border-line pt-4">
-            <p className="font-support text-xs text-muted">
-              {m.trend.label} · {days <= 30 ? 'every few days' : days <= 60 ? 'weekly' : 'every ~10 days'}
-            </p>
-            <Spark buckets={m.trend.buckets} rgb={bubble.rgb} />
+        {(m.perMonth !== null || m.trend.label) && (
+          <div className="mt-5 grid grid-cols-2 border-t border-line">
+            {m.perMonth !== null && (
+              <div className="py-3.5 pr-3">
+                <p className="flex items-center gap-2 font-support text-[10px] font-semibold tracking-[0.14em] text-muted uppercase">
+                  <CalendarDays className="h-5 w-5 shrink-0 text-accent" aria-hidden="true" />
+                  {noun === 'visits' ? 'Visit frequency' : 'How often'}
+                </p>
+                <p className="mt-2 text-lg leading-snug font-semibold tracking-tight">{frequencyText(m.perMonth, noun)}</p>
+              </div>
+            )}
+            {m.trend.label && (
+              <div className={`py-3.5 ${m.perMonth !== null ? 'border-l border-line pl-3' : 'col-span-2'}`}>
+                <div className="flex items-start gap-2">
+                  <AudioLines className="h-5 w-5 shrink-0 text-orange-300" aria-hidden="true" />
+                  <div className="min-w-0 flex-1">
+                    <p className="font-support text-[10px] font-semibold tracking-[0.14em] text-muted uppercase">Spending rhythm</p>
+                    <p className="mt-1 text-sm leading-snug font-semibold">
+                      {m.trend.label} · {days <= 30 ? 'every few days' : days <= 60 ? 'weekly' : 'every ~10 days'}
+                    </p>
+                    <div className="mt-2.5">
+                      <Spark buckets={m.trend.buckets} rgb="255, 152, 67" fill />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         )}
 
-        <div className="mt-5 flex flex-wrap items-center justify-between gap-x-4 gap-y-3 border-t border-line pt-4">
-          <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1">
-            <ReceiptText className="h-5 w-5 text-accent" />
-            <span className="font-semibold">Transactions</span>
-            <span className="font-support text-xs text-muted">
+        {stats.length > 0 && (
+          <div className={`grid border-t border-line ${stats.length === 3 ? 'grid-cols-3' : stats.length === 2 ? 'grid-cols-2' : 'grid-cols-1'}`}>
+            {stats.map((f, i) => (
+              <div key={f.label} className={`py-3.5 ${i > 0 ? 'border-l border-line pl-3' : ''} ${i < stats.length - 1 ? 'pr-2' : ''}`}>
+                <p className="font-support text-[10px] font-semibold tracking-[0.14em] text-muted uppercase">{f.label}</p>
+                <p className={`mt-1.5 text-lg leading-tight font-semibold tracking-tight ${f.tone ?? ''}`}>{f.value}</p>
+                {f.note && <p className="mt-1 font-support text-[13px] leading-snug text-muted">{f.note}</p>}
+              </div>
+            ))}
+          </div>
+        )}
+
+        {extras.length > 0 && (
+          <div className="flex flex-wrap gap-x-8 gap-y-2 border-t border-line py-3 font-support text-xs text-muted">
+            {extras.map((f) => (
+              <p key={f.label}>
+                {f.label}: <span className="font-semibold text-ink">{f.value}</span>
+                {f.note ? ` · ${f.note}` : ''}
+              </p>
+            ))}
+          </div>
+        )}
+
+        <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-3 border-t border-line pt-5">
+          <div className="min-w-0">
+            <div className="flex items-center gap-3">
+              <ReceiptText className="h-6 w-6 shrink-0 text-accent" />
+              <span className="text-xl font-semibold tracking-tight">Transactions</span>
+            </div>
+            <p className="mt-1 font-support text-sm text-muted @sm:pl-9">
               {scope === 'period'
                 ? `${plural(m.count, singular(noun))} · ${money(m.total)} in the ${period}`
                 : `Everything for ${bubble.name}, including refunds and earlier months`}
-            </span>
+            </p>
           </div>
-          <div className="flex gap-1.5" role="tablist" aria-label="Which transactions">
+          <div className="flex w-full gap-2 pb-0.5" role="tablist" aria-label="Which transactions">
             {(
               [
                 ['period', `This period · ${periodRows.length}`],
@@ -218,7 +289,7 @@ export default function PatternDetail({
                 role="tab"
                 aria-selected={scope === id}
                 onClick={() => setScope(id)}
-                className={`cursor-pointer rounded-lg px-3 py-1.5 text-sm transition-colors ${
+                className={`cursor-pointer rounded-2xl px-4 py-2.5 text-[15px] whitespace-nowrap transition-colors ${
                   scope === id ? 'bg-accent text-canvas' : 'bg-surface text-muted hover:text-ink'
                 }`}
               >

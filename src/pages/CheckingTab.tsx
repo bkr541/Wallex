@@ -4,7 +4,7 @@ import { useMobile } from '../lib/viewMode';
 import type { Txn } from '../lib/wallex';
 import TransactionTable from '../components/TransactionTable';
 import { withBalances } from '../lib/balances';
-import type { Load } from '../lib/useTransactions';
+import { bankOf, type Load } from '../lib/useTransactions';
 import type { TxFilter } from '../lib/txFilter';
 
 // Sample data shown until a bank is connected in Settings → Setup.
@@ -51,12 +51,14 @@ const SAMPLES: Txn[] = SAMPLE_TRANSACTIONS.map((t, i) => ({
 }));
 
 export default function CheckingTab({
+  bank,
   load,
   refreshing,
   onRefresh,
   filter,
   onClearFilter,
 }: {
+  bank?: string; // which linked bank to list; every account in it
   load: Load;
   refreshing: boolean;
   onRefresh: () => void;
@@ -67,11 +69,17 @@ export default function CheckingTab({
   const rows = useMemo(
     () =>
       load.state === 'live'
-        ? withBalances(load.transactions, load.accounts)
+        ? bank
+          ? (() => {
+              const accounts = load.allAccounts.filter((a) => bankOf(a) === bank);
+              const ids = new Set(accounts.map((a) => a.id));
+              return withBalances(load.allTransactions.filter((t) => ids.has(t.accountId)), accounts);
+            })()
+          : withBalances(load.transactions, load.accounts)
         : load.state === 'sample'
           ? withBalances(SAMPLES, [SAMPLE_ACCOUNT])
           : [],
-    [load],
+    [load, bank],
   );
 
   // Balances are worked out over every transaction first, so a filtered row still shows the real balance after it.

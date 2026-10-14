@@ -9,7 +9,7 @@ import LoansTab from './pages/LoansTab';
 import UiComponentsTab from './pages/UiComponentsTab';
 import ComponentsTab from './pages/ComponentsTab';
 import ChaseLogo from './components/ChaseLogo';
-import { accountLabel, useTransactions } from './lib/useTransactions';
+import { bankNames, bankOf, useTransactions } from './lib/useTransactions';
 import { NAV, TABS } from './lib/pages';
 import { ListIcon } from './components/NavIcons';
 import AppearanceTab from './pages/AppearanceTab';
@@ -56,6 +56,12 @@ function Shell() {
   const goTo = (page: string, tab?: string, recurringFilter?: string, filter?: TxFilter) => {
     setActiveId(page);
     setTxFilter(filter ?? null);
+    // "Checking" means the transaction list: the bank the filtered charges are in, or the first bank.
+    if (page === 'transactions' && tab === 'Checking' && load.state === 'live') {
+      const first = filter?.ids[0] ? load.allTransactions.find((t) => t.id === filter.ids[0]) : undefined;
+      const account = first ? load.allAccounts.find((a) => a.id === first.accountId) : undefined;
+      tab = account ? bankOf(account) : bankNames(load)[0];
+    }
     if (tab) setActiveTabs((prev) => ({ ...prev, [page]: tab }));
     if (recurringFilter) setRecurringStart((r) => ({ filter: recurringFilter, nonce: r.nonce + 1 }));
   };
@@ -105,8 +111,12 @@ function Shell() {
   const framed = useFramedView();
 
   const activePage = NAV.find((item) => item.id === activeId)!;
-  const tabs = activePage.tabs ?? TABS;
-  const activeTab = activeTabs[activeId] ?? tabs[0];
+  // Transactions has one tab for each linked bank, then Recurring and Loans.
+  const banks = bankNames(load);
+  const tabs = activeId === 'transactions' ? [...(banks.length ? banks : ['Checking']), 'Recurring', 'Loans'] : (activePage.tabs ?? TABS);
+  const stored = activeTabs[activeId];
+  const activeTab = stored && tabs.includes(stored) ? stored : tabs[0];
+  const onBankTab = activeId === 'transactions' && activeTab !== 'Recurring' && activeTab !== 'Loans';
   const spreadTabs = mobile && activeId !== 'transactions';
 
   // Pages size themselves from --app-w / --app-h instead of the window, so they fit the phone frame too.
@@ -223,7 +233,7 @@ function Shell() {
           page={activePage}
           compact={mobile}
           action={
-            mobile && activeId === 'transactions' && activeTab === 'Checking' ? (
+            mobile && onBankTab ? (
               <button
                 type="button"
                 onClick={refresh}
@@ -264,8 +274,8 @@ function Shell() {
                 }`}
               >
                 <span className={`flex items-center gap-2 ${spreadTabs ? 'justify-center' : ''}`}>
-                  {tab === 'Checking' && <ChaseLogo className="h-4 w-4" />}
-                  {tab === 'Checking' ? accountLabel(load) : tab}
+                  {activeId === 'transactions' && (tab === 'Checking' || /chase/i.test(tab)) && <ChaseLogo className="h-4 w-4" />}
+                  {tab}
                 </span>
               </button>
             );
@@ -275,7 +285,7 @@ function Shell() {
 
         <div
           role="tabpanel"
-          className={`@container ${tabs.length > 0 ? (mobile ? 'mt-4' : 'mt-6') : mobile ? (activeId === 'schedule' ? 'mt-2' : 'mt-5') : 'mt-12'} min-h-0 flex-1 overflow-y-auto ${mobile && activeId !== 'schedule' ? 'mx-4' : ''}`}
+          className={`@container ${tabs.length > 0 ? (mobile ? 'mt-4' : 'mt-6') : mobile ? (activeId === 'schedule' ? 'mt-2' : 'mt-5') : 'mt-12'} min-h-0 flex-1 overflow-y-auto ${mobile ? 'overflow-x-hidden' : ''} ${mobile && activeId !== 'schedule' ? 'mx-4' : ''}`}
         >
           {activeId === 'overview' && activeTab === 'Forecast' ? (
             <ForecastTab load={load} />
@@ -297,8 +307,8 @@ function Shell() {
             <RulesTab load={load} />
           ) : activeId === 'settings' && activeTab === 'Setup' ? (
             <SetupTab onConnectionChange={refresh} />
-          ) : activeId === 'transactions' && activeTab === 'Checking' ? (
-            <CheckingTab load={load} refreshing={refreshing} onRefresh={refresh} filter={txFilter} onClearFilter={() => setTxFilter(null)} />
+          ) : onBankTab ? (
+            <CheckingTab bank={banks.includes(activeTab) ? activeTab : undefined} load={load} refreshing={refreshing} onRefresh={refresh} filter={txFilter} onClearFilter={() => setTxFilter(null)} />
           ) : activeId === 'scratchpad' && activeTab === 'UI Components' ? (
             <ComponentsTab />
           ) : activeId === 'scratchpad' && activeTab === 'Calendar' ? (

@@ -90,7 +90,7 @@ const KIND_WORD: Record<string, string> = { bill: 'Bill', subscription: 'Subscri
 const TONE = { good: 'text-accent bg-accent-soft', warn: 'text-amber-300 bg-amber-300/10', info: 'text-sky-300 bg-sky-300/10' } as const;
 
 function Panel({ className = '', children }: { className?: string; children: React.ReactNode }) {
-  return <section className={`rounded-2xl border border-line bg-card/60 p-4 @3xl:p-5 ${className}`}>{children}</section>;
+  return <section className={`min-w-0 rounded-2xl border border-line bg-card/60 p-4 @3xl:p-5 ${className}`}>{children}</section>;
 }
 
 function PanelTitle({ icon, children, aside }: { icon: PlumpName; children: React.ReactNode; aside?: React.ReactNode }) {
@@ -196,7 +196,7 @@ export default function InsightsTab({ load, onNavigate }: { load: Load; onNaviga
 
   return (
     <div className="flex flex-col gap-5 px-1 pb-10">
-      <div className={`grid gap-3 @3xl:gap-4 ${mobile ? 'grid-cols-1' : 'grid-cols-2 @3xl:grid-cols-4'}`}>
+      <div className={`grid gap-3 @3xl:gap-4 ${mobile ? 'grid-cols-[minmax(0,1fr)]' : 'grid-cols-2 @3xl:grid-cols-4'}`}>
         <Headline
           icon="wallet"
           label="Cash Available"
@@ -237,7 +237,7 @@ export default function InsightsTab({ load, onNavigate }: { load: Load; onNaviga
         />
       </div>
 
-      <div className="grid grid-cols-1 gap-5 @3xl:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">
+      <div className="grid grid-cols-[minmax(0,1fr)] gap-5 @3xl:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">
         <Panel>
           <PanelTitle icon="lightbulb" aside={<button type="button" onClick={() => onNavigate('overview', 'Summary')} className="flex cursor-pointer items-center gap-1 rounded-lg border border-line px-3 py-1 font-support text-xs text-muted hover:text-ink">View all<ChevronRight className="h-3.5 w-3.5" /></button>}>Potential Savings</PanelTitle>
           <p className="mt-1 font-support text-xs text-muted">Based on your recent spending and subscriptions.</p>
@@ -304,7 +304,7 @@ export default function InsightsTab({ load, onNavigate }: { load: Load; onNaviga
         </Panel>
       </div>
 
-      <div className="grid grid-cols-1 gap-5 @3xl:grid-cols-3">
+      <div className="grid grid-cols-[minmax(0,1fr)] gap-5 @3xl:grid-cols-3">
         <Panel>
           <PanelTitle icon="graph-bar-increase">Spending Pace</PanelTitle>
           {pace ? (

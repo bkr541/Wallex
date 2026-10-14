@@ -14,7 +14,7 @@ export default function RangeTabs<T extends string | number>({
   full?: boolean;
 }) {
   return (
-    <div role="tablist" aria-label={label} className={`flex gap-1 rounded-xl bg-surface p-1 ${full ? 'w-full' : ''}`}>
+    <div role="tablist" aria-label={label} className={`flex min-w-0 gap-1 rounded-xl bg-surface p-1 ${full ? 'w-full' : ''}`}>
       {options.map((o) => (
         <button
           key={String(o.value)}
@@ -22,7 +22,7 @@ export default function RangeTabs<T extends string | number>({
           role="tab"
           aria-selected={value === o.value}
           onClick={() => onChange(o.value)}
-          className={`cursor-pointer rounded-lg px-3 py-1 text-sm whitespace-nowrap transition-colors ${full ? 'flex-1 px-1' : ''} ${value === o.value ? 'bg-accent font-semibold text-canvas' : 'text-muted hover:text-ink'}`}
+          className={`cursor-pointer rounded-lg px-3 py-1 text-sm whitespace-nowrap transition-colors ${full ? 'min-w-0 flex-1 px-0.5 text-[13px]' : ''} ${value === o.value ? 'bg-accent font-semibold text-canvas' : 'text-muted hover:text-ink'}`}
         >
           {o.label}
         </button>
