@@ -12,6 +12,7 @@ import {
   monthEndForecast,
   nextSeven,
   safeToSpend,
+  safeToSpendPath,
   savedPerDay,
   summarize,
   type Forecast,
@@ -101,9 +102,9 @@ function WhatIf({ forecast, load, days }: { forecast: Forecast; load: Extract<Lo
 
   return (
     <div>
-      <div role="radiogroup" aria-label="What to change" className="flex flex-wrap gap-1.5">
+      <div role="radiogroup" aria-label="What to change" className="-mx-4 flex gap-1.5 overflow-x-auto px-4 pb-1 [scrollbar-width:none] @3xl:mx-0 @3xl:flex-wrap @3xl:overflow-visible @3xl:px-0 [&::-webkit-scrollbar]:hidden">
         {list.slice(0, 6).map((s) => (
-          <button key={s.id} type="button" role="radio" aria-checked={s.id === scenario.id} onClick={() => setPick(s.id)} className={`cursor-pointer rounded-lg px-3 py-1.5 text-sm transition-colors ${s.id === scenario.id ? 'bg-accent text-canvas' : 'bg-surface text-muted hover:text-ink'}`}>
+          <button key={s.id} type="button" role="radio" aria-checked={s.id === scenario.id} onClick={() => setPick(s.id)} className={`shrink-0 cursor-pointer rounded-lg px-3 py-1.5 text-sm whitespace-nowrap transition-colors ${s.id === scenario.id ? 'bg-accent text-canvas' : 'bg-surface text-muted hover:text-ink'}`}>
             {s.label}
           </button>
         ))}
@@ -183,13 +184,17 @@ export default function ForecastTab({ load }: { load: Load }) {
   const safe = safeToSpend(f);
   const month = monthEndForecast(f);
   const week = nextSeven(f);
+  const safePath = safeToSpendPath(f);
+  const lowPoints = f.points.filter((p) => p.day >= 0 && p.day <= days);
+  const lowPath = lowPoints.map((p) => p.balance);
+  const lowMark = Math.max(0, lowPoints.findIndex((p) => p.day === range.lowest.day));
   const monthSpark = f.points.filter((p) => p.day >= 0 && p.day <= Math.max(1, month.daysLeft)).map((p) => p.balance);
   const custom = changedRules(rules).length;
   const heaviest = f.everyday.byWeekday.indexOf(Math.max(...f.everyday.byWeekday));
   const lowTone = range.lowest.balance < 0 ? 'text-red-300' : '';
 
   return (
-    <div className="flex flex-col gap-5 px-1 pb-10">
+    <div className="flex flex-col gap-5 overflow-x-clip px-1 pb-10">
       {(f.everyday.confidence === 'low' || f.paydays.length === 0) && (
         <div className="rounded-2xl border border-amber-300/30 bg-amber-300/5 px-4 py-3 font-support text-sm text-amber-100/90">
           {f.paydays.length === 0 && 'Wallex has not found pay that repeats on a schedule, so no income is projected. '}
@@ -206,6 +211,7 @@ export default function ForecastTab({ load }: { load: Load }) {
           onClick={() => pick('safe')}
           value={signed(safe.amount)}
           tone={safe.amount < 0 ? 'text-red-300' : ''}
+          visual={<Sparkline values={safePath} color={safe.amount < 0 ? '#ff8a8a' : undefined} zero />}
           sub={
             safe.count || safe.incomeCount
               ? `${money(safe.income)} in pay, less ${money(safe.bills)} in ${safe.count} ${safe.count === 1 ? 'bill' : 'bills'}, over 30 days`
@@ -236,6 +242,7 @@ export default function ForecastTab({ load }: { load: Load }) {
           onClick={() => pick('lowest')}
           value={signed(range.lowest.balance)}
           tone={lowTone}
+          visual={<Sparkline values={lowPath} color={range.lowest.balance < 0 ? '#ff8a8a' : undefined} mark={lowMark} zero />}
           sub={range.lowest.day === 0 ? `Today, within ${days} days` : `Around ${shortDate(range.lowest.date)}`}
         />
       </div>

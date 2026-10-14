@@ -199,8 +199,16 @@ function buildLayout<T extends { amount: number }>(items: T[], cfg: LayoutConfig
     }
   }
 
+  // How much empty space the diagram leaves above and below its circles, in cqh, so a phone can close it up.
+  const nodes = result.nodes.slice(0, count);
+  const centerR = cfg.centerD / 2;
+  const minY = Math.min(-centerR, ...nodes.map((n) => n.y - n.r));
+  const maxY = Math.max(centerR, ...nodes.map((n) => n.y + n.r));
+
   return {
     centerDiameter: cfg.centerD,
+    emptyTop: 50 + minY,
+    emptyBottom: 50 - maxY,
     bubbles: items.slice(0, count).map((h, i) => ({
       ...h,
       left: 50 + result.nodes[i].x / cfg.aspect,
@@ -735,8 +743,12 @@ export default function PatternsTab({ load }: { load: Load }) {
             ? {
                 width: 'calc(var(--app-w) - 2rem)',
                 height: `calc((var(--app-w) - 2rem) / ${cfg.aspect})`,
+                minHeight: `calc((var(--app-w) - 2rem) / ${cfg.aspect})`,
                 // The page scrolls, so the diagram keeps its full height instead of being squeezed into the screen.
                 flexShrink: 0,
+                // The empty space above and below the circles is pulled in, so they sit right under the search and filter row.
+                marginTop: `calc((var(--app-w) - 2rem) / ${cfg.aspect} * ${-Math.max(0, layout.emptyTop - 1) / 100})`,
+                marginBottom: `calc((var(--app-w) - 2rem) / ${cfg.aspect} * ${-Math.max(0, layout.emptyBottom - 1) / 100})`,
               }
             : {
                 height: `max(520px, min(calc(var(--app-h) - 20rem), calc((var(--app-w) - 12rem) / ${cfg.aspect})))`,

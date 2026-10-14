@@ -378,6 +378,17 @@ export function safeToSpend(f: Forecast) {
   return { amount: f.cash + incomeTotal - billTotal, bills: billTotal, count: bills.length, income: incomeTotal, incomeCount: pay.length };
 }
 
+// The balance each day for the next 30 days counting only the pay and bills Safe to Spend counts, ending at the Safe to Spend figure.
+export function safeToSpendPath(f: Forecast): number[] {
+  const out: number[] = [];
+  let balance = f.cash;
+  for (let d = 0; d <= 30; d++) {
+    for (const e of f.events) if (e.day === d && d > 0) balance += e.kind === 'income' ? e.amount : -e.amount;
+    out.push(balance);
+  }
+  return out;
+}
+
 // The bills in the next 7 days, one bar a day starting today.
 export function nextSeven(f: Forecast) {
   const todayDay = epochDay(f.today);

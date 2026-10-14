@@ -139,7 +139,7 @@ export default function PatternDetail({
 
   return (
     <motion.div
-      className={`w-full px-1 pb-6 ${mobile ? 'pt-3' : 'pt-8'}`}
+      className={`w-full px-1 pb-6 ${mobile ? 'pt-0' : 'pt-8'}`}
       initial="hidden"
       animate="show"
       exit="hidden"
@@ -151,7 +151,7 @@ export default function PatternDetail({
           hidden: { opacity: 0, y: -20, transition: { duration: 0.2 } },
           show: { opacity: 1, y: 0, transition: { type: 'spring', stiffness: 240, damping: 26 } },
         }}
-        className="@container relative mt-5 rounded-3xl border border-line bg-card/45 px-5 pt-9 pb-5 @2xl:px-6"
+        className="@container relative mt-6 rounded-3xl border border-line bg-card/45 px-5 pt-9 pb-5 @2xl:px-6"
       >
         {/* Close: sits on the card's top edge. */}
         <button

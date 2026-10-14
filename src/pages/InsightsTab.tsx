@@ -175,7 +175,7 @@ export default function InsightsTab({ load, onNavigate }: { load: Load; onNaviga
 
   if (!live || !data) {
     return (
-      <div className="flex flex-col gap-5 px-1 pb-10">
+      <div className="flex flex-col gap-5 overflow-x-clip px-1 pb-10">
         <Panel>
           <h3 className="text-lg font-semibold">Connect a bank for your insights</h3>
           <p className="mt-1 font-support text-sm text-muted">Spending pace, categories, savings ideas and daily notes are built from your own transactions. Connect a bank in Settings → Setup.</p>
@@ -195,7 +195,7 @@ export default function InsightsTab({ load, onNavigate }: { load: Load; onNaviga
   const ideaCount = savings.ideas.length;
 
   return (
-    <div className="flex flex-col gap-5 px-1 pb-10">
+    <div className="flex flex-col gap-5 overflow-x-clip px-1 pb-10">
       <div className={`grid gap-3 @3xl:gap-4 ${mobile ? 'grid-cols-[minmax(0,1fr)]' : 'grid-cols-2 @3xl:grid-cols-4'}`}>
         <Headline
           icon="wallet"

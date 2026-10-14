@@ -285,7 +285,7 @@ function Shell() {
 
         <div
           role="tabpanel"
-          className={`@container ${tabs.length > 0 ? (mobile ? 'mt-4' : 'mt-6') : mobile ? (activeId === 'schedule' ? 'mt-2' : 'mt-5') : 'mt-12'} min-h-0 flex-1 overflow-y-auto ${mobile ? 'overflow-x-hidden' : ''} ${mobile && activeId !== 'schedule' ? 'mx-4' : ''}`}
+          className={`@container ${tabs.length > 0 ? (mobile ? 'mt-4' : 'mt-6') : mobile ? (activeId === 'schedule' ? 'mt-2' : 'mt-5') : 'mt-12'} min-h-0 flex-1 overflow-y-auto ${mobile ? 'overflow-x-hidden overscroll-x-none' : ''} ${mobile && activeId !== 'schedule' ? 'mx-4' : ''}`}
         >
           {activeId === 'overview' && activeTab === 'Forecast' ? (
             <ForecastTab load={load} />

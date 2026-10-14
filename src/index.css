@@ -86,6 +86,8 @@ html,
 body,
 #root {
   background: var(--canvas);
+  overflow-x: hidden;
+  overscroll-behavior-x: none;
 }
 
 /* The app's height: the part of the screen that is actually visible. On a phone that shrinks while the keyboard is open (see

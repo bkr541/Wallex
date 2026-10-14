@@ -2,14 +2,19 @@ import { motion } from 'motion/react';
 
 // The small pictures that sit in the corner of a stat card.
 
-export function Sparkline({ values, color = 'var(--accent)' }: { values: number[]; color?: string }) {
+// A small line. `mark` is the index of a point to dot (the lowest balance, say), and `zero` draws a faint line where the value crosses zero.
+export function Sparkline({ values, color = 'var(--accent)', mark, zero = false }: { values: number[]; color?: string; mark?: number; zero?: boolean }) {
   if (values.length < 2) return null;
-  const lo = Math.min(...values);
-  const hi = Math.max(...values);
-  const pts = values.map((v, i) => `${(i / (values.length - 1)) * 76},${26 - ((v - lo) / (hi - lo || 1)) * 24}`).join(' ');
+  const lo = Math.min(...values, zero ? 0 : Infinity);
+  const hi = Math.max(...values, zero ? 0 : -Infinity);
+  const x = (i: number) => (i / (values.length - 1)) * 76;
+  const y = (v: number) => 26 - ((v - lo) / (hi - lo || 1)) * 24;
+  const pts = values.map((v, i) => `${x(i)},${y(v)}`).join(' ');
   return (
     <svg width="80" height="30" viewBox="-2 -2 80 30" aria-hidden="true">
+      {zero && lo < 0 && hi > 0 && <line x1="0" x2="76" y1={y(0)} y2={y(0)} stroke="var(--line)" strokeDasharray="2 3" />}
       <polyline points={pts} fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+      {mark !== undefined && <circle cx={x(mark)} cy={y(values[mark])} r="3" fill={color} stroke="var(--card)" strokeWidth="1.5" />}
     </svg>
   );
 }
