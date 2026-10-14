@@ -17,12 +17,25 @@ if [[ -s "$HOME/.nvm/nvm.sh" ]]; then
   source "$HOME/.nvm/nvm.sh" >/dev/null 2>&1 || true
 fi
 
+# A Homebrew upgrade can leave its node unable to start (a missing library). Use the first node that actually runs.
+if ! node --version >/dev/null 2>&1; then
+  for candidate in /usr/local/bin /opt/homebrew/opt/node@22/bin /opt/homebrew/opt/node@20/bin /usr/bin; do
+    if [[ -x "$candidate/node" ]] && "$candidate/node" --version >/dev/null 2>&1; then
+      export PATH="$candidate:$PATH"
+      echo "Note: the default node is broken, using $candidate/node instead."
+      break
+    fi
+  done
+fi
+
 # If this is set (e.g. inherited from a VS Code terminal), Electron behaves
 # like plain Node and the app never opens.
 unset ELECTRON_RUN_AS_NODE
 
+# Wallex's dev server prefers port 3000, but that port may belong to another project. Wallex never stops a process it did not
+# start: if the port is taken by something else, it uses the next free one.
 PORT=3000
-APP_URL="http://127.0.0.1:$PORT"
+APP_URL=""
 LOG_DIR="$DIR/logs"
 FRONTEND_LOG="$LOG_DIR/frontend.log"
 ELECTRON_LOG="$LOG_DIR/electron.log"
@@ -41,9 +54,17 @@ cleanup() {
     pkill -P "$FRONTEND_PID" 2>/dev/null || true
     kill "$FRONTEND_PID" 2>/dev/null || true
   fi
-  lsof -ti :"$PORT" | xargs kill 2>/dev/null || true
 }
 trap cleanup EXIT INT TERM
+
+port_free() { ! lsof -ti :"$1" >/dev/null 2>&1; }
+
+# True when the process is a leftover Wallex dev server: its working folder is this project.
+is_wallex_process() {
+  local cwd
+  cwd="$(lsof -a -p "$1" -d cwd -Fn 2>/dev/null | sed -n 's/^n//p' | head -n 1)"
+  [[ -n "$cwd" && "$cwd" == "$DIR"* ]]
+}
 
 require_cmd() {
   if ! command -v "$1" >/dev/null 2>&1; then
@@ -66,10 +87,25 @@ if [[ ! -f "$DIR/package.json" ]]; then
   exit 1
 fi
 
-# ── Kill anything already on the port ────────────────────────────
+# ── Choose a port without touching other projects ───────────────
 
-echo "Cleaning up port $PORT..."
-lsof -ti :"$PORT" | xargs kill -9 2>/dev/null || true
+echo "Checking port $PORT..."
+while ! port_free "$PORT"; do
+  stale=""
+  for pid in $(lsof -ti :"$PORT" 2>/dev/null); do
+    if is_wallex_process "$pid"; then
+      echo "Stopping an old Wallex server (pid $pid) on port $PORT."
+      kill "$pid" 2>/dev/null || true
+      stale="yes"
+    fi
+  done
+  if [[ -n "$stale" ]]; then sleep 1; port_free "$PORT" && break; fi
+  echo "Port $PORT is used by another program, leaving it alone."
+  PORT=$((PORT + 1))
+  if (( PORT > 3100 )); then echo "No free port found between 3000 and 3100."; exit 1; fi
+done
+APP_URL="http://127.0.0.1:$PORT"
+echo "Using port $PORT."
 
 # ── Install and verify frontend/Electron dependencies ───────────
 
@@ -107,7 +143,7 @@ fi
 echo "--- Starting frontend (Vite 127.0.0.1:$PORT) ---"
 : > "$FRONTEND_LOG"
 
-npm run dev:web > "$FRONTEND_LOG" 2>&1 &
+npx vite --port="$PORT" --host=127.0.0.1 --strictPort > "$FRONTEND_LOG" 2>&1 &
 FRONTEND_PID=$!
 
 echo "Waiting for frontend..."
