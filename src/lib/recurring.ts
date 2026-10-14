@@ -176,6 +176,13 @@ const brandDomain = (text: string) => BRANDS.find((b) => b.test.test(text))?.dom
 const NOT_A_RELATIONSHIP =
   /ZELLE|ATM WITHDRAW|ATM FEE|ATM CASH|OVERDRAFT|^CHECK\b|APPLE CASH|PAYMENT SENT|PAYMENT RECEIVED|REFUND|RETURN/;
 
+// Everyday spending: gas, rideshare and taxis, parking, transit, restaurants, coffee, groceries. These repeat because a person keeps
+// going back, not because anything bills them, so they are habits and never a bill or a subscription. A company the code knows is
+// a subscription, or a charge the bank itself tags as recurring, is the exception.
+const HABIT_CATEGORIES = new Set(['TRANSPORTATION', 'FOOD_AND_DRINK']);
+const HABIT_BRANDS =
+  /\b(UBER|UBR|LYFT|SHELL|CHEVRON|EXXON|MOBIL|BP|SUNOCO|CIRCLE K|RACETRAC|QUIKTRIP|WAWA|SPEEDWAY|MURPHY USA|7-ELEVEN|STARBUCKS|MCDONALD|DUNKIN|WENDY|CHICK-FIL-A|TACO BELL|DOORDASH|GRUBHUB|PUBLIX|KROGER|WALGREEN|CVS)\b|TAXI|PARKING|\bTOLL\b/;
+
 const BILL_CATEGORIES = new Set(['RENT_AND_UTILITIES', 'LOAN_PAYMENTS', 'GOVERNMENT_AND_NON_PROFIT', 'GENERAL_SERVICES']);
 
 interface Resolved {
@@ -650,6 +657,11 @@ export function analyze(transactions: Txn[], today = localToday(), creditIds: Se
       }
     }
 
+    // Everyday spending is a habit however regular it looks (see HABIT_CATEGORIES).
+    const inHabitCategory = occ.filter((o) => HABIT_CATEGORIES.has(o.t.categoryKey)).length * 2 > occ.length;
+    const habitOnly = !resolved.known && !explicit && (inHabitCategory || raws.some((r) => HABIT_BRANDS.test(r)));
+    if (habitOnly) patterns.length = 0;
+
     const months = new Set(occ.map((o) => o.month)).size;
     const newest = [...occ].sort((a, b) => b.day - a.day);
     const recent = newest.slice(0, 6).map((o) => ({ date: o.t.date, amount: o.amount }));
@@ -717,7 +729,7 @@ export function analyze(transactions: Txn[], today = localToday(), creditIds: Se
             'The wrapper can hide several different services. Label them to separate the real subscriptions.',
           ],
         });
-      } else if (occ.length >= 8 && months >= 3) {
+      } else if (habitOnly ? occ.length >= 4 && months >= 2 : occ.length >= 8 && months >= 3) {
         items.push({
           ...base,
           kind: 'habit',
