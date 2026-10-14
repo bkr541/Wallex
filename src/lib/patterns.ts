@@ -1,5 +1,6 @@
 import { faviconUrl } from './favicon';
 import { analyze, merchantOf, type Analysis, type Recurring } from './recurring';
+import { incomeTypeOf, isWages } from './incomeType';
 import { getRules, type Rules } from './rules';
 import type { LinkedAccount, Txn } from './wallex';
 
@@ -162,13 +163,14 @@ export const isMoneyIn = (t: Txn, scope: PatternScope) =>
   t.amount > 0 &&
   !scope.creditIds.has(t.accountId) &&
   !IN_OWN_MONEY.has(t.categoryDetailKey) &&
-  t.categoryKey !== 'LOAN_PAYMENTS';
+  t.categoryKey !== 'LOAN_PAYMENTS' &&
+  (!scope.rules.moneyInWagesOnly || isWages(t));
 
 // The part of money in that counts as income: the pay the bank tags as income, or, if the Rules say so, all of it.
 // Patterns' "Monthly Income" is this, so the two screens are built from one definition: Overview shows the whole
 // and how much of it is pay.
 export const isIncome = (t: Txn, scope: PatternScope) =>
-  isMoneyIn(t, scope) && (scope.rules.incomeFrom === 'all' || t.categoryKey === 'INCOME');
+  isMoneyIn(t, scope) && (scope.rules.incomeFrom === 'all' || incomeTypeOf(t) === 'pay');
 
 // A transaction's merchant key is looked up often (every spending check), so it is worked out once per transaction.
 const merchantKeys = new WeakMap<Txn, string>();

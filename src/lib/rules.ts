@@ -12,6 +12,7 @@ export interface Rules {
   countCardPayments: boolean; // count payments to a linked card as spending, even though its purchases are counted too
   ignoredMerchants: string[]; // merchant keys left out of spending everywhere
   incomeFrom: IncomeFrom; // only pay the bank tags as income, or every deposit that is not your own money moving
+  moneyInWagesOnly: boolean; // Money In counts only wages: advances, person-to-person payments, refunds and transfers are left out
   defaultDays: RuleDays; // the period Patterns opens with
   minMonthly: number; // the monthly amount below which Patterns draws no circle
   maxCircles: number; // the most circles Patterns draws (the phone view shows fewer)
@@ -42,6 +43,7 @@ export const DEFAULT_RULES: Rules = {
   countCardPayments: false,
   ignoredMerchants: [],
   incomeFrom: 'pay',
+  moneyInWagesOnly: false,
   defaultDays: 30,
   minMonthly: 0,
   maxCircles: 14,
@@ -65,6 +67,7 @@ export function sanitizeRules(raw: unknown): Rules {
   return {
     countCardPayments: typeof r.countCardPayments === 'boolean' ? r.countCardPayments : d.countCardPayments,
     ignoredMerchants: ignored ? [...new Set(ignored)] : d.ignoredMerchants,
+    moneyInWagesOnly: typeof r.moneyInWagesOnly === 'boolean' ? r.moneyInWagesOnly : d.moneyInWagesOnly,
     incomeFrom: r.incomeFrom === 'all' || r.incomeFrom === 'pay' ? r.incomeFrom : d.incomeFrom,
     defaultDays: DAY_OPTIONS.includes(r.defaultDays as RuleDays) ? (r.defaultDays as RuleDays) : d.defaultDays,
     minMonthly: typeof r.minMonthly === 'number' && MIN_AMOUNTS.includes(r.minMonthly as (typeof MIN_AMOUNTS)[number]) ? r.minMonthly : d.minMonthly,

@@ -1,4 +1,4 @@
-import { buildPatterns, filtersFromRules, isIncome, makeScope, type Bubble } from './patterns';
+import { buildPatterns, filtersFromRules, isIncome, isMoneyIn, makeScope, type Bubble } from './patterns';
 import type { Analysis } from './recurring';
 import type { Rules } from './rules';
 import type { LinkedAccount, Txn } from './wallex';
@@ -16,6 +16,8 @@ export interface RuleImpacts {
   ignoredPerMonth: number; // spending left out because of ignored merchants
   incomePay: number; // monthly income counting only pay the bank tags as income
   incomeAll: number; // monthly income counting every deposit that is not your own money moving
+  moneyInAll: number; // monthly money in counting every deposit (not your own transfers)
+  moneyInWages: number; // monthly money in counting wages only
   bills: number; // bills drawn with the rules as they are
   merchants: number;
   hiddenByMinimum: number; // bills and merchants under the minimum
@@ -39,6 +41,13 @@ export function computeImpacts(txns: Txn[], accounts: LinkedAccount[], analysis:
     return sum * scope.toMonthly;
   };
 
+  const moneyIn = (r: Rules) => {
+    const scope = makeScope(txns, accounts, filters, r);
+    let sum = 0;
+    for (const t of txns) if (scope.inView(t) && isMoneyIn(t, scope)) sum += t.amount;
+    return sum * scope.toMonthly;
+  };
+
   const now = buildPatterns(txns, accounts, filters, analysis, rules);
   const noMinimum = buildPatterns(txns, accounts, { ...filters, minAmount: 0 }, analysis, rules);
   const noIgnores = buildPatterns(txns, accounts, { ...filters, minAmount: 0 }, analysis, { ...rules, ignoredMerchants: [] });
@@ -54,6 +63,8 @@ export function computeImpacts(txns: Txn[], accounts: LinkedAccount[], analysis:
     ignoredPerMonth: rules.ignoredMerchants.length ? Math.max(0, spending({ ...rules, ignoredMerchants: [] }) - spending(rules)) : 0,
     incomePay: income({ ...rules, incomeFrom: 'pay' }),
     incomeAll: income({ ...rules, incomeFrom: 'all' }),
+    moneyInAll: moneyIn({ ...rules, moneyInWagesOnly: false }),
+    moneyInWages: moneyIn({ ...rules, moneyInWagesOnly: true }),
     bills: now.bills.length,
     merchants: now.merchants.length,
     hiddenByMinimum: Math.max(0, noMinimum.bills.length + noMinimum.merchants.length - (now.bills.length + now.merchants.length)),

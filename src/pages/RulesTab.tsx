@@ -300,6 +300,24 @@ export default function RulesTab({ load }: { load: Load }) {
         </Rule>
 
         <Rule
+          icon="dollar-coin"
+          title="Money in: wages only"
+          description="On, the Money In figures count only wages from an employer. Cash advances, Zelle and other money from people, refunds, interest and transfers are left out. Money Out is not changed."
+          changed={isChanged('moneyInWagesOnly')}
+          onReset={reset('moneyInWagesOnly')}
+          impact={
+            impacts ? (
+              <>
+                Wages only: {perMonth(impacts.moneyInWages)} · All deposits: {perMonth(impacts.moneyInAll)}
+              </>
+            ) : (
+              connect
+            )
+          }
+          aside={<Switch on={rules.moneyInWagesOnly} onChange={(moneyInWagesOnly) => setRules({ moneyInWagesOnly })} label="Money in: wages only" />}
+        />
+
+        <Rule
           icon="eye-optic"
           title="Ignore these merchants"
           description="Left out of spending everywhere: Patterns, Overview and the totals. Good for things that are not really spending, like paying back a friend."

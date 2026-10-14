@@ -3,12 +3,14 @@ import { AnimatePresence, motion } from 'motion/react';
 import MerchantLogo from './MerchantLogo';
 import type { TxnWithBalance } from '../lib/balances';
 import { useMobile } from '../lib/viewMode';
+import { INCOME_TYPE_LABEL, INCOME_TYPE_TONE, incomeTypeOf } from '../lib/incomeType';
 
 // Transaction fields from Plaid's /transactions/sync response.
 const COLUMNS = [
   { key: 'status', label: 'Status', align: 'left' },
   { key: 'merchant', label: 'Merchant', align: 'left' },
   { key: 'category', label: 'Category', align: 'left' },
+  { key: 'incomeType', label: 'Income Type', align: 'left' },
   { key: 'channel', label: 'Type', align: 'left' },
   { key: 'date', label: 'Posted Date', align: 'left' },
   { key: 'authorized', label: 'Auth Date', align: 'left' },
@@ -16,7 +18,7 @@ const COLUMNS = [
   { key: 'balance', label: 'Balance', align: 'right' },
 ] as const;
 
-const GRID = 'grid grid-cols-[0.9fr_1.6fr_2fr_1fr_1fr_1fr_1fr_1fr] gap-4 px-4';
+const GRID = 'grid grid-cols-[0.9fr_1.5fr_1.8fr_1.3fr_0.9fr_1fr_1fr_1fr_1fr] gap-4 px-4';
 // On a phone only the essentials fit in the row; the rest are shown when a row is opened.
 const GRID_MOBILE = 'grid grid-cols-[5.5rem_1fr_6rem] gap-3 px-1';
 const MOBILE_COLUMNS = new Set(['status', 'merchant', 'amount']);
@@ -65,7 +67,7 @@ export default function TransactionTable({
 
   return (
     <div className="overflow-x-auto">
-      <div role="table" aria-label="Transactions" className={`w-full ${mobile ? '' : 'min-w-[960px]'}`}>
+      <div role="table" aria-label="Transactions" className={`w-full ${mobile ? '' : 'min-w-[1100px]'}`}>
         <motion.div variants={rowVariants} custom={0} role="row" className={`${grid} border-b border-line py-3`}>
           {columns.map((col) => (
             <div
@@ -112,12 +114,24 @@ export default function TransactionTable({
                 </div>
                 <div role="cell" className="flex min-w-0 items-center gap-2.5 font-medium">
                   <MerchantLogo key={t.id} name={t.merchant} sources={t.logos} />
-                  <span className={`min-w-0 ${text}`}>{t.merchant}</span>
+                  <span className="min-w-0">
+                    <span className={`block ${text}`}>{t.merchant}</span>
+                    {mobile && incomeTypeOf(t) && (
+                      <span className={`mt-0.5 inline-block rounded-full px-2 py-px font-support text-[10px] leading-4 ${INCOME_TYPE_TONE[incomeTypeOf(t)!]}`}>{INCOME_TYPE_LABEL[incomeTypeOf(t)!]}</span>
+                    )}
+                  </span>
                 </div>
                 {!mobile && (
                   <>
                     <div role="cell" className={`min-w-0 font-support text-muted ${text}`}>
                       {t.category}
+                    </div>
+                    <div role="cell" className="min-w-0">
+                      {incomeTypeOf(t) ? (
+                        <span className={`inline-block max-w-full truncate rounded-full px-2.5 py-0.5 font-support text-xs ${INCOME_TYPE_TONE[incomeTypeOf(t)!]}`}>{INCOME_TYPE_LABEL[incomeTypeOf(t)!]}</span>
+                      ) : (
+                        <span className="font-support text-muted">—</span>
+                      )}
                     </div>
                     <div role="cell" className={`min-w-0 font-support text-muted ${text}`}>
                       {t.channel || '—'}
@@ -154,7 +168,9 @@ export default function TransactionTable({
                     className="overflow-hidden"
                   >
                     {(() => {
+                      const incomeType = incomeTypeOf(t);
                       const fields = [
+                        ...(incomeType ? [{ label: 'Income Type', value: INCOME_TYPE_LABEL[incomeType] }] : []),
                         ...(mobile
                           ? [
                               { label: 'Category', value: t.category },
