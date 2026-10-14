@@ -74,7 +74,7 @@ export default function AppearanceTab() {
     a.reduceMotion === DEFAULTS.reduceMotion;
 
   return (
-    <div className="space-y-8 px-1 pb-10">
+    <div className="space-y-8 px-0 pb-10 @3xl:px-1">
       <section className="space-y-6">
         <div>
           <SectionTitle icon="paint-palette">Look and feel</SectionTitle>

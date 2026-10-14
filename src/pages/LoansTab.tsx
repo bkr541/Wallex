@@ -71,7 +71,7 @@ function LoanForm({ initial, hint, onClose }: { initial: Draft; hint?: BankLoanH
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -8 }}
       transition={{ duration: 0.22 }}
-      className="mx-4 mb-6 rounded-2xl border border-line bg-card/60 p-5 @3xl:p-6"
+      className="mx-0 mb-6 @3xl:mx-4 rounded-2xl border border-line bg-card/60 p-5 @3xl:p-6"
     >
       <SectionTitle as="h3" icon="dollar-coin" className="text-base font-semibold">{d.id ? 'Edit Loan' : 'Add A Loan'}</SectionTitle>
       <p className="mt-1 font-support text-sm text-muted">
@@ -250,7 +250,7 @@ export default function LoansTab({ load }: { load: Load }) {
 
   return (
     <div className="w-full pb-10">
-      <div className="flex flex-wrap items-center justify-between gap-3 px-4 pb-4">
+      <div className="flex flex-wrap items-center justify-between gap-3 px-0 pb-4 @3xl:px-4">
         <p className="font-support text-sm text-muted">Pay-later plans and loans you type in. Wallex works out what is left, so you never have to update the balance.</p>
         {!editing && <button type="button" onClick={() => openNew()} className={`${primaryBtn} flex items-center gap-2`}><Plus className="h-4 w-4" />Add Loan</button>}
       </div>
@@ -258,7 +258,7 @@ export default function LoansTab({ load }: { load: Load }) {
       <AnimatePresence initial={false}>{editing && <LoanForm key={editing.id || 'new'} initial={editing} hint={hint} onClose={close} />}</AnimatePresence>
 
       {loans.length > 0 && (
-        <div className="mx-4 mb-6 grid grid-cols-1 gap-3 rounded-2xl border border-line bg-card/60 p-5 @3xl:grid-cols-3">
+        <div className="mx-0 mb-6 @3xl:mx-4 grid grid-cols-1 gap-3 rounded-2xl border border-line bg-card/60 p-5 @3xl:grid-cols-3">
           <div>
             <p className="font-support text-[11px] font-semibold tracking-[0.18em] text-muted uppercase">Total Still Owed</p>
             <p className="mt-1 text-3xl leading-none font-semibold tracking-tight tabular-nums"><span className="text-accent">$</span>{moneyExact(owed).slice(1)}</p>
@@ -278,7 +278,7 @@ export default function LoansTab({ load }: { load: Load }) {
       )}
 
       {hints.length > 0 && !editing && (
-        <section className="mx-4 mb-6">
+        <section className="mx-0 mb-6 @3xl:mx-4">
           <SectionTitle as="h3" icon="search-visual" className="text-base font-semibold">Found In Your Bank</SectionTitle>
           <p className="mt-1 mb-3 font-support text-sm text-muted">These payments look like a pay-later plan. Add one to track what is left.</p>
           <div className="grid grid-cols-1 gap-3 @3xl:grid-cols-2">
@@ -301,7 +301,7 @@ export default function LoansTab({ load }: { load: Load }) {
       )}
 
       {loans.length > 0 && (
-        <div className="mx-4 space-y-4">
+        <div className="mx-0 space-y-4 @3xl:mx-4">
           {statuses
             .slice()
             .sort((a, b) => Number(a.s.done) - Number(b.s.done) || (a.s.next?.date ?? '9999').localeCompare(b.s.next?.date ?? '9999'))

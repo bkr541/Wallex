@@ -20,7 +20,7 @@ const COLUMNS = [
 
 const GRID = 'grid grid-cols-[0.9fr_1.5fr_1.8fr_1.3fr_0.9fr_1fr_1fr_1fr_1fr] gap-4 px-4';
 // On a phone only the essentials fit in the row; the rest are shown when a row is opened.
-const GRID_MOBILE = 'grid grid-cols-[5.5rem_1fr_6rem] gap-3 px-1';
+const GRID_MOBILE = 'grid grid-cols-[5.5rem_1fr_6rem] gap-3 px-0';
 const MOBILE_COLUMNS = new Set(['status', 'merchant', 'amount']);
 
 export const formatAmount = (amount: number) =>
@@ -83,7 +83,7 @@ export default function TransactionTable({
         </motion.div>
 
         {showEmpty && rows.length === 0 && (
-          <p className="px-4 py-6 font-support text-sm text-muted">{emptyText}</p>
+          <p className="px-0 py-6 font-support text-sm text-muted @3xl:px-4">{emptyText}</p>
         )}
 
         {rows.map((t, index) => {

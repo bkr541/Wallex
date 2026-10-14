@@ -140,7 +140,7 @@ export default function GoalsTab() {
   const goals = useGoals();
   const [adding, setAdding] = useState(false);
   return (
-    <div className="overflow-x-clip px-1 pb-10">
+    <div className="overflow-x-clip px-0 pb-10 @3xl:px-1">
       <p className="font-support text-sm text-muted">What you are saving toward. You enter the amounts yourself; Wallex does not move money.</p>
       <div className="mt-4 grid grid-cols-1 gap-3 @3xl:grid-cols-2">
         {goals.map((g) => <GoalCard key={g.id} goal={g} today={today} />)}

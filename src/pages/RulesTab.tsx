@@ -238,7 +238,7 @@ export default function RulesTab({ load }: { load: Load }) {
           : <>Counting them would add {perMonth(impacts.cardPaymentsPerMonth)} to your spending.</>;
 
   return (
-    <div className="space-y-8 px-1 pb-10">
+    <div className="space-y-8 px-0 pb-10 @3xl:px-1">
       <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-3">
         <div>
           <SectionTitle icon="task-list-edit">Rules</SectionTitle>

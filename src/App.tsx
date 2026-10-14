@@ -31,7 +31,7 @@ import LoadingLogo from './components/LoadingLogo';
 import { cashPosition } from './lib/overview';
 import ViewToggle from './components/ViewToggle';
 import { useIsAdmin } from './lib/admin';
-import { RefreshCw } from 'lucide-react';
+import { RefreshCw, Search, X } from 'lucide-react';
 import { useFramedView, useMobileView } from './lib/viewState';
 import { ViewModeProvider } from './lib/viewMode';
 import AuthScreen from './components/auth/AuthScreen';
@@ -52,6 +52,8 @@ function Shell() {
 
   // When Overview sends you to the Checking tab for one merchant or bill, only its transactions are listed.
   const [txFilter, setTxFilter] = useState<TxFilter | null>(null);
+  // On a phone the Recurring search is a button in the page header; this is whether its field is open.
+  const [recSearch, setRecSearch] = useState(false);
 
   const goTo = (page: string, tab?: string, recurringFilter?: string, filter?: TxFilter) => {
     setActiveId(page);
@@ -116,6 +118,9 @@ function Shell() {
   const tabs = activeId === 'transactions' ? [...(banks.length ? banks : ['Checking']), 'Recurring', 'Loans'] : (activePage.tabs ?? TABS);
   const stored = activeTabs[activeId];
   const activeTab = stored && tabs.includes(stored) ? stored : tabs[0];
+  useEffect(() => {
+    setRecSearch(false);
+  }, [activeId, activeTab]);
   const onBankTab = activeId === 'transactions' && activeTab !== 'Recurring' && activeTab !== 'Loans';
   const spreadTabs = mobile && activeId !== 'transactions';
 
@@ -233,7 +238,18 @@ function Shell() {
           page={activePage}
           compact={mobile}
           action={
-            mobile && onBankTab ? (
+            mobile && activeId === 'transactions' && activeTab === 'Recurring' ? (
+              <button
+                type="button"
+                onClick={() => setRecSearch((o) => !o)}
+                aria-label={recSearch ? 'Close search' : 'Search recurring items'}
+                aria-expanded={recSearch}
+                title={recSearch ? 'Close search' : 'Search'}
+                className={`flex h-11 w-11 cursor-pointer items-center justify-center rounded-full border bg-card/80 text-ink backdrop-blur transition-colors hover:border-accent hover:text-accent ${recSearch ? 'border-accent' : 'border-line'}`}
+              >
+                {recSearch ? <X className="h-5 w-5" /> : <Search className="h-5 w-5" />}
+              </button>
+            ) : mobile && onBankTab ? (
               <button
                 type="button"
                 onClick={refresh}
@@ -330,7 +346,7 @@ function Shell() {
           ) : activeId === 'transactions' && activeTab === 'Loans' ? (
             <LoansTab load={load} />
           ) : activeId === 'transactions' && activeTab === 'Recurring' ? (
-            <RecurringTab key={recurringStart.nonce} load={load} initialFilter={recurringStart.filter} />
+            <RecurringTab key={recurringStart.nonce} load={load} initialFilter={recurringStart.filter} searchOpen={recSearch} />
           ) : (
             <div className="p-6">
               <p className="font-support text-sm text-muted">

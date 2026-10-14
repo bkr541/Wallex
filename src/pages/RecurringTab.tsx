@@ -1,7 +1,7 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import SectionTitle from '../components/SectionTitle';
 import { AnimatePresence, motion } from 'motion/react';
-import { ArrowDown, ArrowUp } from 'lucide-react';
+import { ArrowDown, ArrowUp, Search, X } from 'lucide-react';
 import ExpandingSearch from '../components/ExpandingSearch';
 import MerchantLogo from '../components/MerchantLogo';
 import type { Load } from '../lib/useTransactions';
@@ -26,7 +26,7 @@ import { useIsAdmin } from '../lib/admin';
 import type { LinkedAccount, Txn } from '../lib/wallex';
 
 const GRID = 'grid grid-cols-[2.4fr_1.6fr_1.1fr_1.3fr] gap-4 px-4';
-const GRID_MOBILE = 'grid grid-cols-[minmax(0,1fr)_auto] gap-3 px-1';
+const GRID_MOBILE = 'grid grid-cols-[minmax(0,1fr)_auto] gap-3 px-0';
 
 const BADGE: Record<Confidence, { label: string; badge: string; value: string }> = {
   confirmed: { label: 'Confirmed', badge: 'bg-accent-soft text-accent', value: 'text-accent' },
@@ -422,14 +422,16 @@ function Detail({
   );
 }
 
-export default function RecurringTab({ load, initialFilter = 'all' }: { load: Load; initialFilter?: string }) {
+export default function RecurringTab({ load, initialFilter = 'all', searchOpen = false }: { load: Load; initialFilter?: string; searchOpen?: boolean }) {
   const mobile = useMobile();
   const [filter, setFilter] = useState(initialFilter);
   const [status, setStatus] = useState<Confidence | null>(null);
   const [query, setQuery] = useState('');
-  // Whether the search is open: on a phone it takes over the row from the filter buttons.
-  const [searching, setSearching] = useState(false);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  // Closing the phone search clears it, so a hidden search can never be filtering the list.
+  useEffect(() => {
+    if (!searchOpen) setQuery('');
+  }, [searchOpen]);
 
   const live = load.state === 'live';
   // Every linked account, cards included, so a subscription paid with a card is found as well.
@@ -508,7 +510,7 @@ export default function RecurringTab({ load, initialFilter = 'all' }: { load: Lo
   return (
     <div className="w-full pb-6">
       {caption && (
-        <p className={`px-4 pb-3 font-support text-sm ${load.state === 'sample' && load.isError ? 'text-red-400' : 'text-muted'}`}>
+        <p className={`px-0 pb-3 font-support text-sm @3xl:px-4 ${load.state === 'sample' && load.isError ? 'text-red-400' : 'text-muted'}`}>
           {caption}
           {load.state === 'sample' && !load.isError && ' The list below is an example.'}
         </p>
@@ -516,7 +518,7 @@ export default function RecurringTab({ load, initialFilter = 'all' }: { load: Lo
 
       {mobile ? (
         // On a phone the four counts share one row, and the monthly total and transaction count share the next.
-        <div className="space-y-2 px-4">
+        <div className="space-y-2">
           <div className="grid grid-cols-4 gap-2">
             {tile('confirmed', 'Confirmed')}
             {tile('likely', 'Likely')}
@@ -543,8 +545,20 @@ export default function RecurringTab({ load, initialFilter = 'all' }: { load: Lo
       </div>
       )}
 
-      <div className={`mt-6 flex items-center gap-3 px-4 ${mobile ? 'gap-2' : 'flex-wrap justify-between'}`}>
-        {!(mobile && searching) && (
+      <div className={`mt-6 flex items-center gap-3 ${mobile ? 'gap-2' : 'flex-wrap justify-between px-4'}`}>
+        {mobile && searchOpen && (
+          // On a phone the search button lives in the page header; opening it swaps the filter buttons for the field.
+          <div className="flex h-11 min-w-0 flex-1 items-center gap-2 rounded-full border border-accent bg-surface px-4">
+            <Search className="h-4 w-4 shrink-0 text-muted" aria-hidden="true" />
+            <input autoFocus value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search recurring items" aria-label="Search recurring items" className="min-w-0 flex-1 bg-transparent text-sm outline-none select-text placeholder:text-muted" />
+            {query && (
+              <button type="button" aria-label="Clear search" onClick={() => setQuery('')} className="flex h-6 w-6 shrink-0 cursor-pointer items-center justify-center rounded-full text-muted hover:text-ink">
+                <X className="h-4 w-4" />
+              </button>
+            )}
+          </div>
+        )}
+        {!(mobile && searchOpen) && (
         <div role="tablist" className={mobile ? 'flex min-w-0 flex-1 gap-2 overflow-x-auto overflow-y-hidden [scrollbar-width:none]' : 'flex flex-wrap gap-2'} style={mobile ? { touchAction: 'pan-x' } : undefined}>
           {FILTERS.map((f) => {
             const count = analysis.items.filter(f.test).length;
@@ -580,9 +594,11 @@ export default function RecurringTab({ load, initialFilter = 'all' }: { load: Lo
           )}
         </div>
         )}
-        <div className={mobile ? (searching ? 'min-w-0 flex-1' : 'shrink-0') : ''}>
-          <ExpandingSearch value={query} onChange={setQuery} onOpenChange={setSearching} placeholder="Search recurring items" width={mobile ? '100%' : 260} />
-        </div>
+        {!mobile && (
+          <div>
+            <ExpandingSearch value={query} onChange={setQuery} placeholder="Search recurring items" width={260} />
+          </div>
+        )}
       </div>
 
       <div role="table" aria-label="Recurring relationships" className="mt-4 w-full">
@@ -599,7 +615,7 @@ export default function RecurringTab({ load, initialFilter = 'all' }: { load: Lo
           </div>
         )}
 
-        {rows.length === 0 && <p className="px-4 py-6 font-support text-sm text-muted">{emptyText}</p>}
+        {rows.length === 0 && <p className="px-0 py-6 font-support text-sm text-muted @3xl:px-4">{emptyText}</p>}
 
         {rows.map((r) => {
           const expanded = expandedId === r.id;

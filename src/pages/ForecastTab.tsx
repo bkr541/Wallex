@@ -194,7 +194,7 @@ export default function ForecastTab({ load }: { load: Load }) {
   const lowTone = range.lowest.balance < 0 ? 'text-red-300' : '';
 
   return (
-    <div className="flex flex-col gap-5 overflow-x-clip px-1 pb-10">
+    <div className="flex flex-col gap-5 overflow-x-clip px-0 pb-10 @3xl:px-1">
       {(f.everyday.confidence === 'low' || f.paydays.length === 0) && (
         <div className="rounded-2xl border border-amber-300/30 bg-amber-300/5 px-4 py-3 font-support text-sm text-amber-100/90">
           {f.paydays.length === 0 && 'Wallex has not found pay that repeats on a schedule, so no income is projected. '}

@@ -607,7 +607,7 @@ export default function PatternsTab({ load }: { load: Load }) {
       exit={{ opacity: 0, scale: 0.96, transition: { duration: 0.25 } }}
       transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
     >
-      <div className={`flex w-full items-center justify-between px-4 ${mobile ? 'flex-wrap gap-1' : 'flex-wrap gap-3'}`}>
+      <div className={`flex w-full items-center justify-between px-0 @3xl:px-4 ${mobile ? 'flex-wrap gap-1' : 'flex-wrap gap-3'}`}>
         <div role="tablist" aria-label="Show" className={`flex gap-2 ${mobile ? 'flex-nowrap gap-1' : 'flex-wrap'}`}>
           {VIEWS.map((v) => {
             const selected = v.id === view;
@@ -710,7 +710,7 @@ export default function PatternsTab({ load }: { load: Load }) {
 
       {/* On a phone the summary lines are left out for now, so the circles get the room; only a problem message stays. */}
       {(!mobile || (load.state === 'sample' && load.isError)) && (
-      <div className="mt-4 flex w-full flex-wrap items-baseline justify-between gap-2 px-4 font-support text-sm">
+      <div className="mt-4 flex w-full flex-wrap items-baseline justify-between gap-2 px-0 font-support text-sm @3xl:px-4">
         <p className={load.state === 'sample' && load.isError ? 'text-red-400' : 'text-muted'}>{caption}</p>
         {!empty && !mobile && base > 0 && (
           <p>
@@ -727,7 +727,7 @@ export default function PatternsTab({ load }: { load: Load }) {
       )}
 
       {empty ? (
-        <p className="px-4 py-10 font-support text-sm text-muted">
+        <p className="px-0 py-10 font-support text-sm text-muted @3xl:px-4">
           {q || activeFilters > 0 ? 'Nothing matches your search and filters.' : `No spending found in the last ${filters.days} days.`}
         </p>
       ) : (

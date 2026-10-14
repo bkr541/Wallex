@@ -92,7 +92,7 @@ export default function CheckingTab({
   return (
     <div className="w-full">
       {filter && (
-        <div className="mx-4 mb-3 flex flex-wrap items-center gap-3">
+        <div className="mx-0 mb-3 flex flex-wrap items-center gap-3 @3xl:mx-4">
           <span className="inline-flex items-center gap-2 rounded-full bg-accent py-1 pr-1.5 pl-3 text-sm font-semibold text-canvas">
             {filter.name} · {shown.length} of {rows.length}
             <button
@@ -107,7 +107,7 @@ export default function CheckingTab({
           {shown.length === 0 && <span className="font-support text-sm text-muted">None were found in this account</span>}
         </div>
       )}
-      <div className="flex items-center justify-between gap-4 px-4 pb-3">
+      <div className="flex items-center justify-between gap-4 px-0 pb-3 @3xl:px-4">
         <p
           className={`font-support text-sm ${load.state === 'sample' && load.isError ? 'text-red-400' : 'text-muted'}`}
         >

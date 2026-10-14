@@ -439,7 +439,7 @@ export default function AccountTab({
   const name = fullName(draft);
 
   return (
-    <div className="space-y-8 px-1 pb-10">
+    <div className="space-y-8 px-0 pb-10 @3xl:px-1">
     <form onSubmit={save} noValidate className="space-y-8">
       <Group id="profile" title="Your profile" icon="user-face-male">
         <div className="grid grid-cols-1 gap-x-8 gap-y-6 @3xl:grid-cols-2">

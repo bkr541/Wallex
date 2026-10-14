@@ -417,10 +417,10 @@ export default function OverviewTab({
 
 
   return (
-    <div className="flex flex-col gap-5 px-1 pb-10">
+    <div className="flex flex-col gap-5 px-0 pb-10 @3xl:px-1">
       {/* Period switch; its selected range and account context appear as badges in the position card. */}
       {view.periods.length > 1 && (
-        <div className="flex justify-end px-3">
+        <div className="flex justify-end px-0 @3xl:px-3">
           <Segmented
             large
             label="Period"
@@ -433,28 +433,28 @@ export default function OverviewTab({
 
       {/* Financial position: money in against money out, then the cash on hand */}
       <section
-        className="mx-3 -mt-2 rounded-[28px] border p-4 @3xl:p-6"
+        className="mx-0 -mt-2 rounded-[28px] @3xl:mx-3 border p-4 @3xl:p-6"
         style={{
           borderColor: 'color-mix(in srgb, var(--accent) 22%, var(--line))',
           background: 'linear-gradient(140deg, color-mix(in srgb, var(--accent) 9%, var(--card)), var(--card) 70%)',
         }}
       >
-        <div className="grid grid-cols-3">
+        <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]">
           <div className="min-w-0 pr-3 @3xl:pr-8">
             <p className="font-support text-xs text-ink/80 @3xl:text-sm">Money In</p>
-            <p className="mt-0.5 text-[1.55rem] leading-none font-semibold tracking-tight @3xl:text-4xl">
+            <p className="mt-0.5 text-[1.4rem] leading-none font-semibold tracking-tight whitespace-nowrap @3xl:text-4xl">
               <SlotNumber text={money(flow.moneyIn)} />
             </p>
           </div>
-          <div className="min-w-0 border-l border-line px-3 text-center @3xl:px-8">
+          <div className="border-l border-line px-3 text-center @3xl:px-8">
             <p className="font-support text-xs whitespace-nowrap text-ink/80 @3xl:text-sm">Cash Flow</p>
-            <p className={`mt-0.5 text-[1.55rem] leading-none font-semibold tracking-tight @3xl:text-4xl ${netTone}`}>
+            <p className={`mt-0.5 text-[1.4rem] leading-none font-semibold tracking-tight whitespace-nowrap @3xl:text-4xl ${netTone}`}>
               <SlotNumber text={flow.count === 0 ? '—' : signed(flow.net)} />
             </p>
           </div>
           <div className="min-w-0 border-l border-line pl-3 text-right @3xl:pl-8">
             <p className="font-support text-xs text-ink/80 @3xl:text-sm">Money Out</p>
-            <p className="mt-0.5 text-[1.55rem] leading-none font-semibold tracking-tight @3xl:text-4xl">
+            <p className="mt-0.5 text-[1.4rem] leading-none font-semibold tracking-tight whitespace-nowrap @3xl:text-4xl">
               <SlotNumber text={money(flow.moneyOut)} />
             </p>
           </div>
@@ -497,7 +497,7 @@ export default function OverviewTab({
         </div>
       </section>
 
-      <div className="mx-3 mt-1">
+      <div className="mx-0 mt-1 @3xl:mx-3">
       {/* 2 · Recurring commitments */}
       <Collapsible
         {...sectionProps('commitments')}
