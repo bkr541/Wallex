@@ -94,14 +94,14 @@ const ICONS: Record<string, LucideIcon | 'chase'> = {
 // dollars, stretched across that whole range so the differences are easy to see.
 // Desktop is a wide diagram; the phone view is a tall one with fewer, slightly larger circles.
 const LAYOUTS = {
-  desktop: { aspect: 1.5, dMin: 19, dMax: 40, centerD: 54, maxCircles: 14 },
-  mobile: { aspect: 0.6, dMin: 12.5, dMax: 21, centerD: 28.8, maxCircles: 12 },
+  // `gap`: clear space kept between the income circle and the circles round it; null lets them tuck under it a little.
+  desktop: { aspect: 1.5, dMin: 19, dMax: 40, centerD: 54, maxCircles: 14, gap: null as number | null, overlap: 0.3 },
+  mobile: { aspect: 0.52, dMin: 11, dMax: 18, centerD: 33.5, maxCircles: 12, gap: 1.6 as number | null, overlap: 0.55 },
 };
 type LayoutConfig = (typeof LAYOUTS)['desktop'];
 
 // How circles may overlap: neighbors sink into each other by this share of the smaller radius,
 // and circles tuck behind the income circle but keep their centers (and text) outside it.
-const NEIGHBOR_OVERLAP = 0.3;
 const CENTER_TUCK = 0.75; // share of a circle's radius that may sit under the income circle
 
 const FIT = 47; // how far from the middle the cluster may reach vertically
@@ -153,7 +153,7 @@ function pack(ds: number[], cfg: LayoutConfig): { nodes: Pt[]; fits: boolean } {
         const dx = b.x - a.x;
         const dy = b.y - a.y;
         const dist = Math.hypot(dx, dy) || 0.001;
-        const min = a.r + b.r - NEIGHBOR_OVERLAP * Math.min(a.r, b.r);
+        const min = a.r + b.r - cfg.overlap * Math.min(a.r, b.r);
         if (dist < min) {
           const push = (min - dist) / 2 / dist;
           a.x -= dx * push;
@@ -166,7 +166,7 @@ function pack(ds: number[], cfg: LayoutConfig): { nodes: Pt[]; fits: boolean } {
     for (const n of nodes) {
       const dist = Math.hypot(n.x, n.y) || 0.001;
       // Tuck behind the income circle, but never so far that its figures get covered.
-      const min = centerR + n.r - Math.min(CENTER_TUCK * n.r, 0.28 * centerR);
+      const min = cfg.gap !== null ? centerR + n.r + cfg.gap : centerR + n.r - Math.min(CENTER_TUCK * n.r, 0.28 * centerR);
       if (dist < min) {
         n.x *= min / dist;
         n.y *= min / dist;

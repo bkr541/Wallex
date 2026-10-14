@@ -6,11 +6,11 @@ import { money } from '../../lib/patternFormat';
 // Five whole Patterns diagrams, each designed as one piece: the centre ring and every circle around it belong to the
 // same idea. They all use the same example merchants and bills, so only the design changes between them.
 
-const W = 720;
-const H = 540;
-const CX = W / 2;
-const CY = H / 2;
-const INCOME = 6322;
+export const W = 720;
+export const H = 540;
+export const CX = W / 2;
+export const CY = H / 2;
+export const INCOME = 6322;
 
 interface Item {
   name: string;
@@ -18,7 +18,7 @@ interface Item {
   color: string; // r, g, b
   kind: 'Bill' | 'Merchant';
 }
-const ITEMS: Item[] = [
+export const ITEMS: Item[] = [
   { name: 'EarnIn repayments', amount: 2635, color: '255, 105, 180', kind: 'Bill' },
   { name: 'Zelle · Ryan', amount: 1337, color: '250, 204, 21', kind: 'Merchant' },
   { name: 'Dave', amount: 1279, color: '139, 108, 239', kind: 'Bill' },
@@ -28,15 +28,15 @@ const ITEMS: Item[] = [
   { name: 'Zelle · Kurt', amount: 450, color: '244, 114, 94', kind: 'Merchant' },
   { name: 'North Coast', amount: 435, color: '45, 212, 191', kind: 'Merchant' },
 ];
-const MAX = ITEMS[0].amount;
-const SUM = ITEMS.reduce((n, i) => n + i.amount, 0);
-const WHOLE = Math.max(INCOME, SUM);
-const rad = (deg: number) => (deg * Math.PI) / 180;
-const pct = (n: number) => `${Math.round((n / INCOME) * 100)}%`;
-const short = (n: string, max = 16) => (n.length > max ? `${n.slice(0, max - 1)}…` : n);
+export const MAX = ITEMS[0].amount;
+export const SUM = ITEMS.reduce((n, i) => n + i.amount, 0);
+export const WHOLE = Math.max(INCOME, SUM);
+export const rad = (deg: number) => (deg * Math.PI) / 180;
+export const pct = (n: number) => `${Math.round((n / INCOME) * 100)}%`;
+export const short = (n: string, max = 16) => (n.length > max ? `${n.slice(0, max - 1)}…` : n);
 
 // Where each item's slice of the centre ring starts and ends (degrees clockwise from the top).
-const SLICES = (() => {
+export const SLICES = (() => {
   let at = 0;
   return ITEMS.map((it) => {
     const span = (it.amount / WHOLE) * 360;
@@ -54,7 +54,7 @@ function Arc({ r, w, start, span, color, delay = 0, gap = 3, cx = CX, cy = CY }:
     </g>
   );
 }
-function Ring({ r, w }: { r: number; w: number }) {
+export function Ring({ r, w }: { r: number; w: number }) {
   return (
     <svg viewBox={`0 0 ${W} ${H}`} className="pointer-events-none absolute inset-0 h-full w-full" aria-hidden="true">
       <circle cx={CX} cy={CY} r={r} fill="none" stroke="var(--line)" strokeWidth={w} opacity="0.5" />
@@ -62,7 +62,7 @@ function Ring({ r, w }: { r: number; w: number }) {
     </svg>
   );
 }
-function CenterText({ size = 1 }: { size?: number }) {
+export function CenterText({ size = 1 }: { size?: number }) {
   return (
     <div className="pointer-events-none absolute flex flex-col items-center justify-center text-center" style={{ left: CX - 90 * size, top: CY - 50 * size, width: 180 * size, height: 100 * size }}>
       <span className="font-support text-muted" style={{ fontSize: 13 * size }}>Monthly Income</span>
@@ -73,7 +73,7 @@ function CenterText({ size = 1 }: { size?: number }) {
 }
 
 // Fits the 720 × 540 drawing into whatever width it is given.
-function Stage({ children }: { children: React.ReactNode }) {
+export function Stage({ children }: { children: React.ReactNode }) {
   const box = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState(W);
   useEffect(() => {
@@ -93,7 +93,7 @@ function Stage({ children }: { children: React.ReactNode }) {
 }
 
 // Starts each circle outside its own slice and nudges them apart until none overlap each other or the centre.
-function place(sizes: number[], inner: number): { x: number; y: number }[] {
+export function place(sizes: number[], inner: number): { x: number; y: number }[] {
   const pos = ITEMS.map((_, i) => {
     const a = rad(SLICES[i].mid - 90);
     const r = inner + sizes[i] / 2 + 12;

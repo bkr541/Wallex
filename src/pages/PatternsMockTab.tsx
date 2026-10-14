@@ -1,4 +1,5 @@
 import SectionTitle from '../components/SectionTitle';
+import { BeakerDiagram, BloomDiagram, ConstellationDiagram, SunflowerDiagram, VinylDiagram } from '../components/kit/patternsMockB';
 import { ActivityRingsDiagram, GaugeClusterDiagram, GlassDiagram, OrbitDiagram, PlanetDiagram, RibbonDiagram, RoseDiagram, ScaleRingDiagram, SpeedometerDiagram, TickHalosDiagram } from '../components/kit/patternsMock';
 
 const DIAGRAMS = [
@@ -12,16 +13,21 @@ const DIAGRAMS = [
   { name: 'Speedometer', note: 'A big open dial across the top for the income, and a row of ring gauges beneath it, one for each item.', Component: SpeedometerDiagram },
   { name: 'Tick halos', note: 'A dial in the middle, and each item a disc ringed by tick marks that light up for its share of the income.', Component: TickHalosDiagram },
   { name: 'Scale ring', note: 'A graduated bezel coloured one stretch per item, with each logo as a knob on its stretch, round a ring gauge for the spend.', Component: ScaleRingDiagram },
+  { name: 'Constellation', note: 'Each item is a star that burns bigger the more it costs, tied to the hub and to its neighbours by thin lines, with a soft pulse round each one.', Component: ConstellationDiagram },
+  { name: 'Beaker', note: 'The whole diagram is a glass vessel. Each item is a layer of liquid as deep as its cost, with a dashed income line across it and labels tied to their layers.', Component: BeakerDiagram },
+  { name: 'Bloom', note: 'A flower. Every item is a petal as long as it costs, in its own colour, overlapping at the middle and ending in its logo.', Component: BloomDiagram },
+  { name: 'Vinyl', note: 'A record with the grooves cut in coloured sectors and a sheen sweeping round. The income is the label, and each item is a sleeve tag on the edge.', Component: VinylDiagram },
+  { name: 'Sunflower', note: 'A field of dots laid out like sunflower seeds, each in the colour of its sector and rippling outward. The dimmed part is past where income runs out.', Component: SunflowerDiagram },
 ];
 
-// Ten complete takes on the Patterns diagram. The centre and the circles around it are designed together, using the same
+// Fifteen complete takes on the Patterns diagram. The centre and the circles around it are designed together, using the same
 // example merchants and bills, so the only thing that changes from one to the next is the design.
 export default function PatternsMockTab() {
   return (
     <div className="space-y-12 px-1 pb-10">
       <div className="px-3">
         <SectionTitle icon="layers-1">Patterns</SectionTitle>
-        <p className="mt-1 font-support text-sm text-muted">Ten complete takes on the Patterns diagram. Each one designs the centre and the circles around it as one piece. The last five are built from the Ring Gauge and Gauge Dial.</p>
+        <p className="mt-1 font-support text-sm text-muted">Fifteen complete takes on the Patterns diagram. Each one designs the centre and the circles around it as one piece. Numbers 6 to 10 are built from the Ring Gauge and Gauge Dial, and 11 to 15 are new directions.</p>
       </div>
       {DIAGRAMS.map((d, i) => (
         <section key={d.name}>
