@@ -1,4 +1,5 @@
 import { useSyncExternalStore } from 'react';
+import { useIsDemoDeveloper } from './admin';
 import { syncDemo } from './cloud';
 import { incomeTypeOf, INCOME_TYPE_LABEL, type IncomeType } from './incomeType';
 import type { Txn } from './wallex';
@@ -74,10 +75,11 @@ export interface Condition {
 export interface DemoConfig {
   enabled: boolean;
   suppress: boolean;
+  hideAmounts: boolean; // dollar figures on Overview's money in / out group and the Patterns circles are shown as X
   conditions: Condition[];
 }
 
-export const DEFAULT_DEMO: DemoConfig = { enabled: false, suppress: false, conditions: [] };
+export const DEFAULT_DEMO: DemoConfig = { enabled: false, suppress: false, hideAmounts: false, conditions: [] };
 
 const KEY = 'wallex-demo';
 
@@ -94,7 +96,7 @@ export function sanitizeDemo(raw: unknown): DemoConfig {
       conditions.push({ id: x.id, field, op, value: typeof x.value === 'string' ? x.value : '' });
     }
   }
-  return { enabled: r.enabled === true, suppress: r.suppress === true, conditions: conditions.slice(0, MAX_CONDITIONS) };
+  return { enabled: r.enabled === true, suppress: r.suppress === true, hideAmounts: r.hideAmounts === true, conditions: conditions.slice(0, MAX_CONDITIONS) };
 }
 
 function load(): DemoConfig {
@@ -134,6 +136,16 @@ const subscribe = (l: () => void) => {
   return () => listeners.delete(l);
 };
 export const useDemo = (): DemoConfig => useSyncExternalStore(subscribe, getDemo, getDemo);
+
+// Whether dollar figures should be hidden right now: demo mode is on, Hide Amounts is on, and this is the developer account.
+export function useHideAmounts(): boolean {
+  const demo = useDemo();
+  const developer = useIsDemoDeveloper();
+  return developer && demo.enabled && demo.hideAmounts;
+}
+
+// "$2,000" -> "X,XXX": every digit becomes an X, and the dollar sign goes. The sign (+ or -), commas, points and any "/mo" stay.
+export const maskAmount = (text: string) => text.replace(/\$/g, '').replace(/\d/g, 'X');
 
 /* ------------------------------------------------------------------------------------------ matching */
 

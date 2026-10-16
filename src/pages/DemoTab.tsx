@@ -143,6 +143,14 @@ export default function DemoTab({ suppressedCount = 0 }: { suppressedCount?: num
                     </Reveal>
                   )}
                 </AnimatePresence>
+
+                <div className="mt-5 flex items-start justify-between gap-4 border-t border-line pt-5">
+                  <div>
+                    <p className="text-sm font-medium">Hide Amounts</p>
+                    <p className="mt-1.5 font-support text-xs leading-relaxed text-muted">Shows the dollar figures in Overview’s Money In, Cash Flow and Money Out group, and on the Patterns circles, as X’s (for example $2,000 shows as X,XXX).</p>
+                  </div>
+                  <Switch on={demo.hideAmounts} onChange={(hideAmounts) => setDemo({ hideAmounts })} label="Hide Amounts" />
+                </div>
               </div>
             </Reveal>
           )}

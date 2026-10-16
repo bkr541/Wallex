@@ -39,6 +39,7 @@ import { withBalances } from '../lib/balances';
 import { computePatternMetrics } from '../lib/patternMetrics';
 import { useRecurring } from '../lib/recurringOverrides';
 import { changedRules, useRules } from '../lib/rules';
+import { maskAmount, useHideAmounts } from '../lib/demo';
 import type { Load } from '../lib/useTransactions';
 import {
   SAMPLE_PATTERNS,
@@ -344,6 +345,8 @@ export default function PatternsTab({ load }: { load: Load }) {
   const mobile = useMobile();
   // The person's Rules: the period and minimum Patterns opens with, how many circles it draws, and what counts as a bill.
   const rules = useRules();
+  const hide = useHideAmounts();
+  const dollars = (n: number) => (hide ? maskAmount(money(n)) : money(n));
   const baseCfg = mobile ? LAYOUTS.mobile : LAYOUTS.desktop;
   const cfg = useMemo(() => ({ ...baseCfg, maxCircles: Math.min(baseCfg.maxCircles, rules.maxCircles) }), [baseCfg, rules.maxCircles]);
   const live = load.state === 'live';
@@ -698,11 +701,11 @@ export default function PatternsTab({ load }: { load: Load }) {
         {!empty && !mobile && base > 0 && (
           <p>
             <span className="text-muted">{viewLabel}: </span>
-            <span className="font-semibold">{money(total)}</span>
+            <span className="font-semibold">{dollars(total)}</span>
             <span className="text-muted">
               {' '}
               /mo spent · {percent(total, base)} of {hasIncome ? 'income' : 'spending'}
-              {hidden.length > 0 && ` · showing the ${shown.length} biggest of ${matching.length} (${money(hiddenTotal)}/mo in the rest)`}
+              {hidden.length > 0 && ` · showing the ${shown.length} biggest of ${matching.length} (${dollars(hiddenTotal)}/mo in the rest)`}
             </span>
           </p>
         )}
@@ -716,8 +719,8 @@ export default function PatternsTab({ load }: { load: Load }) {
       ) : (
         <div
           role="img"
-          aria-label={`${centerLabel} of ${money(centerAmount)} with ${viewLabel.toLowerCase()}: ${shown
-            .map((b) => `${b.name} ${money(b.amount)}`)
+          aria-label={`${centerLabel} of ${dollars(centerAmount)} with ${viewLabel.toLowerCase()}: ${shown
+            .map((b) => `${b.name} ${dollars(b.amount)}`)
             .join(', ')}`}
           className="relative mt-2"
           style={{
@@ -750,12 +753,12 @@ export default function PatternsTab({ load }: { load: Load }) {
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.35, transition: { duration: 0.25 } }}
                 transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
-                title={`${b.name}: ${money(b.amount)}/mo · ${b.count} charge${b.count === 1 ? '' : 's'}${
+                title={`${b.name}: ${dollars(b.amount)}/mo · ${b.count} charge${b.count === 1 ? '' : 's'}${
                   base > 0 ? ` · ${percent(b.amount, base)} of ${hasIncome ? 'income' : 'spending'}` : ''
                 }`}
                 role="button"
                 tabIndex={0}
-                aria-label={`${b.name}, ${money(b.amount)} per month. Show transactions`}
+                aria-label={`${b.name}, ${dollars(b.amount)} per month. Show transactions`}
                 onClick={() => setSelected(b)}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' || e.key === ' ') {
@@ -783,7 +786,7 @@ export default function PatternsTab({ load }: { load: Load }) {
                   </span>
                 )}
                 <span className="leading-none font-semibold" style={{ fontSize: cq(d, 0.14, 2.7, 5.6, 13) }}>
-                  {money(b.amount)}
+                  {dollars(b.amount)}
                 </span>
                 {base > 0 && (
                   <span className="font-support leading-none text-ink/80" style={{ fontSize: cq(d, 0.06, 1.8, 2.6, 10) }}>
@@ -847,7 +850,7 @@ export default function PatternsTab({ load }: { load: Load }) {
                 {centerLabel}
               </span>
               <span className="leading-none font-semibold tracking-tight" style={{ fontSize: `${layout.centerDiameter * 0.12}cqh` }}>
-                {money(centerAmount)}
+                {dollars(centerAmount)}
               </span>
               <span className={`font-support leading-none ${hasIncome ? 'text-accent' : 'text-muted'}`} style={{ fontSize: `${layout.centerDiameter * 0.052}cqh` }}>
                 {hasIncome ? `${percent(total, base)} spent` : '100%'}

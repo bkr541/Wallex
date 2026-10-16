@@ -8,6 +8,7 @@ import SlotNumber from '../components/overview/SlotNumber';
 import MerchantLogo from '../components/MerchantLogo';
 import { useRecurring } from '../lib/recurringOverrides';
 import { useRules } from '../lib/rules';
+import { maskAmount, useHideAmounts } from '../lib/demo';
 import {
   bankFees,
   cashBuffer,
@@ -121,7 +122,8 @@ function Segmented<T extends string | number>({
 
 // Money in against money out as one bar: the teal part is what came in, the coral part what went out, and
 // the marker sits where they meet.
-function FlowBar({ moneyIn, moneyOut }: { moneyIn: number; moneyOut: number }) {
+function FlowBar({ moneyIn, moneyOut, hide = false }: { moneyIn: number; moneyOut: number; hide?: boolean }) {
+  const shown = (n: number) => (hide ? maskAmount(money(n)) : money(n));
   const total = moneyIn + moneyOut;
   // Where the marker sits is exactly money in's share of the total: all the way left when everything went out,
   // all the way right when everything came in, and just left of the middle when out is 51%.
@@ -152,8 +154,8 @@ function FlowBar({ moneyIn, moneyOut }: { moneyIn: number; moneyOut: number }) {
         </span>
       </div>
       <div className="mt-2 flex justify-between font-support text-sm text-muted tabular-nums">
-        <span className="text-accent">{money(moneyIn)}</span>
-        <span className="text-red-300">{money(moneyOut)}</span>
+        <span className="text-accent">{shown(moneyIn)}</span>
+        <span className="text-red-300">{shown(moneyOut)}</span>
       </div>
     </div>
   );
@@ -306,6 +308,7 @@ export default function OverviewTab({
   const recurring = useRecurring(live ? load.allTransactions : null, live ? load.allAccounts : undefined);
   // The person's Rules decide what counts as spending and income, so the figures follow them.
   const rules = useRules();
+  const hide = useHideAmounts();
 
   // Everything below is derived once per data change from the same transactions and the same scope.
   const view = useMemo(() => {
@@ -443,24 +446,24 @@ export default function OverviewTab({
           <div className="min-w-0 pr-3 @3xl:pr-8">
             <p className="font-support text-xs text-ink/80 @3xl:text-sm">Money In</p>
             <p className="mt-0.5 text-[1.4rem] leading-none font-semibold tracking-tight whitespace-nowrap @3xl:text-4xl">
-              <SlotNumber text={money(flow.moneyIn)} />
+              <SlotNumber text={hide ? maskAmount(money(flow.moneyIn)) : money(flow.moneyIn)} />
             </p>
           </div>
           <div className="border-l border-line px-3 text-center @3xl:px-8">
             <p className="font-support text-xs whitespace-nowrap text-ink/80 @3xl:text-sm">Cash Flow</p>
             <p className={`mt-0.5 text-[1.4rem] leading-none font-semibold tracking-tight whitespace-nowrap @3xl:text-4xl ${netTone}`}>
-              <SlotNumber text={flow.count === 0 ? '—' : signed(flow.net)} />
+              <SlotNumber text={flow.count === 0 ? '—' : hide ? maskAmount(signed(flow.net)) : signed(flow.net)} />
             </p>
           </div>
           <div className="min-w-0 border-l border-line pl-3 text-right @3xl:pl-8">
             <p className="font-support text-xs text-ink/80 @3xl:text-sm">Money Out</p>
             <p className="mt-0.5 text-[1.4rem] leading-none font-semibold tracking-tight whitespace-nowrap @3xl:text-4xl">
-              <SlotNumber text={money(flow.moneyOut)} />
+              <SlotNumber text={hide ? maskAmount(money(flow.moneyOut)) : money(flow.moneyOut)} />
             </p>
           </div>
         </div>
 
-        <FlowBar moneyIn={flow.moneyIn} moneyOut={flow.moneyOut} />
+        <FlowBar moneyIn={flow.moneyIn} moneyOut={flow.moneyOut} hide={hide} />
 
         <div className="mt-3 text-center">
           <p className="font-support text-xs font-semibold tracking-[0.2em] text-ink/80 uppercase">Cash Available</p>
