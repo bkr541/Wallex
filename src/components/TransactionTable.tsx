@@ -20,7 +20,7 @@ const COLUMNS = [
 
 const GRID = 'grid grid-cols-[0.9fr_1.5fr_1.8fr_1.3fr_0.9fr_1fr_1fr_1fr_1fr] gap-4 px-4';
 // On a phone only the essentials fit in the row; the rest are shown when a row is opened.
-const GRID_MOBILE = 'grid grid-cols-[5.5rem_1fr_6rem] gap-3 px-0';
+const GRID_MOBILE = 'grid grid-cols-[4.75rem_1fr_6rem] gap-2 px-0';
 const MOBILE_COLUMNS = new Set(['status', 'merchant', 'amount']);
 
 export const formatAmount = (amount: number) =>
@@ -89,8 +89,8 @@ export default function TransactionTable({
         {rows.map((t, index) => {
           const expanded = expandedId === t.id;
           const toggle = () => setExpandedId(expanded ? null : t.id);
-          // One line by default (cut off with "..."); the full text wraps once the row is clicked.
-          const text = expanded ? 'break-words' : 'truncate';
+          // Keep the summary on one line when opened; all remaining fields live in the full-width details row below it.
+          const text = 'truncate';
           return (
             <motion.div key={t.id} variants={rowVariants} custom={index + 1} role="rowgroup" className="border-b border-line">
               <div
@@ -104,7 +104,7 @@ export default function TransactionTable({
                     toggle();
                   }
                 }}
-                className={`${grid} ${expanded ? 'items-start bg-surface/50' : 'items-center'} cursor-pointer py-3 text-sm transition-colors hover:bg-surface/50`}
+                className={`${grid} items-center ${expanded ? 'bg-surface/50' : ''} cursor-pointer py-3 text-sm transition-colors hover:bg-surface/50`}
               >
                 <div role="cell" className="min-w-0">
                   <span className={`flex items-center gap-1.5 font-support text-xs ${t.pending ? 'text-muted' : ''}`}>
@@ -114,10 +114,10 @@ export default function TransactionTable({
                 </div>
                 <div role="cell" className="flex min-w-0 items-center gap-2.5 font-medium">
                   <MerchantLogo key={t.id} name={t.merchant} sources={t.logos} />
-                  <span className="min-w-0">
-                    <span className={`block ${text}`}>{t.merchant}</span>
+                  <span className="flex min-w-0 flex-1 items-center gap-2">
+                    <span className={`min-w-0 ${text}`}>{t.merchant}</span>
                     {mobile && incomeTypeOf(t) && (
-                      <span className={`mt-0.5 inline-block rounded-full px-2 py-px font-support text-[10px] leading-4 ${INCOME_TYPE_TONE[incomeTypeOf(t)!]}`}>{INCOME_TYPE_LABEL[incomeTypeOf(t)!]}</span>
+                      <span className={`shrink-0 rounded-full px-2 py-px font-support text-[10px] leading-4 ${INCOME_TYPE_TONE[incomeTypeOf(t)!]}`}>{INCOME_TYPE_LABEL[incomeTypeOf(t)!]}</span>
                     )}
                   </span>
                 </div>
@@ -165,7 +165,7 @@ export default function TransactionTable({
                     animate={{ height: 'auto', opacity: 1 }}
                     exit={{ height: 0, opacity: 0 }}
                     transition={{ duration: 0.2 }}
-                    className="overflow-hidden"
+                    className="w-full overflow-hidden"
                   >
                     {(() => {
                       const incomeType = incomeTypeOf(t);
@@ -187,7 +187,7 @@ export default function TransactionTable({
                       const wide = mobile ? ['Bank Description', 'Transaction ID'] : [];
                       const ordered = [...fields.filter((f) => !wide.includes(f.label)), ...wide.map((w) => fields.find((f) => f.label === w)).filter((f): f is { label: string; value: string } => Boolean(f))];
                       return (
-                        <dl className={`grid gap-y-4 border-t border-line bg-surface/30 px-4 py-4 ${mobile ? 'grid-cols-2 gap-x-4' : 'grid-cols-[repeat(auto-fill,minmax(15rem,1fr))] gap-x-8'}`}>
+                        <dl className={`grid w-full gap-y-4 border-t border-line bg-surface/30 px-4 py-4 ${mobile ? 'grid-cols-2 gap-x-4' : 'grid-cols-[repeat(auto-fill,minmax(15rem,1fr))] gap-x-8'}`}>
                           {ordered.map((d) => (
                             <div key={d.label} className={`min-w-0 ${wide.includes(d.label) ? 'col-span-2' : ''}`}>
                               <dt className="text-xs font-semibold tracking-wider text-muted uppercase">{d.label}</dt>

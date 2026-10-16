@@ -89,25 +89,23 @@ function Rule({
   return (
     <div className="py-5 first:pt-1 last:pb-1">
       <div className="flex items-start justify-between gap-4">
-        <div className="min-w-0">
-          <div className="flex items-start gap-2.5 text-sm font-medium">
-            <PlumpIcon name={icon} className="mt-px h-5 w-5 shrink-0 text-muted" />
-            <span className="flex flex-wrap items-center gap-x-2.5 gap-y-1">
-              {title}
-              {changed && (
-                <span className="flex items-center gap-1.5 rounded-full bg-accent-soft px-2 py-0.5 font-support text-[11px] font-semibold text-accent">
-                  Changed
-                  <button type="button" onClick={onReset} className="cursor-pointer font-normal underline-offset-2 hover:underline">
-                    Reset
-                  </button>
-                </span>
-              )}
-            </span>
-          </div>
-          <p className="mt-1.5 font-support text-xs leading-relaxed text-muted">{description}</p>
+        <div className="flex min-w-0 items-start gap-2.5 text-sm font-medium">
+          <PlumpIcon name={icon} className="mt-px h-5 w-5 shrink-0 text-muted" />
+          <span className="flex flex-wrap items-center gap-x-2.5 gap-y-1">
+            {title}
+            {changed && (
+              <span className="flex items-center gap-1.5 rounded-full bg-accent-soft px-2 py-0.5 font-support text-[11px] font-semibold text-accent">
+                Changed
+                <button type="button" onClick={onReset} className="cursor-pointer font-normal underline-offset-2 hover:underline">
+                  Reset
+                </button>
+              </span>
+            )}
+          </span>
         </div>
         {aside}
       </div>
+      <p className="mt-1.5 w-full font-support text-xs leading-relaxed text-muted">{description}</p>
       {children && <div className="mt-3.5">{children}</div>}
       {impact && <p className="mt-3 font-support text-xs leading-relaxed text-ink/80">{impact}</p>}
     </div>
@@ -177,13 +175,18 @@ function IgnoredMerchants({ rules, impacts }: { rules: Rules; impacts: RuleImpac
             onFocus={() => setOpen(true)}
             placeholder="Find a merchant to ignore…"
             aria-label="Find a merchant to ignore"
-            className="w-full rounded-xl border border-line bg-surface px-3.5 py-2.5 text-sm text-ink outline-none placeholder:text-muted/60 focus:border-accent"
+            className="w-full rounded-xl border border-line bg-surface px-3.5 py-2.5 text-[16px] text-ink outline-none placeholder:text-muted/60 focus:border-accent @3xl:text-sm"
           />
           {open && matches.length > 0 && (
             <ul className="absolute top-full z-20 mt-2 w-full rounded-xl border border-line bg-card p-1.5 shadow-[0_18px_40px_rgba(0,0,0,0.35)]">
               {matches.map((b) => (
                 <li key={b.key}>
-                  <button type="button" onClick={() => add(b.key)} className="flex w-full cursor-pointer items-center gap-3 rounded-lg px-2 py-2 text-left text-sm hover:bg-surface">
+                  <button
+                    type="button"
+                    onPointerDown={(e) => e.preventDefault()}
+                    onClick={() => add(b.key)}
+                    className="flex w-full cursor-pointer items-center gap-3 rounded-lg px-2 py-2 text-left text-sm hover:bg-surface"
+                  >
                     <MerchantLogo name={b.name} sources={b.logos} className="h-7 w-7 text-[10px]" />
                     <span className="min-w-0 flex-1 truncate">{b.name}</span>
                     <span className="font-support text-xs text-muted tabular-nums">{money(b.amount)}/mo</span>

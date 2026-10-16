@@ -96,7 +96,7 @@ const ICONS: Record<string, LucideIcon | 'chase'> = {
 const LAYOUTS = {
   // `gap`: clear space kept between the income circle and the circles round it; null lets them tuck under it a little.
   desktop: { aspect: 1.5, dMin: 19, dMax: 40, centerD: 54, maxCircles: 14, gap: null as number | null, overlap: 0.3 },
-  mobile: { aspect: 0.52, dMin: 11, dMax: 18, centerD: 33.5, maxCircles: 12, gap: 1.6 as number | null, overlap: 0.55 },
+  mobile: { aspect: 0.82, dMin: 12, dMax: 20, centerD: 35, maxCircles: 12, gap: null as number | null, overlap: 0.55 },
 };
 type LayoutConfig = (typeof LAYOUTS)['desktop'];
 
@@ -131,17 +131,16 @@ function diameters(amounts: number[], cfg: LayoutConfig): number[] {
 function pack(ds: number[], cfg: LayoutConfig): { nodes: Pt[]; fits: boolean } {
   const centerR = cfg.centerD / 2;
   const nodes: Pt[] = ds.map((d, i) => {
-    // Start on a loose spiral that reaches out across the area, with some scatter.
-    // In the tall phone layout, start above and below the income circle where there is room.
-    const angle = (cfg.aspect < 1 ? Math.PI / 2 : 0) + i * 2.399963 + jitter(i) * 0.9;
+    // Start on a loose spiral around the income circle, with some scatter.
+    const angle = i * 2.399963 + jitter(i) * 0.9;
     const dist = centerR * 0.95 + (cfg.dMax / 2) * 1.1 * Math.sqrt(i + 1) + jitter(i + 50) * (cfg.dMax / 2) * 0.4;
     return { x: Math.cos(angle) * dist, y: Math.sin(angle) * dist, r: d / 2 };
   });
 
   for (let iter = 0; iter < 900; iter++) {
-    // Gentle pull toward the middle, stronger across the short side so the cluster fills the long one.
-    const pullX = cfg.aspect < 1 ? 0.991 : 0.996;
-    const pullY = cfg.aspect < 1 ? 0.996 : 0.991;
+    // Gentle pull toward the middle. Phone circles stay radial instead of being forced into top and bottom bands.
+    const pullX = cfg.aspect < 1 ? 0.994 : 0.996;
+    const pullY = cfg.aspect < 1 ? 0.994 : 0.991;
     for (const n of nodes) {
       n.x *= pullX;
       n.y *= pullY;
@@ -607,46 +606,30 @@ export default function PatternsTab({ load }: { load: Load }) {
       exit={{ opacity: 0, scale: 0.96, transition: { duration: 0.25 } }}
       transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
     >
-      <div className={`flex w-full items-center justify-between px-0 @3xl:px-4 ${mobile ? 'flex-wrap gap-1' : 'flex-wrap gap-3'}`}>
-        <div role="tablist" aria-label="Show" className={`flex gap-2 ${mobile ? 'flex-nowrap gap-1' : 'flex-wrap'}`}>
+      <div className={`flex w-full justify-between px-0 @3xl:px-4 ${mobile ? 'flex-col items-stretch gap-2' : 'flex-wrap items-center gap-3'}`}>
+        <div role="tablist" aria-label="Show" className={mobile ? 'grid w-full grid-cols-4 gap-1' : 'flex flex-wrap gap-2'}>
           {VIEWS.map((v) => {
             const selected = v.id === view;
             const dot = v.dot ?? (mobile ? 'var(--text)' : undefined);
 
-            // On a phone every option fits in one row: the chosen one shows its name, the others
-            // are just a colored dot and a count. The name slides in and out as you switch.
+            // Stable, labelled touch targets avoid moving a different filter underneath the person's finger.
             if (mobile) {
               return (
-                <motion.button
-                  layout
+                <button
                   key={v.id}
                   type="button"
                   role="tab"
                   aria-selected={selected}
                   aria-label={`${v.label} ${countFor(v.id)}`}
                   onClick={() => setView(v.id)}
-                  transition={{ layout: { duration: 0.3, ease: [0.22, 1, 0.36, 1] } }}
-                  className={`flex h-9 cursor-pointer items-center gap-1.5 rounded-full border px-2.5 text-xs whitespace-nowrap transition-colors ${
+                  className={`flex h-9 min-w-0 cursor-pointer items-center justify-center gap-1 rounded-full border px-1 text-[11px] whitespace-nowrap transition-colors ${
                     selected ? 'border-accent bg-accent-soft text-ink' : 'border-line bg-card text-ink'
                   }`}
                 >
                   <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: dot }} />
-                  <AnimatePresence initial={false}>
-                    {selected && (
-                      <motion.span
-                        key="label"
-                        initial={{ width: 0, opacity: 0 }}
-                        animate={{ width: 'auto', opacity: 1 }}
-                        exit={{ width: 0, opacity: 0 }}
-                        transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
-                        className="overflow-hidden"
-                      >
-                        {v.label}
-                      </motion.span>
-                    )}
-                  </AnimatePresence>
+                  <span className="min-w-0 truncate">{v.label}</span>
                   <span className="opacity-60">{countFor(v.id)}</span>
-                </motion.button>
+                </button>
               );
             }
 
@@ -669,7 +652,7 @@ export default function PatternsTab({ load }: { load: Load }) {
           })}
         </div>
 
-        <div className={`flex items-center ${mobile ? 'gap-1' : 'gap-3'}`}>
+        <div className={`flex items-center ${mobile ? 'justify-end gap-1' : 'gap-3'}`}>
           <div>
             <ExpandingSearch value={query} onChange={setQuery} placeholder={mobile ? "Search…" : "Search recurring transactions…"} width={mobile ? 200 : 280} size={mobile ? 36 : 46} />
           </div>

@@ -513,7 +513,7 @@ export default function OverviewTab({
           </button>
         }
       >
-        <div className="grid grid-cols-2 gap-x-8 gap-y-7 @3xl:grid-cols-4">
+        <div className="grid grid-cols-2 justify-items-center gap-x-8 gap-y-7 @3xl:grid-cols-4 @3xl:justify-items-start">
           <CommitmentRing
             label="Bills"
             count={owed.bills.count}

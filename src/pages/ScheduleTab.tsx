@@ -74,12 +74,18 @@ export default function ScheduleTab({ load }: { load: Load }) {
                     if (mobile && !on) window.setTimeout(() => detailRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 60);
                   }}
                   aria-label={c.inMonth ? `${shortDate(c.iso)}${list.length ? `, ${list.length} payment${list.length === 1 ? '' : 's'}` : ''}` : undefined}
-                  className={`flex h-[58px] cursor-pointer items-center justify-center rounded-xl transition-colors disabled:cursor-default @3xl:h-[80px] ${on && !mobile ? 'bg-accent-soft ring-2 ring-accent' : c.inMonth && !mobile ? 'hover:bg-surface/60' : ''}`}
+                  className={`relative flex h-[58px] cursor-pointer items-center justify-center rounded-xl transition-colors disabled:cursor-default @3xl:h-[80px] ${on && !mobile ? 'bg-accent-soft ring-2 ring-accent' : c.inMonth && !mobile ? 'hover:bg-surface/60' : ''}`}
                 >
                   {!c.inMonth ? null : list.length ? (
-                    <span className={`origin-center scale-100 @3xl:scale-125 ${mobile ? `rounded-full p-[3px] transition-shadow ${on ? 'bg-accent-soft ring-2 ring-accent' : ''}` : ''}`}><Cluster list={list} size={46} ring="var(--canvas)" /></span>
+                    <span className="origin-center scale-100 @3xl:scale-125"><Cluster list={list} size={46} ring="var(--canvas)" /></span>
                   ) : (
-                    <span className={`text-lg tabular-nums @3xl:text-xl ${c.iso === cal.today ? 'flex h-9 w-9 items-center justify-center rounded-full bg-ink font-semibold text-canvas @3xl:h-10 @3xl:w-10' : mobile ? 'flex h-9 w-9 items-center justify-center rounded-full text-ink/80' : 'text-ink/80'} ${mobile && on ? 'ring-2 ring-accent' : ''}`}>{c.day}</span>
+                    <span className={`text-lg tabular-nums @3xl:text-xl ${c.iso === cal.today && !mobile ? 'flex h-9 w-9 items-center justify-center rounded-full bg-ink font-semibold text-canvas @3xl:h-10 @3xl:w-10' : mobile ? 'flex h-9 w-9 items-center justify-center text-ink/80' : 'text-ink/80'}`}>{c.day}</span>
+                  )}
+                  {mobile && (
+                    <span className="absolute bottom-0.5 left-1/2 flex -translate-x-1/2 items-center gap-1" aria-hidden="true">
+                      {c.iso === cal.today && <span className="h-1.5 w-1.5 rounded-full bg-blue-400" />}
+                      {on && <span className="h-1.5 w-1.5 rounded-full bg-accent" />}
+                    </span>
                   )}
                 </button>
               );
