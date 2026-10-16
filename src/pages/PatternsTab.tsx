@@ -609,7 +609,7 @@ export default function PatternsTab({ load }: { load: Load }) {
       exit={{ opacity: 0, scale: 0.96, transition: { duration: 0.25 } }}
       transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
     >
-      <div className={`flex w-full justify-between px-0 @3xl:px-4 ${mobile ? 'flex-col items-stretch gap-2' : 'flex-wrap items-center gap-3'}`}>
+      <div className={`relative z-10 flex w-full justify-between px-0 @3xl:px-4 ${mobile ? 'flex-col items-stretch gap-2' : 'flex-wrap items-center gap-3'}`}>
         <div role="tablist" aria-label="Show" className={mobile ? 'grid w-full grid-cols-4 gap-1' : 'flex flex-wrap gap-2'}>
           {VIEWS.map((v) => {
             const selected = v.id === view;

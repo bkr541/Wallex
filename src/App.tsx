@@ -33,7 +33,7 @@ import { cashPosition } from './lib/overview';
 import ViewToggle from './components/ViewToggle';
 import { useIsAdmin, useIsDemoDeveloper } from './lib/admin';
 import { RefreshCw, Search, X } from 'lucide-react';
-import { useFramedView, useMobileView } from './lib/viewState';
+import { useFramedView, useMobileView, useSmallScreen } from './lib/viewState';
 import { ViewModeProvider } from './lib/viewMode';
 import AuthScreen from './components/auth/AuthScreen';
 import AppOnboarding from './components/onboarding/AppOnboarding';
@@ -73,6 +73,8 @@ function Shell() {
 
   // The Scratchpad and the phone view are for developer / admin accounts. Anyone else is sent back if they end up there.
   const isAdmin = useIsAdmin();
+  // The developer buttons are for a computer; on a real phone neither the Scratchpad nor the view switch is shown.
+  const onPhone = useSmallScreen();
   useEffect(() => {
     if (!isAdmin && activeId === 'scratchpad') setActiveId('overview');
   }, [isAdmin, activeId]);
@@ -365,7 +367,7 @@ function Shell() {
     </div>
 
       {/* Scratchpad is for trying things out, so it lives down here beside the view switch, not in the navigation. Developer / admin accounts only. */}
-      {isAdmin && (
+      {isAdmin && !onPhone && (
       <button
         type="button"
         onClick={() => {
