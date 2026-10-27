@@ -2,8 +2,10 @@ import { useEffect, useRef, useState } from 'react';
 import PasswordChecklist from '../components/auth/PasswordChecklist';
 import { passwordError } from '../lib/passwordRules';
 import { AnimatePresence, motion } from 'motion/react';
-import { Check, Download, LogOut, Plus, RefreshCw } from 'lucide-react';
+import { Check, LogOut, Plus, RefreshCw } from 'lucide-react';
+import DataDownload from '../components/DataDownload';
 import DestructiveAction from '../components/DestructiveAction';
+import type { Load } from '../lib/useTransactions';
 import PhotoDropZone from '../components/PhotoDropZone';
 import Collapsible from '../components/overview/Collapsible';
 import type { PlumpName } from '../components/PlumpIcon';
@@ -292,28 +294,7 @@ function Banks({ onConnectionChange }: { onConnectionChange?: () => void }) {
   );
 }
 
-function YourData({ onRefresh, refreshing }: { onRefresh?: () => void; refreshing?: boolean }) {
-  const exportData = () => {
-    const out: Record<string, unknown> = {};
-    for (let i = 0; i < localStorage.length; i++) {
-      const k = localStorage.key(i);
-      if (k && k.startsWith('wallex-')) {
-        try {
-          out[k] = JSON.parse(localStorage.getItem(k) ?? 'null');
-        } catch {
-          out[k] = localStorage.getItem(k);
-        }
-      }
-    }
-    if (out['wallex-profile'] && typeof out['wallex-profile'] === 'object') (out['wallex-profile'] as Record<string, unknown>).photo = '(picture left out)';
-    const url = URL.createObjectURL(new Blob([JSON.stringify(out, null, 2)], { type: 'application/json' }));
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'wallex-my-data.json';
-    a.click();
-    URL.revokeObjectURL(url);
-  };
-
+function YourData({ load, onRefresh, refreshing }: { load: Load; onRefresh?: () => void; refreshing?: boolean }) {
   const reset = () => {
     const keys: string[] = [];
     for (let i = 0; i < localStorage.length; i++) {
@@ -327,11 +308,8 @@ function YourData({ onRefresh, refreshing }: { onRefresh?: () => void; refreshin
   return (
     <Group id="data" title="Your data" icon="database">
       <div className="space-y-6">
-        <InfoRow title="Download my data" value="A copy of everything saved on this device, as a file.">
-          <button type="button" onClick={exportData} className={outlineBtn}>
-            <Download className="h-4 w-4" />
-            Download
-          </button>
+        <InfoRow title="Download my data" value="Your settings, your transactions, or both, as JSON files.">
+          <DataDownload load={load} className={outlineBtn} />
         </InfoRow>
         <InfoRow title="Refresh bank data" value="Fetch your accounts and transactions fresh from your bank.">
           <button type="button" onClick={onRefresh} disabled={refreshing} className={outlineBtn}>
@@ -388,10 +366,12 @@ function DangerZone() {
 }
 
 export default function AccountTab({
+  load,
   onConnectionChange,
   onRefresh,
   refreshing,
 }: {
+  load: Load;
   onConnectionChange?: () => void;
   onRefresh?: () => void;
   refreshing?: boolean;
@@ -473,7 +453,7 @@ export default function AccountTab({
 
     <SignIn />
     <Banks onConnectionChange={onConnectionChange} />
-    <YourData onRefresh={onRefresh} refreshing={refreshing} />
+    <YourData load={load} onRefresh={onRefresh} refreshing={refreshing} />
     <About />
     <LogOutButton />
     <DangerZone />

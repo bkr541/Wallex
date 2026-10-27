@@ -326,7 +326,7 @@ function Shell() {
           ) : activeId === 'schedule' ? (
             <ScheduleTab load={load} />
           ) : activeId === 'settings' && activeTab === 'Account' ? (
-            <AccountTab onConnectionChange={refresh} onRefresh={refresh} refreshing={refreshing} />
+            <AccountTab load={load} onConnectionChange={refresh} onRefresh={refresh} refreshing={refreshing} />
           ) : activeId === 'settings' && activeTab === 'Personalize' ? (
             <AppearanceTab />
           ) : activeId === 'settings' && activeTab === 'Rules' ? (
