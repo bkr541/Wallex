@@ -33,6 +33,7 @@ import { cashPosition } from './lib/overview';
 import ViewToggle from './components/ViewToggle';
 import { useIsAdmin, useIsDemoDeveloper } from './lib/admin';
 import { RefreshCw, Search, X } from 'lucide-react';
+import TransactionExport from './components/TransactionExport';
 import { useFramedView, useMobileView, useSmallScreen } from './lib/viewState';
 import { ViewModeProvider } from './lib/viewMode';
 import AuthScreen from './components/auth/AuthScreen';
@@ -255,7 +256,9 @@ function Shell() {
               >
                 {recSearch ? <X className="h-5 w-5" /> : <Search className="h-5 w-5" />}
               </button>
-            ) : mobile && onBankTab ? (
+            ) : onBankTab ? (
+              <div className="flex items-center gap-2">
+                <TransactionExport load={load} bank={banks.includes(activeTab) ? activeTab : undefined} filter={txFilter} />
               <button
                 type="button"
                 onClick={refresh}
@@ -266,6 +269,7 @@ function Shell() {
               >
                 <RefreshCw className={`h-5 w-5 ${refreshing ? 'animate-spin' : ''}`} />
               </button>
+              </div>
             ) : undefined
           }
         />
@@ -332,7 +336,7 @@ function Shell() {
           ) : activeId === 'settings' && activeTab === 'Setup' ? (
             <SetupTab onConnectionChange={refresh} />
           ) : onBankTab ? (
-            <CheckingTab bank={banks.includes(activeTab) ? activeTab : undefined} load={load} refreshing={refreshing} onRefresh={refresh} filter={txFilter} onClearFilter={() => setTxFilter(null)} />
+            <CheckingTab bank={banks.includes(activeTab) ? activeTab : undefined} load={load} filter={txFilter} onClearFilter={() => setTxFilter(null)} />
           ) : activeId === 'scratchpad' && activeTab === 'UI Components' ? (
             <ComponentsTab />
           ) : activeId === 'scratchpad' && activeTab === 'Calendar' ? (
