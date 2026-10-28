@@ -7,6 +7,10 @@ import Collapsible from '../components/overview/Collapsible';
 import SlotNumber from '../components/overview/SlotNumber';
 import MerchantLogo from '../components/MerchantLogo';
 import { useRecurring } from '../lib/recurringOverrides';
+import { epochDay, isoFromEpochDay } from '../lib/patterns';
+import { claimedStreams, loanCommitments, obligationsBetween, obligationTotals, upcomingWithLoans } from '../lib/obligations';
+import { useBnpl } from '../lib/useBnpl';
+import { bnplSummary, hasPayLaterActivity } from '../lib/bnpl';
 import { useRules } from '../lib/rules';
 import { maskAmount, useHideAmounts } from '../lib/demo';
 import {
@@ -27,7 +31,6 @@ import {
   scenarios,
   shortDate,
   spendingBreakdown,
-  upcomingPayments,
   weeklyBuckets,
   OVERVIEW_PERIODS,
   type OverviewDays,
@@ -309,6 +312,8 @@ export default function OverviewTab({
   // The person's Rules decide what counts as spending and income, so the figures follow them.
   const rules = useRules();
   const hide = useHideAmounts();
+  // The pay-later loans from the Loans page, read the way Schedule and Forecast read them.
+  const { data: loanData, ledger: bnplLedger, spending: spendingTxns } = useBnpl(load);
 
   // Everything below is derived once per data change from the same transactions and the same scope.
   const view = useMemo(() => {
@@ -348,15 +353,25 @@ export default function OverviewTab({
   const position = cashPosition(accounts);
   const flow = periodFlow(txns, scope);
   const fees = bankFees(txns, scope);
-  const breakdown = spendingBreakdown(txns, scope);
+  // Money out is the cash that left. The breakdown counts what was bought: a pay-later purchase on the day it was made,
+  // and only the interest and fees of its installments (see bnpl.ts). The bank's own list is unchanged.
+  const breakdown = spendingBreakdown(spendingTxns, scope);
+  const payLater = bnplSummary(txns, bnplLedger, scope, scope.start, scope.today);
   const topShare = Math.max(0.0001, ...breakdown.slices.map((sl) => sl.share));
-  const owed = commitments(analysis);
-  const upcoming = upcomingPayments(analysis, scope.today, WINDOW_DAYS);
+  // Installments of pay-later loans join the debt commitments, counted on the days they fall in this month. A recurring
+  // stream that linked payments show is one of those loans is left out of the recurring total so it is not counted twice.
+  const baseOwed = commitments(analysis, claimedStreams(analysis, loanData, scope.today));
+  const loanOwed = loanCommitments(loanData, scope.today);
+  const owed = loanOwed.count
+    ? { ...baseOwed, debt: { count: baseOwed.debt.count + loanOwed.count, monthly: baseOwed.debt.monthly + loanOwed.monthly, items: [...baseOwed.debt.items, ...loanOwed.items].sort((a, b) => b.monthly - a.monthly) } }
+    : baseOwed;
+  const upcoming = upcomingWithLoans(analysis, scope.today, WINDOW_DAYS, loanData);
+  const overlaps = obligationTotals(obligationsBetween({ today: scope.today, from: scope.today, to: isoFromEpochDay(epochDay(scope.today) + WINDOW_DAYS), analysis, loanData })).ambiguities;
   const pressure = pressureWindow(upcoming);
   const buffer = cashBuffer(position.cash, upcoming, WINDOW_DAYS);
   const keepShare = buffer && buffer.available > 0 ? Math.min(1, Math.max(0, buffer.remaining / buffer.available)) : 0;
   const monthEnds = monthEndBalances(txns, accounts, scope);
-  const ideas = scenarios(txns, scope);
+  const ideas = scenarios(spendingTxns, scope);
   const latest = latestDate(txns);
 
   // Cash-flow history: months when there are at least three of them, weeks before that.
@@ -630,6 +645,24 @@ export default function OverviewTab({
                 </li>
               ))}
             </ul>
+            {hasPayLaterActivity(payLater) && (
+              <div className="mt-5 border-t border-line pt-4 font-support text-xs text-muted">
+                {payLater.repaymentCash > 0 && (
+                  <p>
+                    Money out includes {money(payLater.repaymentCash)} of pay-later installments. Spending counts{' '}
+                    {payLater.purchases > 0 ? `the ${money(payLater.purchases)} bought on the day it was bought, and ` : ''}only the {money(payLater.interest + payLater.fees)} of interest and fees in them
+                    {payLater.lessPrincipal + payLater.lessDownPayments > 0 ? `, so ${money(payLater.lessPrincipal + payLater.lessDownPayments)} is not counted twice` : ''}.
+                  </p>
+                )}
+                {payLater.repaymentCash === 0 && payLater.purchases > 0 && <p>Includes {money(payLater.purchases)} of pay-later purchases, counted on the day they were bought.</p>}
+                {payLater.outstanding > 0 && <p className="mt-1">Still owed on pay-later loans: about {money(payLater.outstanding)}, worked out from your recorded payments.</p>}
+                {payLater.unclassified.count > 0 && (
+                  <p className="mt-1 text-amber-300">
+                    {plural(payLater.unclassified.count, 'payment')} look like pay-later but {payLater.unclassified.count === 1 ? 'is' : 'are'} not linked to a loan, so {payLater.unclassified.count === 1 ? 'it is' : 'they are'} counted as ordinary spending. Link {payLater.unclassified.count === 1 ? 'it' : 'them'} in Loans.
+                  </p>
+                )}
+              </div>
+            )}
           </div>
         )}
       </Collapsible>
@@ -662,12 +695,13 @@ export default function OverviewTab({
                     <div
                       role="button"
                       tabIndex={0}
-                      title={`Show every transaction for ${p.name}`}
-                      onClick={() => onNavigate('transactions', 'Checking', undefined, { name: p.name, ids: p.chargeIds })}
+                      title={p.loan ? `Open ${p.name} in Loans` : `Show every transaction for ${p.name}`}
+                      onClick={() => (p.loan ? onNavigate('transactions', 'Loans') : onNavigate('transactions', 'Checking', undefined, { name: p.name, ids: p.chargeIds }))}
                       onKeyDown={(e) => {
                         if (e.key === 'Enter' || e.key === ' ') {
                           e.preventDefault();
-                          onNavigate('transactions', 'Checking', undefined, { name: p.name, ids: p.chargeIds });
+                          if (p.loan) onNavigate('transactions', 'Loans');
+                          else onNavigate('transactions', 'Checking', undefined, { name: p.name, ids: p.chargeIds });
                         }
                       }}
                       className={`cursor-pointer border-b border-line py-3 transition-colors hover:border-b-accent focus-visible:border-b-accent focus-visible:outline-none`}
@@ -679,6 +713,8 @@ export default function OverviewTab({
                           <span className="min-w-0">
                             <span className="block truncate text-sm font-medium">{p.name}</span>
                             {p.dateApprox && <span className="block truncate font-support text-xs text-muted">{dateText(p)}</span>}
+                            {p.loan && <span className="block truncate font-support text-xs text-muted">Installment {p.loan.installment} of {p.loan.count}{p.loan.partly ? ' · part paid' : ''} · from Loans</span>}
+                            {p.overlap && <span className="block truncate font-support text-xs text-amber-300" title={p.overlap}>May also be counted as another payment</span>}
                           </span>
                         </span>
                         <span className="text-sm font-medium tabular-nums">{p.amountApprox ? approx(p.amount) : money(p.amount)}</span>
@@ -704,6 +740,11 @@ export default function OverviewTab({
               })}
               {upcoming.length > 10 && (
                 <p className="pt-3 font-support text-xs text-muted">+{upcoming.length - 10} more in this window</p>
+              )}
+              {overlaps > 0 && (
+                <p className="pt-3 font-support text-xs text-muted">
+                  {plural(overlaps, 'payment')} may be counted twice, once as a loan installment and once as a recurring payment. Link the bank payments in Loans so each is counted once.
+                </p>
               )}
               {coveredByCardPayment(analysis) > 0 && (
                 <p className="pt-3 font-support text-xs text-muted">

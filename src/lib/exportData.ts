@@ -1,3 +1,8 @@
+import { LEGACY_KEYS } from './loanMigration';
+import { loanLinks } from './loanLinks';
+import { loanPayments } from './loanPayments';
+import { loanRoles } from './loanRoles';
+import { getLoans } from './loans';
 import type { Load } from './useTransactions';
 
 // The "Download my data" files. All of them are JSON: the settings saved on this device, the transactions and accounts from the linked
@@ -8,12 +13,17 @@ export function settingsData(): Record<string, unknown> {
   for (let i = 0; i < localStorage.length; i++) {
     const k = localStorage.key(i);
     if (!k || !k.startsWith('wallex-')) continue;
+    // Loans belong to the account, and the device keeps nothing of them that is not someone's: the device's offline queue and
+    // the loans saved before accounts are not this person's data to hand over. Their own loans are added below.
+    if (k.startsWith('wallex-loan-sync:') || k.startsWith('wallex-legacy-loans-backup:') || LEGACY_KEYS.includes(k)) continue;
     try {
       out[k] = JSON.parse(localStorage.getItem(k) ?? 'null');
     } catch {
       out[k] = localStorage.getItem(k);
     }
   }
+  // The loans of the account that is signed in, as the app holds them now.
+  out.loans = { loans: getLoans(), installmentLinks: loanLinks.get(), manualPayments: loanPayments.get().payments, adjustments: loanPayments.get().adjustments, transactionRoles: loanRoles.get() };
   if (out['wallex-profile'] && typeof out['wallex-profile'] === 'object') (out['wallex-profile'] as Record<string, unknown>).photo = '(picture left out)';
   return out;
 }

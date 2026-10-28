@@ -3,6 +3,7 @@ import { X } from 'lucide-react';
 import TransactionTable from '../components/TransactionTable';
 import type { Load } from '../lib/useTransactions';
 import { transactionRows } from '../lib/transactionRows';
+import { useBnpl } from '../lib/useBnpl';
 import type { TxFilter } from '../lib/txFilter';
 
 export default function CheckingTab({
@@ -17,6 +18,7 @@ export default function CheckingTab({
   onClearFilter?: () => void;
 }) {
   const rows = useMemo(() => transactionRows(load, bank), [load, bank]);
+  const { ledger } = useBnpl(load);
 
   // Balances are worked out over every transaction first, so a filtered row still shows the real balance after it.
   const shown = useMemo(() => {
@@ -57,7 +59,7 @@ export default function CheckingTab({
 
       </div>
 
-      <TransactionTable rows={shown} showEmpty={load.state === 'live'} />
+      <TransactionTable rows={shown} showEmpty={load.state === 'live'} bnpl={ledger} />
     </div>
   );
 }

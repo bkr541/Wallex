@@ -1,4 +1,5 @@
 import { useSyncExternalStore } from 'react';
+import { syncedRepository } from './loanRepo';
 import type { Txn } from './wallex';
 
 // Loans the person types in themselves: buy-now-pay-later plans, a car, a personal loan. Banks and Plaid have no
@@ -6,15 +7,39 @@ import type { Txn } from './wallex';
 
 export type LoanFrequency = 'weekly' | 'biweekly' | 'monthly';
 
+// What kind of loan it is, set by the person. It does not depend on the lender's name or on how the bank tags the payments.
+export type LoanType = 'bnpl' | 'personal' | 'auto' | 'other';
+
+export const LOAN_TYPES: { value: LoanType; label: string }[] = [
+  { value: 'bnpl', label: 'Buy Now, Pay Later' },
+  { value: 'personal', label: 'Personal Loan' },
+  { value: 'auto', label: 'Auto Loan' },
+  { value: 'other', label: 'Other Loan' },
+];
+
+export const loanTypeLabel = (t: LoanType) => LOAN_TYPES.find((x) => x.value === t)?.label ?? 'Other Loan';
+
+// What a pay-later plan was for. Every field is optional: nothing is filled in on the person's behalf.
+export interface BnplDetails {
+  merchant?: string; // the store the purchase was made at
+  category?: string; // what kind of purchase it was
+  purchaseDate?: string; // YYYY-MM-DD
+  purchaseAmount?: number; // the full price, before any down payment
+  downPayment?: number; // paid up front, so not part of the amount financed
+  planId?: string; // the provider's own reference for the plan
+}
+
 export interface Loan {
   id: string;
-  lender: string;
-  item: string; // what it paid for, optional
+  lender: string; // for a pay-later plan, the provider
+  item: string; // what it paid for, optional; for a pay-later plan, the purchase description
   amount: number; // what was financed, after any down payment
   apr: number; // yearly interest in percent; 0 for most pay-in-4 plans
   count: number; // how many payments in all
   frequency: LoanFrequency;
   firstDate: string; // YYYY-MM-DD, the first payment
+  type?: LoanType; // missing on loans saved before types existed, until the person picks one
+  bnpl?: BnplDetails;
 }
 
 export const FREQUENCIES: { value: LoanFrequency; label: string; perYear: number }[] = [
@@ -131,53 +156,105 @@ export function statusFor(l: Loan, today = todayIso()): LoanStatus {
 }
 
 /* ----------------------------------------------------------------------------------------------- storage */
-const KEY = 'wallex-loans';
+const text = (v: unknown) => (typeof v === 'string' && v.trim() ? v.trim() : undefined);
+const money = (v: unknown, min: number) => {
+  if (v === null || v === undefined || v === '') return undefined;
+  const n = Number(v);
+  return Number.isFinite(n) && n >= min ? n : undefined;
+};
 
-function load(): Loan[] {
-  try {
-    const raw = JSON.parse(localStorage.getItem(KEY) ?? '[]');
-    if (!Array.isArray(raw)) return [];
-    return raw
-      .filter((l) => l && typeof l.id === 'string' && typeof l.lender === 'string' && Number(l.amount) > 0 && Number(l.count) > 0 && isDate(String(l.firstDate)))
-      .map((l) => ({
-        id: l.id,
-        lender: l.lender,
-        item: typeof l.item === 'string' ? l.item : '',
-        amount: Number(l.amount),
-        apr: Number(l.apr) || 0,
-        count: Math.round(Number(l.count)),
-        frequency: ['weekly', 'biweekly', 'monthly'].includes(l.frequency) ? l.frequency : 'monthly',
-        firstDate: String(l.firstDate),
-      }));
-  } catch {
-    return [];
-  }
+function normalizeBnpl(raw: unknown): BnplDetails | undefined {
+  if (!raw || typeof raw !== 'object') return undefined;
+  const r = raw as Record<string, unknown>;
+  const purchaseDate = typeof r.purchaseDate === 'string' && isDate(r.purchaseDate) ? r.purchaseDate : undefined;
+  const purchaseAmount = money(r.purchaseAmount, 0);
+  const out: BnplDetails = {
+    merchant: text(r.merchant),
+    category: text(r.category),
+    purchaseDate,
+    purchaseAmount: purchaseAmount && purchaseAmount > 0 ? purchaseAmount : undefined,
+    downPayment: money(r.downPayment, 0),
+    planId: text(r.planId),
+  };
+  for (const k of Object.keys(out) as (keyof BnplDetails)[]) if (out[k] === undefined) delete out[k];
+  return Object.keys(out).length ? out : undefined;
 }
 
-let state: Loan[] = load();
-const listeners = new Set<() => void>();
-function commit(next: Loan[]) {
-  state = next;
-  try {
-    localStorage.setItem(KEY, JSON.stringify(next));
-  } catch {
-    // The change then lasts until the app closes.
-  }
-  listeners.forEach((l) => l());
+// Reads one stored loan. Loans saved before types existed come back without a type, and are never guessed to be pay-later.
+export function normalizeLoan(raw: unknown): Loan | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const l = raw as Record<string, unknown>;
+  if (typeof l.id !== 'string' || typeof l.lender !== 'string') return null;
+  if (!(Number(l.amount) > 0) || !(Number(l.count) > 0) || !isDate(String(l.firstDate))) return null;
+  const loan: Loan = {
+    id: l.id,
+    lender: l.lender,
+    item: typeof l.item === 'string' ? l.item : '',
+    amount: Number(l.amount),
+    apr: Number(l.apr) || 0,
+    count: Math.round(Number(l.count)),
+    frequency: ['weekly', 'biweekly', 'monthly'].includes(l.frequency as string) ? (l.frequency as LoanFrequency) : 'monthly',
+    firstDate: String(l.firstDate),
+  };
+  if (LOAN_TYPES.some((t) => t.value === l.type)) loan.type = l.type as LoanType;
+  const bnpl = normalizeBnpl(l.bnpl);
+  if (bnpl) loan.bnpl = bnpl;
+  return loan;
 }
 
-export const saveLoan = (loan: Loan) => commit(state.some((l) => l.id === loan.id) ? state.map((l) => (l.id === loan.id ? loan : l)) : [...state, loan]);
-export const removeLoan = (id: string) => commit(state.filter((l) => l.id !== id));
+export function normalizeLoans(raw: unknown): Loan[] {
+  if (!Array.isArray(raw)) return [];
+  return raw.map(normalizeLoan).filter((l): l is Loan => l !== null);
+}
+
+// Where loans saved before accounts existed were kept: one key on the device, shared by whoever used it. It is never read as
+// the signed-in person's loans. loanMigration.ts offers it to the account that is signed in, and only on their say-so.
+export const LEGACY_LOANS_KEY = 'wallex-loans';
+
+export interface LoanRepository {
+  load(): Loan[];
+  save(loans: Loan[]): void;
+}
+
+// The loans of whoever is signed in. They live in memory; every change goes to `repo` (the account, via loanSync.ts), and
+// `hydrate` replaces them when the account's copy arrives or when the person changes.
+export function createLoanStore(repo: LoanRepository) {
+  let state: Loan[] = normalizeLoans(repo.load());
+  const listeners = new Set<() => void>();
+  const notify = () => listeners.forEach((l) => l());
+  return {
+    get: () => state,
+    subscribe(cb: () => void) {
+      listeners.add(cb);
+      return () => void listeners.delete(cb);
+    },
+    save(loan: Loan) {
+      state = state.some((l) => l.id === loan.id) ? state.map((l) => (l.id === loan.id ? loan : l)) : [...state, loan];
+      repo.save(state);
+      notify();
+    },
+    remove(id: string) {
+      state = state.filter((l) => l.id !== id);
+      repo.save(state);
+      notify();
+    },
+    hydrate(next: Loan[]) {
+      state = next;
+      notify();
+    },
+  };
+}
+
+export const loanStore = createLoanStore(syncedRepository<Loan>('loan'));
+
+export const saveLoan = (loan: Loan) => loanStore.save(loan);
+export const removeLoan = (id: string) => loanStore.remove(id);
+export const getLoans = () => loanStore.get();
+export const hydrateLoans = (next: Loan[]) => loanStore.hydrate(next);
 export const newLoanId = () => `loan-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
 
 export function useLoans(): Loan[] {
-  return useSyncExternalStore(
-    (cb) => {
-      listeners.add(cb);
-      return () => listeners.delete(cb);
-    },
-    () => state,
-  );
+  return useSyncExternalStore(loanStore.subscribe, loanStore.get);
 }
 
 /* ------------------------------------------------------------------------------------- finding them in the bank */
@@ -190,6 +267,16 @@ const LENDERS: { test: RegExp; name: string }[] = [
   { test: /PAYPAL\s*CREDIT|PAYPAL.*PAY\s*IN\s*4/i, name: 'PayPal Credit' },
   { test: /PERPAY/i, name: 'Perpay' },
 ];
+
+// The well-known pay-later provider a piece of text names, spelled the one way: "AFFIRM INC 4NF" and "affirm" both give "Affirm".
+export const providerOf = (text: string): string | undefined => {
+  const name = text.trim();
+  if (!name) return undefined;
+  return LENDERS.find((l) => l.name.toLowerCase() === name.toLowerCase() || l.test.test(name))?.name;
+};
+
+// Whether a lender's name is one of the pay-later providers above. It only suggests a type: the person confirms it.
+export const suggestedLoanType = (lender: string): LoanType | undefined => (providerOf(lender) ? 'bnpl' : undefined);
 
 export interface BankLoanHint {
   lender: string;

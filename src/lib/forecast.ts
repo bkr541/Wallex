@@ -1,6 +1,7 @@
 import { DEFAULT_FILTERS, epochDay, isIncome, isoFromEpochDay, makeScope } from './patterns';
 import { merchantOf, projectNext, stepSchedule, type Analysis, type ScheduledPayment } from './recurring';
-import { cashPosition, isCommitment, monthEndBalances, upcomingPayments } from './overview';
+import { cashPosition, isCommitment, monthEndBalances } from './overview';
+import { upcomingWithLoans, type LoanObligationData } from './obligations';
 import { getRules, type Rules } from './rules';
 import type { LinkedAccount, Txn } from './wallex';
 
@@ -9,7 +10,9 @@ import type { LinkedAccount, Txn } from './wallex';
 // It is built from three things, none of them guessed beyond what the history supports:
 //   1. Paydays: deposits that repeat on a schedule (weekly, every two weeks, twice a month, monthly), found from
 //      the same income the Rules tab defines, and projected forward on that schedule.
-//   2. Bills: the recurring payments the Recurring tab already found (corrections included), on their due dates.
+//   2. Bills: the recurring payments the Recurring tab already found (corrections included), on their due dates, and
+//      the unpaid installments of pay-later loans from the Loans page, which replace a recurring prediction only when
+//      linked payments show they are the same obligation (see obligations.ts).
 //   3. Everyday spending: what is left after the bills, as a per-day amount that knows which days of the week
 //      are heavier, worked out from the last 90 days.
 // Plain calculation: the wording and the drawing live in the Forecast tab.
@@ -42,6 +45,8 @@ export interface ForecastEvent {
   amount: number; // always positive
   approx: boolean;
   billKind?: string; // for a bill, what the Recurring tab calls it (bill, subscription, debt...)
+  loanId?: string; // for an installment of a loan from the Loans page
+  overlap?: string; // why it may also be counted as another bill; both are counted until the payments are linked
 }
 
 export interface ForecastPoint {
@@ -173,12 +178,13 @@ interface EverydayFit extends EverydayModel {
   sdWeek: number | null; // how much a week's spending usually wanders, for the typical range
 }
 
-function everydayModel(txns: Txn[], accounts: LinkedAccount[], analysis: Analysis, today: string, rules: Rules): EverydayFit {
+function everydayModel(txns: Txn[], accounts: LinkedAccount[], analysis: Analysis, today: string, rules: Rules, loanTxnIds: Set<string> = new Set()): EverydayFit {
   // Card payments are left out of the spending count here (the bills carry them), and so are the card purchases
   // themselves when a card payment is one of the bills: that payment is how they reach the cash.
   const scope = makeScope(txns, accounts, { ...DEFAULT_FILTERS, days: 90, account: 'all' }, { ...rules, countCardPayments: false });
   const commitments = analysis.items.filter((r) => isCommitment(r) && r.kind !== 'habit' && r.kind !== 'aggregator');
-  const billCharges = new Set(commitments.flatMap((r) => r.charges.map((c) => c.id)));
+  // Payments confirmed as a loan installment are carried by the installments, so they are not everyday spending too.
+  const billCharges = new Set([...commitments.flatMap((r) => r.charges.map((c) => c.id)), ...loanTxnIds]);
   const cardCovered = commitments.some((r) => r.settlement === 'card');
 
   const todayDay = epochDay(today);
@@ -243,6 +249,7 @@ export function buildForecast(
   analysis: Analysis,
   today: string,
   rules: Rules = getRules(),
+  loanData: LoanObligationData | null = null,
 ): Forecast | null {
   const position = cashPosition(accounts);
   if (position.cash === null) return null;
@@ -254,12 +261,24 @@ export function buildForecast(
   const incomeScope = makeScope(txns, accounts, { ...DEFAULT_FILTERS, days: 90, account: 'all' }, rules);
   const paydays = detectPaydays(txns, incomeScope, today);
   const ignored = new Set(rules.ignoredMerchants);
-  const bills = upcomingPayments({ ...analysis, items: analysis.items.filter((r) => !ignored.has(r.id)) }, today, HORIZON);
+  const bills = upcomingWithLoans({ ...analysis, items: analysis.items.filter((r) => !ignored.has(r.id)) }, today, HORIZON, loanData);
 
   const dayIndex = (date: string) => Math.min(HORIZON, Math.max(1, epochDay(date) - todayDay));
   const events: ForecastEvent[] = [];
   for (const b of bills) {
-    events.push({ id: `bill-${b.id}`, date: b.date, day: dayIndex(b.date), kind: 'bill', name: b.name, logos: b.logos, amount: b.amount, approx: b.amountApprox, billKind: b.kind });
+    events.push({
+      id: `bill-${b.id}`,
+      date: b.date,
+      day: dayIndex(b.date),
+      kind: 'bill',
+      name: b.loan ? `${b.name} · ${b.loan.installment} of ${b.loan.count}` : b.name,
+      logos: b.logos,
+      amount: b.amount,
+      approx: b.amountApprox,
+      billKind: b.kind,
+      ...(b.loan ? { loanId: b.loan.loanId } : {}),
+      ...(b.overlap ? { overlap: b.overlap } : {}),
+    });
   }
   for (const p of paydays) {
     for (const [i, s] of p.schedules.entries()) {
@@ -273,7 +292,8 @@ export function buildForecast(
   }
   events.sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : a.kind === 'income' ? -1 : 1));
 
-  const everyday = everydayModel(txns, accounts, analysis, today, rules);
+  const loanTxnIds = new Set((loanData?.links ?? []).filter((l) => l.status === 'linked').flatMap((l) => [l.txnId, ...(l.previousTxnIds ?? [])]));
+  const everyday = everydayModel(txns, accounts, analysis, today, rules, loanTxnIds);
 
   // The real past: today's balance with each later transaction taken back out.
   const cashIds = new Set(position.cashAccounts.map((a) => a.id));

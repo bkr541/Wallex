@@ -38,6 +38,7 @@ import PatternDetail from '../components/PatternDetail';
 import { withBalances } from '../lib/balances';
 import { computePatternMetrics } from '../lib/patternMetrics';
 import { useRecurring } from '../lib/recurringOverrides';
+import { useBnpl } from '../lib/useBnpl';
 import { changedRules, useRules } from '../lib/rules';
 import { maskAmount, useHideAmounts } from '../lib/demo';
 import type { Load } from '../lib/useTransactions';
@@ -389,12 +390,15 @@ export default function PatternsTab({ load }: { load: Load }) {
 
   // The same recurring analysis the Recurring tab shows (corrections included), so both agree on what is a bill.
   const recurring = useRecurring(load.state === 'live' ? load.allTransactions : null, load.state === 'live' ? load.allAccounts : undefined);
+  // Spending here is what was bought: a pay-later purchase on its own day and category, and only the interest and fees in its
+  // installments. The bank's list itself is not changed.
+  const { ledger, spending } = useBnpl(load);
   const data = useMemo(
     () =>
       load.state === 'live' && recurring
-        ? buildPatterns(load.allTransactions, load.allAccounts, filters, recurring, rules)
+        ? buildPatterns(spending, load.allAccounts, filters, recurring, rules)
         : SAMPLE_PATTERNS,
-    [load, filters, recurring, rules],
+    [load, spending, filters, recurring, rules],
   );
 
   const pool = useMemo(() => {
@@ -426,17 +430,18 @@ export default function PatternsTab({ load }: { load: Load }) {
   const detailData = useMemo(() => {
     if (!selected) return null;
     const isLive = load.state === 'live';
-    const txns = isLive ? load.allTransactions : sampleTransactionsFor(selected);
+    const txns = isLive ? spending : sampleTransactionsFor(selected);
     const scope = isLive ? data.scope : sampleScope(txns);
     const accounts = isLive
       ? load.allAccounts.map((a) => ({ id: a.id, current: a.type === 'credit' ? null : a.current }))
       : [{ id: 'sample', current: 4200 }];
     const metrics = computePatternMetrics(selected, txns, scope, data.income);
-    // Running balances are worked out across every account first (credit cards show none).
-    const balanced = new Map(withBalances(txns, accounts).map((t) => [t.id, t]));
-    const pick = (rows: typeof txns) => rows.map((t) => balanced.get(t.id)!);
+    // Running balances are worked out across every account first (credit cards show none), from the bank's own transactions.
+    // The rows listed are those transactions, as the bank shows them; a purchase recorded in Loans has no bank row or balance.
+    const balanced = new Map(withBalances(isLive ? load.allTransactions : txns, accounts).map((t) => [t.id, t]));
+    const pick = (rows: typeof txns) => rows.map((t) => balanced.get(t.id) ?? { ...t, balance: null });
     return { metrics, periodRows: pick(metrics.periodRows), historyRows: pick(metrics.historyRows) };
-  }, [selected, load, data]);
+  }, [selected, load, data, spending]);
 
   // Filters count as active when they differ from what Rules set, since that is where Reset goes back to.
   const activeFilters =
@@ -872,6 +877,7 @@ export default function PatternsTab({ load }: { load: Load }) {
       icon={<DiscIcon bubble={selected} px={mobile ? 54 : 60} />}
       periodRows={detailData.periodRows}
       historyRows={detailData.historyRows}
+      bnpl={ledger}
       onBack={() => setSelected(null)}
     />
   );

@@ -111,6 +111,10 @@ const OWN_MONEY = new Set([
   'TRANSFER_OUT_INVESTMENT_AND_RETIREMENT_FUNDS',
 ]);
 
+// A purchase recorded in Loans (see bnpl.ts) belongs to no bank account. It has this account id and is seen only when
+// every account is, never in a view of one account.
+export const RECORDED_ACCOUNT = 'recorded';
+
 const pad2 = (n: number) => String(n).padStart(2, '0');
 const isoOf = (d: Date) => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
 
@@ -194,10 +198,11 @@ export function makeScope(txns: Txn[], accounts: LinkedAccount[], filters: Patte
   const hasCredit = creditIds.size > 0;
 
   const accountOk = (t: Txn) =>
-    filters.account === 'all' || (filters.account === 'credit') === creditIds.has(t.accountId);
+    t.accountId === RECORDED_ACCOUNT ? filters.account === 'all' : filters.account === 'all' || (filters.account === 'credit') === creditIds.has(t.accountId);
 
   let historyStart: string | null = null;
-  for (const t of txns) if (accountOk(t) && (historyStart === null || t.date < historyStart)) historyStart = t.date;
+  // How far back the bank's history reaches: a purchase recorded in Loans is not part of it.
+  for (const t of txns) if (t.accountId !== RECORDED_ACCOUNT && accountOk(t) && (historyStart === null || t.date < historyStart)) historyStart = t.date;
 
   const today = isoOf(new Date());
   const start = isoDaysAgo(days - 1); // the last `days` days, today included

@@ -6,6 +6,7 @@ import { Bars, Sparkline } from '../components/overview/MiniVisuals';
 import ForecastChart from '../components/overview/ForecastChart';
 import PlumpIcon, { type PlumpName } from '../components/PlumpIcon';
 import SectionTitle from '../components/SectionTitle';
+import { useLoanObligationData } from '../lib/useLoanObligations';
 import {
   forecastDays,
   buildForecast,
@@ -156,9 +157,10 @@ export default function ForecastTab({ load }: { load: Load }) {
   const [detail, setDetail] = useState<ForecastDetail | null>(null);
   const pick = (d: ForecastDetail) => setDetail((cur) => (cur === d ? null : d));
 
+  const loanData = useLoanObligationData(load);
   const forecast = useMemo(
-    () => (live && analysis ? buildForecast(load.allTransactions, load.allAccounts, analysis, localToday(), rules) : null),
-    [live, load, analysis, rules],
+    () => (live && analysis ? buildForecast(load.allTransactions, load.allAccounts, analysis, localToday(), rules, loanData) : null),
+    [live, load, analysis, rules, loanData],
   );
 
   if (load.state === 'loading') return null;
@@ -193,8 +195,15 @@ export default function ForecastTab({ load }: { load: Load }) {
   const heaviest = f.everyday.byWeekday.indexOf(Math.max(...f.everyday.byWeekday));
   const lowTone = range.lowest.balance < 0 ? 'text-red-300' : '';
 
+  const overlapping = f.events.filter((e) => e.overlap).length;
+
   return (
     <div className="flex flex-col gap-5 overflow-x-clip px-0 pb-10 @3xl:px-1">
+      {overlapping > 0 && (
+        <div className="rounded-2xl border border-amber-300/30 bg-amber-300/5 px-4 py-3 font-support text-sm text-amber-100/90">
+          {overlapping} {overlapping === 1 ? 'payment' : 'payments'} may be counted twice, once as a loan installment and once as a recurring payment. Link the bank payments in Loans so each is counted once.
+        </div>
+      )}
       {(f.everyday.confidence === 'low' || f.paydays.length === 0) && (
         <div className="rounded-2xl border border-amber-300/30 bg-amber-300/5 px-4 py-3 font-support text-sm text-amber-100/90">
           {f.paydays.length === 0 && 'Wallex has not found pay that repeats on a schedule, so no income is projected. '}

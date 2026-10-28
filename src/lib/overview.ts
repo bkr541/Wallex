@@ -320,9 +320,11 @@ export interface Commitments {
 const SOLID = new Set(['confirmed', 'likely', 'new']);
 export const isCommitment = (r: Recurring) => r.active && SOLID.has(r.confidence);
 
-export function commitments(analysis: Analysis): Commitments {
+// `exclude` leaves out recurring items that are already counted elsewhere, such as a stream of payments that linked
+// transactions show is a loan from the Loans page.
+export function commitments(analysis: Analysis, exclude: Set<string> = new Set()): Commitments {
   const group = (kinds: Recurring['kind'][]): CommitmentGroup => {
-    const items = analysis.items.filter((r) => isCommitment(r) && kinds.includes(r.kind));
+    const items = analysis.items.filter((r) => isCommitment(r) && kinds.includes(r.kind) && !exclude.has(r.id));
     return {
       count: items.length,
       monthly: items.reduce((s, r) => s + (r.monthly ?? 0), 0),
@@ -354,6 +356,10 @@ export interface UpcomingPayment {
   dateApprox: boolean; // the day varies from month to month
   paidMonths: string[]; // "YYYY-MM" of every month this payment has already been made in
   chargeIds: string[]; // every transaction that belongs to this payment, so they can be listed together
+  recurringId?: string; // the recurring item it was predicted from
+  // Set when it is an installment of a loan from the Loans page rather than a prediction (see obligations.ts).
+  loan?: { loanId: string; installment: number; count: number; partly: boolean };
+  overlap?: string; // may also be counted as another upcoming payment; both stay until linked payments settle it
 }
 
 // The recurring payments expected in the next `windowDays`, soonest first. A weekly payment can
@@ -388,6 +394,7 @@ export function upcomingPayments(analysis: Analysis, today: string, windowDays =
           dateApprox: s.spread >= 2,
           paidMonths,
           chargeIds,
+          recurringId: r.id,
         });
         date = stepSchedule(date, s);
       }

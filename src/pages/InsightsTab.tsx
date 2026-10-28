@@ -34,6 +34,7 @@ import { useMobile } from '../lib/viewMode';
 import PlumpIcon, { type PlumpName } from '../components/PlumpIcon';
 import SectionTitle from '../components/SectionTitle';
 import { buildForecast, monthEndForecast, nextSeven, safeToSpend } from '../lib/forecast';
+import { useBnpl } from '../lib/useBnpl';
 import {
   CATEGORY_PERIODS,
   dailyInsights,
@@ -158,18 +159,20 @@ export default function InsightsTab({ load, onNavigate }: { load: Load; onNaviga
   const live = load.state === 'live';
   const today = localToday();
   const analysis = useRecurring(live ? load.allTransactions : null, live ? load.allAccounts : undefined);
+  // Spending reads the pay-later view of the transactions (a purchase once, on its own day); the forecast reads the bank's own.
+  const { data: loanData, spending } = useBnpl(load);
   const [period, setPeriod] = useState<CategoryPeriod>('month');
 
   const data = useMemo(() => {
     if (!live || !analysis) return null;
     const { allTransactions: txns, allAccounts: accounts } = load;
-    const forecast = buildForecast(txns, accounts, analysis, today, rules);
-    const pace = spendingPace(txns, accounts, rules, today);
-    const savings = savingsIdeas(txns, accounts, analysis, rules);
-    return { forecast, pace, savings, insights: dailyInsights({ txns, accounts, analysis, forecast, rules, today, pace, savings }) };
-  }, [live, load, analysis, rules, today]);
+    const forecast = buildForecast(txns, accounts, analysis, today, rules, loanData);
+    const pace = spendingPace(spending, accounts, rules, today);
+    const savings = savingsIdeas(spending, accounts, analysis, rules);
+    return { forecast, pace, savings, insights: dailyInsights({ txns: spending, accounts, analysis, forecast, rules, today, pace, savings }) };
+  }, [live, load, analysis, rules, today, loanData, spending]);
 
-  const categories = useMemo(() => (live ? topCategories(load.allTransactions, load.allAccounts, rules, today, period) : null), [live, load, rules, today, period]);
+  const categories = useMemo(() => (live ? topCategories(spending, load.allAccounts, rules, today, period) : null), [live, load, spending, rules, today, period]);
 
   if (load.state === 'loading') return null;
 

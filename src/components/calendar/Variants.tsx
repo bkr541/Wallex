@@ -3,9 +3,9 @@ import { motion } from 'motion/react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import MerchantLogo from '../MerchantLogo';
 import { money } from '../../lib/patternFormat';
-import { MONTHS, WEEKDAYS, byDate, isoOf, monthCells, todayIso, type CalEvent } from './data';
+import { MONTHS, WEEKDAYS, byDate, eventAmount, eventBadge, isoOf, monthCells, todayIso, type CalEvent } from './data';
 
-const total = (list: CalEvent[]) => list.reduce((s, e) => s + e.amount, 0);
+const total = (list: CalEvent[]) => list.reduce((s, e) => s + eventAmount(e), 0);
 const ease = [0.22, 1, 0.36, 1] as const;
 
 /* ------------------------------------------------------------------------------------------ the logo rule
@@ -99,7 +99,7 @@ export function DayList({ iso, list, className = '' }: { iso: string; list: CalE
             <li key={e.id} className="flex items-center gap-3 py-2.5">
               <Logo e={e} px={32} />
               <span className="min-w-0 flex-1 truncate text-sm font-medium">{e.name}</span>
-              <span className={`rounded-full px-2 py-0.5 font-support text-[10px] font-semibold ${e.paid ? 'bg-accent-soft text-accent' : 'bg-surface text-muted'}`}>{e.paid ? 'Paid' : 'Due'}</span>
+              <span className={`rounded-full px-2 py-0.5 font-support text-[10px] font-semibold whitespace-nowrap ${e.paid ? 'bg-accent-soft text-accent' : 'bg-surface text-muted'}`}>{eventBadge(e)}</span>
               <span className="w-20 text-right text-sm font-semibold tabular-nums">{e.approx ? '~' : ''}{money(e.amount)}</span>
             </li>
           ))}
@@ -254,7 +254,7 @@ export function Agenda({ events }: { events: CalEvent[] }) {
                 <Cluster list={list} size={46} />
                 <span className="min-w-0 flex-1">
                   <span className="block truncate text-sm font-medium">{list.map((e) => e.name).join(', ')}</span>
-                  <span className="block font-support text-xs text-muted">{list.length === 1 ? (list[0].paid ? 'Paid' : 'Due') : `${list.length} payments`}</span>
+                  <span className="block font-support text-xs text-muted">{list.length === 1 ? eventBadge(list[0]) : `${list.length} payments`}</span>
                 </span>
                 <span className="text-sm font-semibold tabular-nums">{money(total(list))}</span>
               </motion.div>

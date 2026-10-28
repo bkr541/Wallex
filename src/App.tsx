@@ -34,6 +34,7 @@ import ViewToggle from './components/ViewToggle';
 import { useIsAdmin, useIsDemoDeveloper } from './lib/admin';
 import { RefreshCw, Search, X } from 'lucide-react';
 import TransactionExport from './components/TransactionExport';
+import LoanSyncNotice from './components/LoanSyncNotice';
 import { useFramedView, useMobileView, useSmallScreen } from './lib/viewState';
 import { ViewModeProvider } from './lib/viewMode';
 import AuthScreen from './components/auth/AuthScreen';
@@ -452,7 +453,12 @@ function SignedInApp({ userId, email }: { userId: string; email: string }) {
       />
     );
   }
-  return <Shell />;
+  return (
+    <>
+      <Shell />
+      <LoanSyncNotice email={email} />
+    </>
+  );
 }
 
 export default function App() {

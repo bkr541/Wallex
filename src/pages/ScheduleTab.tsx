@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef } from 'react';
 import { motion } from 'motion/react';
 import MerchantLogo from '../components/MerchantLogo';
 import SectionTitle from '../components/SectionTitle';
-import { useCalendarEvents, WEEKDAYS, type CalEvent } from '../components/calendar/data';
+import { eventAmount, eventBadge, useCalendarEvents, WEEKDAYS, type CalEvent } from '../components/calendar/data';
 import { Cluster, DayList, NavButtons, useCal } from '../components/calendar/Variants';
 import { money } from '../lib/patternFormat';
 import { useMobile } from '../lib/viewMode';
@@ -10,7 +10,7 @@ import type { Load } from '../lib/useTransactions';
 
 const MONTH_SHORT = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 const shortDate = (iso: string) => `${MONTH_SHORT[Number(iso.slice(5, 7)) - 1]} ${Number(iso.slice(8, 10))}`;
-const total = (list: CalEvent[]) => list.reduce((s, e) => s + e.amount, 0);
+const total = (list: CalEvent[]) => list.reduce((s, e) => s + eventAmount(e), 0);
 
 // The Schedule page: a month where each merchant's round logo stands in for the day number on the days a payment lands,
 // with the day you pick listed beside it (below it on a phone) and what is coming up next.
@@ -30,7 +30,7 @@ export default function ScheduleTab({ load }: { load: Load }) {
   const due = inMonth.filter((e) => !e.paid);
   const paid = inMonth.filter((e) => e.paid);
   const next = useMemo(
-    () => events.filter((e) => e.date >= cal.today && !e.paid).sort((a, b) => a.date.localeCompare(b.date)).slice(0, 6),
+    () => events.filter((e) => e.date >= cal.today && !e.paid && e.counted !== false).sort((a, b) => a.date.localeCompare(b.date)).slice(0, 6),
     [events, cal.today],
   );
 
@@ -115,7 +115,7 @@ export default function ScheduleTab({ load }: { load: Load }) {
                       <MerchantLogo name={e.name} sources={e.logos} className="h-8 w-8 text-[10px]" />
                       <span className="min-w-0 flex-1">
                         <span className="block truncate text-sm font-medium">{e.name}</span>
-                        <span className="block font-support text-xs text-muted">{shortDate(e.date)}</span>
+                        <span className="block font-support text-xs text-muted">{shortDate(e.date)}{e.bnpl ? ` · ${eventBadge(e)}` : ''}</span>
                       </span>
                       <span className="text-sm font-semibold tabular-nums">{e.approx ? '~' : ''}{money(e.amount)}</span>
                     </button>
@@ -124,7 +124,7 @@ export default function ScheduleTab({ load }: { load: Load }) {
               </ul>
             )}
           </div>
-          <p className="px-1 font-support text-xs text-muted">{sample ? 'These are sample payments until a bank is connected.' : 'Built from the recurring payments Wallex found in your linked accounts.'}</p>
+          <p className="px-1 font-support text-xs text-muted">{sample ? 'These are sample payments until a bank is connected.' : 'Built from the recurring payments Wallex found in your linked accounts, and the pay-later loans you track.'}</p>
         </div>
       </div>
     </div>

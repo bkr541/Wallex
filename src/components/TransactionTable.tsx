@@ -4,6 +4,7 @@ import MerchantLogo from './MerchantLogo';
 import type { TxnWithBalance } from '../lib/balances';
 import { useMobile } from '../lib/viewMode';
 import { INCOME_TYPE_LABEL, INCOME_TYPE_TONE, incomeTypeOf } from '../lib/incomeType';
+import { bnplTag, type BnplLedger } from '../lib/bnpl';
 
 // Transaction fields from Plaid's /transactions/sync response.
 const COLUMNS = [
@@ -51,14 +52,20 @@ const rowVariants = {
   }),
 };
 
+// A pay-later loan's payments, purchase and fees are tagged. One Wallex only suspects is worded as a suspicion.
+const BNPL_TONE = 'bg-violet-300/15 text-violet-200';
+const BNPL_MAYBE = 'bg-surface text-muted';
+
 export default function TransactionTable({
   rows,
   emptyText = 'No transactions yet for this account.',
   showEmpty = true,
+  bnpl,
 }: {
   rows: TxnWithBalance[];
   emptyText?: string;
   showEmpty?: boolean;
+  bnpl?: BnplLedger;
 }) {
   const mobile = useMobile();
   const grid = mobile ? GRID_MOBILE : GRID;
@@ -119,6 +126,9 @@ export default function TransactionTable({
                     {mobile && incomeTypeOf(t) && (
                       <span className={`shrink-0 rounded-full px-2 py-px font-support text-[10px] leading-4 ${INCOME_TYPE_TONE[incomeTypeOf(t)!]}`}>{INCOME_TYPE_LABEL[incomeTypeOf(t)!]}</span>
                     )}
+                    {mobile && !incomeTypeOf(t) && bnpl && bnplTag(bnpl, t.id) && (
+                      <span className={`shrink-0 rounded-full px-2 py-px font-support text-[10px] leading-4 ${bnplTag(bnpl, t.id)!.confirmed ? BNPL_TONE : BNPL_MAYBE}`}>{bnplTag(bnpl, t.id)!.label}</span>
+                    )}
                   </span>
                 </div>
                 {!mobile && (
@@ -129,6 +139,8 @@ export default function TransactionTable({
                     <div role="cell" className="min-w-0">
                       {incomeTypeOf(t) ? (
                         <span className={`inline-block max-w-full truncate rounded-full px-2.5 py-0.5 font-support text-xs ${INCOME_TYPE_TONE[incomeTypeOf(t)!]}`}>{INCOME_TYPE_LABEL[incomeTypeOf(t)!]}</span>
+                      ) : bnpl && bnplTag(bnpl, t.id) ? (
+                        <span title={[bnplTag(bnpl, t.id)!.full, bnplTag(bnpl, t.id)!.detail].filter(Boolean).join(' · ')} className={`inline-block max-w-full truncate rounded-full px-2.5 py-0.5 font-support text-xs ${bnplTag(bnpl, t.id)!.confirmed ? BNPL_TONE : BNPL_MAYBE}`}>{bnplTag(bnpl, t.id)!.label}</span>
                       ) : (
                         <span className="font-support text-muted">—</span>
                       )}
@@ -169,8 +181,10 @@ export default function TransactionTable({
                   >
                     {(() => {
                       const incomeType = incomeTypeOf(t);
+                      const tag = bnpl ? bnplTag(bnpl, t.id) : null;
                       const fields = [
                         ...(incomeType ? [{ label: 'Income Type', value: INCOME_TYPE_LABEL[incomeType] }] : []),
+                        ...(tag ? [{ label: 'Pay-Later', value: tag.detail ? `${tag.full} · ${tag.detail}` : tag.full }] : []),
                         ...(mobile
                           ? [
                               { label: 'Category', value: t.category },

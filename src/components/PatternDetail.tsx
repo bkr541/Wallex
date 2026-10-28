@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { motion } from 'motion/react';
 import { AudioLines, CalendarDays, ChevronUp, ReceiptText } from 'lucide-react';
+import type { BnplLedger } from '../lib/bnpl';
 import TransactionTable from './TransactionTable';
 import { useMobile } from '../lib/viewMode';
 import type { TxnWithBalance } from '../lib/balances';
@@ -95,6 +96,7 @@ export default function PatternDetail({
   icon,
   periodRows,
   historyRows,
+  bnpl,
   onBack,
 }: {
   bubble: Bubble;
@@ -104,6 +106,7 @@ export default function PatternDetail({
   icon: React.ReactNode;
   periodRows: TxnWithBalance[];
   historyRows: TxnWithBalance[];
+  bnpl?: BnplLedger;
   onBack: () => void;
 }) {
   const mobile = useMobile();
@@ -304,6 +307,7 @@ export default function PatternDetail({
       <motion.div variants={rise} custom={2} className="mt-5">
         <TransactionTable
           rows={rows}
+          bnpl={bnpl}
           emptyText={scope === 'period' ? 'No transactions for this in the selected period.' : 'No transactions found for this item.'}
         />
       </motion.div>

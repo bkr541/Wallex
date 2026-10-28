@@ -7,6 +7,7 @@ import { getGoals, hydrateGoals } from './goals';
 import { getRules, hydrateRules, rulesAreDefault } from './rules';
 import { getOverrides, hydrateOverrides, type Override } from './recurringOverrides';
 import { getMobileView, hydrateMobileView } from './viewState';
+import { loanSync } from './loanSync';
 
 const readObject = (key: string): Record<string, unknown> => {
   try {
@@ -111,4 +112,8 @@ export async function hydrateCloudUser(userId: string, email: string) {
     ]));
     hydrateOverrides(remote);
   }
+
+  // Loans and what hangs off them live in their own tables and sync on their own: the app does not wait for them, so a slow
+  // or unreachable account shows this device's saved copy instead of holding everything up.
+  void loanSync.start(userId);
 }
