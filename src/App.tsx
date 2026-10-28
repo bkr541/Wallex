@@ -128,6 +128,7 @@ function Shell() {
   useEffect(() => {
     setRecSearch(false);
   }, [activeId, activeTab]);
+  const noHeader = activeId === 'overview';
   const onBankTab = activeId === 'transactions' && activeTab !== 'Recurring' && activeTab !== 'Loans';
   const spreadTabs = mobile && activeId !== 'transactions';
 
@@ -241,6 +242,8 @@ function Shell() {
           mobile ? 'inset-x-0 top-0 bottom-[calc(6rem+env(safe-area-inset-bottom))]' : 'inset-y-0 right-8 left-32 pt-6 pb-8'
         }`}
       >
+        {/* Overview has no banner: it opens straight on its tabs. */}
+        {!noHeader && (
         <PageHeader
           page={activePage}
           compact={mobile}
@@ -273,6 +276,7 @@ function Shell() {
             ) : undefined
           }
         />
+        )}
 
         {tabs.length > 0 && (
         <div
@@ -281,7 +285,7 @@ function Shell() {
           className={`flex items-center border-b border-line ${
             // On a phone the tabs spread across the width, except where their names are too long to share it (Transactions),
             // which scrolls sideways. The row never scrolls up and down.
-            mobile ? `mx-4 mt-4 overflow-x-auto overflow-y-hidden ${spreadTabs ? 'justify-between' : 'justify-start gap-3'}` : 'mt-6 w-full justify-start gap-3'
+            mobile ? `mx-4 ${noHeader ? 'mt-[max(1rem,env(safe-area-inset-top))]' : 'mt-4'} overflow-x-auto overflow-y-hidden ${spreadTabs ? 'justify-between' : 'justify-start gap-3'}` : `${noHeader ? 'mt-0' : 'mt-6'} w-full justify-start gap-3`
           }`}
         >
           {tabs.map((tab) => {
