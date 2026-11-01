@@ -171,7 +171,7 @@ const ARC_COLORS = ['var(--accent)', 'color-mix(in srgb, var(--accent) 62%, whit
 function CommitmentRing({
   label,
   count,
-  centerLabel = 'Active',
+  centerLabel,
   headline,
   headlineNote,
   items,
@@ -224,7 +224,9 @@ function CommitmentRing({
         </svg>
         <span className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center px-3 text-center">
           <span className="max-w-full truncate text-[24px] leading-none font-semibold tabular-nums">{hotArc ? (hotArc.display || '—') : count}</span>
-          <span className="mt-0.5 max-w-full truncate font-support text-[9px] font-bold tracking-[0.2em] text-muted uppercase">{hotArc ? hotArc.name : count === 0 ? 'None' : centerLabel}</span>
+          {(hotArc || count === 0 || centerLabel) && (
+            <span className="mt-0.5 max-w-full truncate font-support text-[9px] font-bold tracking-[0.2em] text-muted uppercase">{hotArc ? hotArc.name : count === 0 ? 'None' : centerLabel}</span>
+          )}
         </span>
       </span>
       <span className="min-w-0">
@@ -237,7 +239,7 @@ function CommitmentRing({
           {headlineNote && <span className="font-support text-sm font-normal text-muted"> {headlineNote}</span>}
         </span>
         {unidentified > 0 ? (
-          <span className="mt-1.5 inline-flex items-center gap-1.5 rounded-full border border-amber-300/30 bg-amber-300/10 px-2 py-0.5 font-support text-[11px] text-amber-300">
+          <span className="mt-1.5 inline-flex items-center gap-1.5 font-support text-[11px] text-amber-300">
             <span className="h-1.5 w-1.5 rounded-full bg-amber-300" />
             {unidentified} Unidentified
           </span>
@@ -381,12 +383,9 @@ export default function OverviewTab({
   const savings = savingsOver(buckets);
   const anyFlow = buckets.some((b) => b.moneyIn > 0 || b.moneyOut > 0);
 
-  // The last twelve months, ending with this one, for the "paid this month" badges.
-  const [thisYear, thisMonth] = scope.today.slice(0, 7).split('-').map(Number);
-  const monthSlots = Array.from({ length: 12 }, (_, i) => {
-    const d = new Date(Date.UTC(thisYear, thisMonth - 1 - (11 - i), 1));
-    return { key: d.toISOString().slice(0, 7), label: MONTH_NAMES[d.getUTCMonth()], year: d.getUTCFullYear() };
-  });
+  // The twelve months of this year, January to December, for the "paid this month" badges.
+  const [thisYear] = scope.today.slice(0, 7).split('-').map(Number);
+  const monthSlots = Array.from({ length: 12 }, (_, i) => ({ key: `${thisYear}-${String(i + 1).padStart(2, '0')}`, label: MONTH_NAMES[i], year: thisYear }));
 
   const lowMonths = monthEnds.filter((m) => m.balance < LOW_BALANCE).length;
   const lowest = monthEnds.length ? monthEnds.reduce((lo, m) => (m.balance < lo.balance ? m : lo)) : null;
@@ -542,7 +541,7 @@ export default function OverviewTab({
             onOpen={() => onNavigate('transactions', 'Recurring', 'bills')}
           />
           <CommitmentRing
-            label="Debt & Installments"
+            label="Obligations"
             count={owed.debt.count}
             headline={owed.debt.count ? `${money(owed.debt.monthly)}` : 'None Found'}
             headlineNote={owed.debt.count ? '/ mo' : undefined}
@@ -563,7 +562,6 @@ export default function OverviewTab({
           <CommitmentRing
             label="Bank Fees"
             count={fees.count}
-            centerLabel="Charges"
             headline={fees.count ? money(fees.total) : 'None'}
             detail={fees.count ? fees.types.join(', ') : `No fees in the last ${periodLabel}`}
             items={fees.types.map((t) => ({ name: t, value: 1, display: '' }))}
@@ -719,14 +717,14 @@ export default function OverviewTab({
                         </span>
                         <span className="text-sm font-medium tabular-nums">{p.amountApprox ? approx(p.amount) : money(p.amount)}</span>
                       </div>
-                      {/* The last twelve months, spread across the full width: green for every month a payment was made */}
+                      {/* January to December, spread across the full width: green for every month of this year a payment was made */}
                       <div className="mt-3 flex justify-between" role="group" aria-label={`Months ${p.name} was paid`}>
                         {monthSlots.map((m) => {
                           const paid = p.paidMonths.includes(m.key);
                           return (
                             <span
                               key={m.key}
-                              title={`${m.label} ${m.year} · ${paid ? 'paid' : 'no payment found'}`}
+                              title={`${m.label} ${m.year} · ${paid ? 'paid' : m.key > scope.today.slice(0, 7) ? 'not due yet' : 'no payment found'}`}
                               className={`font-support text-[11px] @3xl:text-xs ${paid ? 'font-semibold text-accent' : 'text-muted'}`}
                             >
                               {m.label}

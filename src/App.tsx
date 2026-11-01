@@ -34,6 +34,9 @@ import ViewToggle from './components/ViewToggle';
 import { useIsAdmin, useIsDemoDeveloper } from './lib/admin';
 import { RefreshCw, Search, X } from 'lucide-react';
 import TransactionExport from './components/TransactionExport';
+import MerchantLogo from './components/MerchantLogo';
+import { bankLogoSources } from './lib/bankLogo';
+import { ALL_TRANSACTIONS_TAB } from './lib/transactionRows';
 import LoanSyncNotice from './components/LoanSyncNotice';
 import { useFramedView, useMobileView, useSmallScreen } from './lib/viewState';
 import { ViewModeProvider } from './lib/viewMode';
@@ -119,9 +122,9 @@ function Shell() {
   const framed = useFramedView();
 
   const activePage = NAV.find((item) => item.id === activeId)!;
-  // Transactions has one tab for each linked bank, then Recurring and Loans.
+  // Transactions has a tab with everything, one tab for each linked bank, then Recurring and Loans.
   const banks = bankNames(load);
-  const baseTabs = activeId === 'transactions' ? [...(banks.length ? banks : ['Checking']), 'Recurring', 'Loans'] : (activePage.tabs ?? TABS);
+  const baseTabs = activeId === 'transactions' ? [ALL_TRANSACTIONS_TAB, ...(banks.length ? banks : ['Checking']), 'Recurring', 'Loans'] : (activePage.tabs ?? TABS);
   // Settings has a Demo tab for the developer account only, between Rules and Setup.
   const tabs = activeId === 'settings' && isDemoDeveloper ? baseTabs.flatMap((t) => (t === 'Setup' ? ['Demo', t] : [t])) : baseTabs;
   const stored = activeTabs[activeId];
@@ -129,7 +132,6 @@ function Shell() {
   useEffect(() => {
     setRecSearch(false);
   }, [activeId, activeTab]);
-  const noHeader = activeId === 'overview';
   const onBankTab = activeId === 'transactions' && activeTab !== 'Recurring' && activeTab !== 'Loans';
   const spreadTabs = mobile && activeId !== 'transactions';
 
@@ -243,8 +245,6 @@ function Shell() {
           mobile ? 'inset-x-0 top-0 bottom-[calc(6rem+env(safe-area-inset-bottom))]' : 'inset-y-0 right-8 left-32 pt-6 pb-8'
         }`}
       >
-        {/* Overview has no banner: it opens straight on its tabs. */}
-        {!noHeader && (
         <PageHeader
           page={activePage}
           compact={mobile}
@@ -262,7 +262,7 @@ function Shell() {
               </button>
             ) : onBankTab ? (
               <div className="flex items-center gap-2">
-                <TransactionExport load={load} bank={banks.includes(activeTab) ? activeTab : undefined} filter={txFilter} />
+                <TransactionExport load={load} bank={banks.includes(activeTab) || activeTab === ALL_TRANSACTIONS_TAB ? activeTab : undefined} filter={txFilter} />
               <button
                 type="button"
                 onClick={refresh}
@@ -277,7 +277,6 @@ function Shell() {
             ) : undefined
           }
         />
-        )}
 
         {tabs.length > 0 && (
         <div
@@ -286,7 +285,7 @@ function Shell() {
           className={`flex items-center border-b border-line ${
             // On a phone the tabs spread across the width, except where their names are too long to share it (Transactions),
             // which scrolls sideways. The row never scrolls up and down.
-            mobile ? `mx-4 ${noHeader ? 'mt-[max(1rem,env(safe-area-inset-top))]' : 'mt-4'} overflow-x-auto overflow-y-hidden ${spreadTabs ? 'justify-between' : 'justify-start gap-3'}` : `${noHeader ? 'mt-0' : 'mt-6'} w-full justify-start gap-3`
+            mobile ? `mx-4 mt-4 overflow-x-auto overflow-y-hidden ${spreadTabs ? 'justify-between' : 'justify-start gap-3'}` : 'mt-6 w-full justify-start gap-3'
           }`}
         >
           {tabs.map((tab) => {
@@ -305,7 +304,11 @@ function Shell() {
                 }`}
               >
                 <span className={`flex items-center gap-2 ${spreadTabs ? 'justify-center' : ''}`}>
-                  {activeId === 'transactions' && (tab === 'Checking' || /chase/i.test(tab)) && <ChaseLogo className="h-4 w-4" />}
+                  {activeId === 'transactions' && banks.includes(tab) ? (
+                    /chase/i.test(tab) ? <ChaseLogo className="h-4 w-4" /> : <MerchantLogo name={tab} sources={bankLogoSources(tab)} className="h-4 w-4 text-[7px]" />
+                  ) : activeId === 'transactions' && tab === 'Checking' ? (
+                    <ChaseLogo className="h-4 w-4" />
+                  ) : null}
                   {tab}
                 </span>
               </button>
@@ -341,7 +344,7 @@ function Shell() {
           ) : activeId === 'settings' && activeTab === 'Setup' ? (
             <SetupTab onConnectionChange={refresh} />
           ) : onBankTab ? (
-            <CheckingTab bank={banks.includes(activeTab) ? activeTab : undefined} load={load} filter={txFilter} onClearFilter={() => setTxFilter(null)} />
+            <CheckingTab bank={banks.includes(activeTab) || activeTab === ALL_TRANSACTIONS_TAB ? activeTab : undefined} load={load} filter={txFilter} onClearFilter={() => setTxFilter(null)} />
           ) : activeId === 'scratchpad' && activeTab === 'UI Components' ? (
             <ComponentsTab />
           ) : activeId === 'scratchpad' && activeTab === 'Calendar' ? (

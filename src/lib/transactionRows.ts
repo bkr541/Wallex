@@ -46,9 +46,16 @@ const SAMPLES: Txn[] = SAMPLE_TRANSACTIONS.map((t, i) => ({
   ],
 }));
 
+// The Transactions tab that lists every transaction from every linked account.
+export const ALL_TRANSACTIONS_TAB = 'Open Quote';
+
 export function transactionRows(load: Load, bank?: string) {
   if (load.state === 'sample') return withBalances(SAMPLES, [SAMPLE_ACCOUNT]);
   if (load.state !== 'live') return [];
+  if (bank === ALL_TRANSACTIONS_TAB) {
+    // A card's running balance is what is owed, not cash, so cards show none.
+    return withBalances(load.allTransactions, load.allAccounts.map((a) => ({ id: a.id, current: a.type === 'credit' ? null : a.current })));
+  }
   const accounts = bank ? load.allAccounts.filter((a) => bankOf(a) === bank) : load.accounts;
   const ids = new Set(accounts.map((a) => a.id));
   return withBalances(load.allTransactions.filter((t) => ids.has(t.accountId)), accounts);
